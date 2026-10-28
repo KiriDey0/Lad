@@ -51,7 +51,7 @@ java -cp gradle/wrapper/gradle-wrapper.jar org.gradle.wrapper.GradleWrapperMain 
 
 Для подписанного release передай `LAD_ANDROID_KEYSTORE`, `LAD_ANDROID_STORE_PASSWORD`, `LAD_ANDROID_KEY_ALIAS`, `LAD_ANDROID_KEY_PASSWORD` через защищённое окружение. Без этих параметров release APK собирается без подписи; debug QA подписывается отдельным стандартным debug-ключом. Для обновления существующего приложения используй его прежний сертификат.
 
-Для release замени задачи на `:app:assembleRelease :app:lintRelease`. Используется JDK 17. Wrapper проверяет SHA-256 Gradle distribution. Телефон поддерживает API 26+, TV — API 28+ и ARMv7.
+Для выпуска используй из корня репозитория `python3 scripts/build-native.py android` или `python3 scripts/build-native.py tv`. Скрипт выполняет чистую сборку, тесты и lint, затем сверяет номера в APK с `release-config.json`. Для QA добавь `--debug`. При прямом вызове Gradle release-задач сначала выполняй `:app:clean`. Используется JDK 17. Wrapper проверяет SHA-256 Gradle distribution. Телефон поддерживает API 26+, TV — API 28+ и ARMv7.
 
 Тестовый пакет имеет suffix `.qa`. Для телефонных device-тестов:
 
