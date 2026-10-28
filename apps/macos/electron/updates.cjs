@@ -18,6 +18,36 @@ async function request(url, signal) {
   throw Error('Слишком много перенаправлений');
 }
 async function hashFile(file) { const h=crypto.createHash('sha256'); for await(const chunk of fs.createReadStream(file))h.update(chunk);return h.digest('hex'); }
+function helperExecutable(platform) {
+  return platform.startsWith('macos') ? '/bin/sh' : path.join(process.env.SystemRoot || 'C:/Windows','System32','WindowsPowerShell','v1.0','powershell.exe');
+}
+async function startHelper(command,args,started,windows) {
+  // Windows PowerShell needs its own console session to survive the app closing.
+  // A short launcher creates a hidden process; the actual helper confirms readiness.
+  let launchArgs=args;
+  if(windows) {
+    const ps=s=>"'"+s.replaceAll("'","''")+"'";
+    const commandLine=args.map(s=>'"'+s.replaceAll('"','\\"')+'"').join(' ');
+    const source=`$ErrorActionPreference='Stop'; Start-Process -FilePath ${ps(command)} -ArgumentList ${ps(commandLine)} -WindowStyle Hidden`;
+    launchArgs=['-NoProfile','-NonInteractive','-EncodedCommand',Buffer.from(source,'utf16le').toString('base64')];
+  }
+  const child=spawn(command,launchArgs,{detached:!windows,stdio:'ignore',windowsHide:true});
+  await new Promise((resolve,reject)=>{child.once('spawn',resolve);child.once('error',reject);});
+  let exited=false;
+  const onExit=()=>{exited=true;};child.once('exit',onExit);
+  try {
+    if(started) {
+      let ready=false;
+      for(let i=0;i<150;i++) {
+        if(fs.existsSync(started)){ready=true;break;}
+        if(exited&&!windows)throw Error('Не удалось запустить установщик. Попробуй ещё раз');
+        await new Promise(resolve=>setTimeout(resolve,100));
+      }
+      if(!ready){child.kill();throw Error('Установщик не ответил. Попробуй ещё раз');}
+    }
+    child.unref();return child;
+  } finally {child.removeListener('exit',onExit);}
+}
 class UpdateService {
   constructor({version,platform,cache,emit,execPath,appPath,quit,verify=verifyManifest,fetcher=request}) {
     this.verify=verify;this.fetcher=fetcher;this.version=version;this.platform=platform;this.cache=cache;this.emit=emit;this.execPath=execPath;this.appPath=appPath;this.quit=quit;this.generation=0;this.state={phase:'idle',currentVersion:version,progress:0};
@@ -92,14 +122,15 @@ class UpdateService {
       if(this.appPath.startsWith(target+path.sep)===false)throw Error('Не удалось определить установленное приложение');
       await fsp.access(this.platform.startsWith('macos')?path.dirname(target):target,fs.constants.W_OK);
       const dir=await fsp.mkdtemp(path.join(path.dirname(this.file),'install-')),ack=path.join(dir,'launch-confirmed'),journal=path.join(this.cache,'last-install.json');
-      const job={parentPid:process.pid,target,executable:this.execPath,file:this.file,version:c.version,ack,journal,installer:this.platform.endsWith('installer')};
+      const started=this.platform.startsWith('windows')?path.join(dir,'helper-ready'):null;
+      const job={started,parentPid:process.pid,target,executable:this.execPath,file:this.file,version:c.version,ack,journal,installer:this.platform.endsWith('installer')};
       const source=path.join(__dirname,this.platform.startsWith('macos')?'update-macos.sh':'update-windows.ps1'),script=path.join(dir,path.basename(source));
       await fsp.copyFile(source,script);await fsp.chmod(script,0o700);
       const args=this.platform.startsWith('macos')?[script,String(job.parentPid),target,this.file,c.version,ack,journal]:['-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',script,'-JobFile',path.join(dir,'job.json')];
       await fsp.writeFile(path.join(dir,'job.json'),JSON.stringify(job),{mode:0o600});
-      const helper=spawn(this.platform.startsWith('macos')?'/bin/sh':'powershell.exe',args,{detached:true,stdio:'ignore',windowsHide:true});
-      await new Promise((resolve,reject)=>{helper.once('spawn',resolve);helper.once('error',reject);});helper.unref();this.quit();return this.state;
+      await startHelper(helperExecutable(this.platform),args,started,this.platform.startsWith('windows'));
+      this.quit();return this.state;
     }catch(e){return this.set({phase:'error',message:e.code==='EACCES'?'Нет прав на обновление этой папки. Перемести Лад в доступную папку':e.message});}
   }
 }
-module.exports={UpdateService,request,hashFile};
+module.exports={UpdateService,request,hashFile,helperExecutable,startHelper};

@@ -5,6 +5,7 @@ $j=Get-Content -LiteralPath $JobFile -Raw -Encoding UTF8 | ConvertFrom-Json
 $backup=Join-Path (Split-Path -Parent $JobFile) 'previous'
 $replaced=$false
 try {
+  if($j.started){'ready' | Set-Content -LiteralPath $j.started -Encoding UTF8}
   for($i=0;$i -lt 90;$i++) { if(!(Get-Process -Id $j.parentPid -ErrorAction SilentlyContinue)){break};Start-Sleep -Seconds 1 }
   if(Get-Process -Id $j.parentPid -ErrorAction SilentlyContinue){throw 'Application is still running'}
   Copy-Item -LiteralPath $j.target -Destination $backup -Recurse

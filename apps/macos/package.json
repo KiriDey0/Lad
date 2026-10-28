@@ -1,6 +1,6 @@
 {
   "name": "lad-music",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "private": true,
   "description": "Клиент Яндекс Музыки для Яндекс Станции",
   "main": "electron/main.cjs",

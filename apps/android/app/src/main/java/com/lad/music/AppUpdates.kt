@@ -22,6 +22,12 @@ import okhttp3.Request
 import okhttp3.Response
 import org.json.JSONObject
 
+// Android 9 vendor PackageManager implementations may omit archive signingInfo
+// unless both certificate flags are requested. Both still collect the actual APK signature.
+internal fun updateSignatureFlags(): Int = if (Build.VERSION.SDK_INT >= 28)
+    PackageManager.GET_SIGNING_CERTIFICATES or PackageManager.GET_SIGNATURES
+else PackageManager.GET_SIGNATURES
+
 data class UpdateState(val phase:String="idle",val version:String="",val progress:Int=0,val message:String="",val notes:String="",val size:Long=0)
 class AppUpdates(private val context:Context) {
     private val scope=CoroutineScope(SupervisorJob()+Dispatchers.IO)
@@ -101,7 +107,7 @@ class AppUpdates(private val context:Context) {
     @Suppress("DEPRECATION")
     private fun verifyApk(f:File,r:UpdateRelease) {
         val pm=context.packageManager
-        val flags=if(Build.VERSION.SDK_INT>=28)PackageManager.GET_SIGNING_CERTIFICATES else PackageManager.GET_SIGNATURES
+        val flags=updateSignatureFlags()
         val archive=pm.getPackageArchiveInfo(f.absolutePath,flags) ?: error("Не удалось проверить APK")
         val installed=pm.getPackageInfo(context.packageName,flags)
         require(archive.packageName==context.packageName&&PackageInfoCompat.getLongVersionCode(archive)==r.build&&archive.versionName==r.version){"APK не соответствует версии приложения"}
