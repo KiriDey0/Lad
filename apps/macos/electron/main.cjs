@@ -64,7 +64,7 @@ let secrets = {},
 let lastState;
 function loadSession() {
   try {
-    if (safeStorage.isEncryptionAvailable())
+    if (fs.existsSync(secretPath()) && safeStorage.isEncryptionAvailable())
       secrets = JSON.parse(
         safeStorage.decryptString(fs.readFileSync(secretPath())),
       );
@@ -372,6 +372,25 @@ app.whenReady().then(() => {
   if (process.env.LAD_USER_DATA)
     app.setPath("userData", process.env.LAD_USER_DATA);
   loadSession();
+  const { UpdateService } = require("./updates.cjs");
+  const platform = process.platform === "darwin" ? "macos-arm64" :
+    "windows-x64-" + (fs.readdirSync(path.dirname(process.execPath)).some(n => /^uninstall.*\.exe$/i.test(n)) ? "installer" : "portable");
+  const updater = new UpdateService({version:app.getVersion(),platform,
+    cache:path.join(dataPath(),"updates"),execPath:process.execPath,appPath:app.getAppPath(),
+    emit:state => { if(window && !window.isDestroyed())window.webContents.send("lad:update",state); },
+    quit:() => app.quit()});
+  ipcMain.handle("lad:updates", async (event, action) => {
+    if(event.sender !== window?.webContents || !["state","check","download","cancel","install"].includes(action))throw Error("Действие недоступно");
+    if(action === "install" && !app.isPackaged)throw Error("Установка доступна в собранном приложении");
+    return updater.action(action);
+  });
+  if(process.env.LAD_UPDATE_ACK) {
+    const ack = process.env.LAD_UPDATE_ACK;
+    delete process.env.LAD_UPDATE_ACK;
+    const ready = () => { if(window?.webContents.isLoading() || !lastState || !child || child.exitCode !== null)setTimeout(ready,100);else fs.writeFileSync(ack,JSON.stringify({version:app.getVersion(),authenticated:!!lastState.profile,queueCount:lastState.queue?.tracks?.length||0}),{mode:0o600}); };
+    backendReady.then(()=>setTimeout(ready,300));
+  }
+
   const menu = [
     ...(process.platform === "darwin"
       ? [

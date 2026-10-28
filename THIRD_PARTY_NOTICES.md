@@ -13,3 +13,5 @@
 | Electron, React, Kotlin, AndroidX, Media3, OkHttp, Coil, Haze и инструменты сборки | Лицензии соответствующих upstream-проектов и desktop-каталогов `licenses/`; версии зафиксированы в lockfiles и Gradle |
 
 Исходники `backend/vendor/yandex_music` сохранены с исходными заголовками. Полный список desktop-уведомлений находится в `apps/macos/licenses/` и `apps/windows/licenses/`. Каталоги включаются в desktop-сборки. Торговые марки, обложки и музыкальный каталог не передаются под лицензией кода Лада.
+
+- **Bouncy Castle lightweight Ed25519** (Android/TV): Bouncy Castle License (MIT). Текст поставляется в `app/src/main/assets/licenses/Bouncy-Castle-LICENSE.txt`.

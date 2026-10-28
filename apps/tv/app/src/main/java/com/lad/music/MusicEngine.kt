@@ -15,6 +15,7 @@ import kotlinx.coroutines.sync.withLock
 import org.json.*
 
 class LadApplication : Application() {
+    val updates by lazy { AppUpdates(this) }
     lateinit var engine: MusicEngine
 
     override fun onCreate() {

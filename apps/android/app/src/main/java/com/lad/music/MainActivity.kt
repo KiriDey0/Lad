@@ -39,6 +39,11 @@ class MainActivity : ComponentActivity() {
         return super.onKeyUp(keyCode, event)
     }
 
+    override fun onResume() {
+        super.onResume()
+        (application as LadApplication).updates.onResume(this)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()

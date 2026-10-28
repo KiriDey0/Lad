@@ -1,12 +1,19 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 plugins { id("com.android.application"); id("org.jetbrains.kotlin.android"); id("org.jetbrains.kotlin.plugin.compose") }
+val releaseKeystore = System.getenv("LAD_ANDROID_KEYSTORE")
 android {
+    if (releaseKeystore != null) signingConfigs.create("distribution") {
+        storeFile = file(releaseKeystore)
+        storePassword = System.getenv("LAD_ANDROID_STORE_PASSWORD")
+        keyAlias = System.getenv("LAD_ANDROID_KEY_ALIAS")
+        keyPassword = System.getenv("LAD_ANDROID_KEY_PASSWORD")
+    }
     useLibrary("android.test.runner")
     useLibrary("android.test.base")
     useLibrary("android.test.mock")
     namespace = "com.lad.music"
     compileSdk = 35
-    defaultConfig { applicationId = "com.lad.music"; minSdk = 26; targetSdk = 35; versionCode = 10; versionName = "0.1.9-android"; testInstrumentationRunner = "android.test.InstrumentationTestRunner" }
+    defaultConfig { applicationId = "com.lad.music"; minSdk = 26; targetSdk = 35; versionCode = 30000; versionName = "0.3.0"; testInstrumentationRunner = "android.test.InstrumentationTestRunner" }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
     kotlinOptions { jvmTarget = "17" }
     buildFeatures { compose = true; buildConfig = true }
@@ -25,7 +32,7 @@ android {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = if (releaseKeystore != null) signingConfigs.getByName("distribution") else null
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
         }
     }
@@ -33,6 +40,7 @@ android {
     testOptions { unitTests.isReturnDefaultValues = true }
 }
 dependencies {
+    implementation("org.bouncycastle:bcprov-jdk15to18:1.86")
     implementation(platform("androidx.compose:compose-bom:2024.09.03"))
     implementation("androidx.compose.ui:ui:1.7.8")
     implementation("androidx.compose.foundation:foundation:1.7.8")

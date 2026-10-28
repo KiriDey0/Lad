@@ -49,6 +49,8 @@ cd apps/android   # либо apps/tv
 java -cp gradle/wrapper/gradle-wrapper.jar org.gradle.wrapper.GradleWrapperMain :app:testDebugUnitTest :app:assembleDebug :app:lintDebug
 ```
 
+Для подписанного release передай `LAD_ANDROID_KEYSTORE`, `LAD_ANDROID_STORE_PASSWORD`, `LAD_ANDROID_KEY_ALIAS`, `LAD_ANDROID_KEY_PASSWORD` через защищённое окружение. Без этих параметров release APK собирается без подписи; debug QA подписывается отдельным стандартным debug-ключом. Для обновления существующего приложения используй его прежний сертификат.
+
 Для release замени задачи на `:app:assembleRelease :app:lintRelease`. Используется JDK 17. Wrapper проверяет SHA-256 Gradle distribution. Телефон поддерживает API 26+, TV — API 28+ и ARMv7.
 
 Тестовый пакет имеет suffix `.qa`. Для телефонных device-тестов:

@@ -61,6 +61,9 @@ class MainActivity : Activity() {
     private var ambient = false
     private var lastInput = 0L
     private var stateKey = ""
+    private val updater by lazy { (application as LadApplication).updates }
+    private var updatePhase = ""
+    private var updateProgressLabel: TextView? = null
     private var deviceScanJob: Job? = null
     private var devicesLoading = false
     private var devicesError = ""
@@ -405,6 +408,11 @@ class MainActivity : Activity() {
         return v
     }
 
+    override fun onResume() {
+        super.onResume()
+        (application as LadApplication).updates.onResume(this)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.decorView.systemUiVisibility =
@@ -433,6 +441,14 @@ class MainActivity : Activity() {
                     if (state.track?.id != lyricTrack) loadLyrics()
                 }
                 updateClock()
+            }
+        }
+        scope.launch {
+            updater.state.collect { update ->
+                if (modal == "updates") {
+                    if (update.phase != updatePhase) { updatePhase = update.phase; build(activeFocus) }
+                    else updateProgressLabel?.text = if(update.phase=="downloading") "Загружено ${update.progress}% · можно слушать музыку" else update.message
+                }
             }
         }
         scope.launch { engine.auth.collect { if (page == "login") build(activeFocus) } }
@@ -1692,6 +1708,7 @@ class MainActivity : Activity() {
 
     private fun settingsPage() {
         label(pageLayer, "Настройки", 260, 160, 1500, 58, 48, ink, true)
+        button(pageLayer,"settings-updates","Лад ${BuildConfig.VERSION_NAME} · Обновления",1336,164,488,64) { showModal("updates") }
         val body = frame(pageLayer, 248, 244, 1576, 512)
         val accentName =
             when (s.settings.accent) {
@@ -1761,12 +1778,33 @@ class MainActivity : Activity() {
         hint("OK — изменить    ↑ / ↓ — настройка    Назад — меню")
     }
 
+    private fun drawUpdates(dim: FrameLayout) {
+        val u = updater.state.value
+        updatePhase = u.phase
+        val p = glass(dim,960,96,864,888)
+        label(p,"Обновления Лада",40,40,784,68,44,ink,true)
+        label(p,"Лад ${BuildConfig.VERSION_NAME} · стабильный выпуск",40,120,784,48,28,muted)
+        val title = when(u.phase){"checking"->"Проверяем GitHub…";"available"->"Доступен Лад ${u.version}";"downloading"->"Скачивание обновления";"ready"->"Лад ${u.version} готов к установке";"current"->"Установлена последняя версия";"error"->"Не удалось обновить Лад";"installing"->"Установка обновления";else->"Обновления с GitHub"}
+        label(p,title,40,208,784,64,34,ink,true)
+        updateProgressLabel = paragraph(p,if(u.phase=="downloading")"Загружено ${u.progress}% · можно слушать музыку" else u.message.ifBlank{if(u.phase=="ready")"Откроется системное окно установки. Вход, настройки и очередь сохранятся." else "Проверка и загрузка выполняются по твоей команде."},40,292,784,132,28)
+        if(u.notes.isNotBlank() && u.phase in listOf("available","ready"))paragraph(p,u.notes.take(600),40,440,784,184,26)
+        when(u.phase) {
+            "available" -> button(p,"update-download","Скачать · ${(u.size+1048575)/1048576} МБ",40,672,784,72){updater.download()}
+            "ready" -> button(p,"update-install","Установить обновление",40,672,784,72){updater.install(this)}
+            "checking","downloading" -> button(p,"update-cancel","Отменить",40,672,784,72){updater.cancel()}
+            "installing" -> label(p,"Подтверди установку в системном окне",40,672,784,72,26,muted)
+            else -> button(p,"update-check","Проверить обновления",40,672,784,72){updater.check()}
+        }
+        button(p,"update-close","Закрыть",40,776,784,64){modal=null;build(returnFocus)}
+    }
+
     private fun drawModal(type: String) {
         if (type == "move") return
         buttons.values.forEach { it.isFocusable = false }
         buttons.clear()
         actions.clear()
         val dim = frame(overlay, 0, 0, 1920, 1080, Color.argb(128, 0, 0, 0))
+        if (type == "updates") { drawUpdates(dim); return }
         if (type == "devices") {
             drawDevices(dim)
             return

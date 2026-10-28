@@ -261,6 +261,7 @@ fun SettingsView(s: MusicState, engine: MusicEngine, modifier: Modifier, bottom:
         ) {
             engine.logout()
         }
+        UpdatesCard()
         Label(
             "Лад · Android ${BuildConfig.VERSION_NAME}\nНеофициальный клиент Яндекс Музыки",
             12,

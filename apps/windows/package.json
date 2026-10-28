@@ -1,6 +1,6 @@
 {
   "name": "lad-music",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "private": true,
   "description": "Лад — Яндекс Музыка на компьютере и Станции",
   "main": "electron/main.cjs",

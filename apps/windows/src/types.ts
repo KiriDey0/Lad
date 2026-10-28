@@ -89,6 +89,8 @@ export interface LadEvent {
   data: any;
 }
 export interface Bridge {
+  updates?(action: string): Promise<import("./components/UpdateSection").UpdateState>;
+  onUpdate?(fn: (state: import("./components/UpdateSection").UpdateState) => void): () => void;
   setScale?(scale: number): Promise<number>;
   rpc<T = any>(method: string, params?: Record<string, unknown>): Promise<T>;
   login(): Promise<any>;

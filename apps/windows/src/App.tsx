@@ -55,6 +55,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import clsx from "clsx";
+import { UpdateSection } from "./components/UpdateSection";
 import { bridge } from "./bridge";
 import { useGlassPointer } from "./useGlassPointer";
 import {
@@ -2903,8 +2904,9 @@ function SettingsPage({
           ))}
         </div>
       </section>
+      <UpdateSection />
       <section className="settings-section">
-        <h2>Лад 0.1</h2>
+        <h2>О Ладе</h2>
         <p className="settings-about">
           Независимый клиент. Не связан с Яндексом. Каталог, подписка, музыка и
           тексты предоставляются сервисом Яндекс Музыка. Подключение к Станции

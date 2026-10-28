@@ -1,0 +1,13 @@
+Лад
+Copyright (c) 2026 KiriDey0
+
+SPDX-License-Identifier: AGPL-3.0-only
+
+Except for third-party components with their own license notices, this project is
+licensed under the GNU Affero General Public License, version 3 only.
+No permission to choose a later version of that license is granted.
+The full license is provided in LICENSE. Examples in the license document's
+"How to Apply" appendix do not change this project's version-3-only choice.
+
+Third-party components retain their original copyright and license terms.
+See THIRD_PARTY_NOTICES.md and the license files in the platform directories.

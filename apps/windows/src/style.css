@@ -1992,3 +1992,9 @@ kbd {
   }
   .player-dock > .player { pointer-events: auto; }
 }
+
+/* Update controls keep the existing C4 spacing, font scale and accent. */
+.update-section progress { width: min(100%, 36rem); height: .4rem; accent-color: var(--accent); }
+.update-actions { display: flex; gap: .75rem; flex-wrap: wrap; margin-top: 1rem; }
+.update-notes { white-space: pre-wrap; max-width: 46rem; color: var(--text-secondary, #aaafb9); line-height: 1.5; font-size: .9rem; margin: 1rem 0; }
+.update-error { color: var(--danger, #e7a8b0); }
