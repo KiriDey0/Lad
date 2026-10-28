@@ -34,7 +34,7 @@
     "prettier": "^3.9.10",
     "tailwindcss": "^4.1.16",
     "typescript": "^5.9.3",
-    "vite": "^6.4.1"
+    "vite": "^8.3.5"
   },
   "build": {
     "appId": "com.lad.music",
