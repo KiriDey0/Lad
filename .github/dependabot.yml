@@ -2,29 +2,36 @@ version: 2
 updates:
   - package-ecosystem: github-actions
     directory: /
+    open-pull-requests-limit: 0
     schedule:
       interval: weekly
   - package-ecosystem: npm
     directory: /apps/macos
+    open-pull-requests-limit: 0
     schedule:
       interval: weekly
   - package-ecosystem: npm
     directory: /apps/windows
+    open-pull-requests-limit: 0
     schedule:
       interval: weekly
   - package-ecosystem: pip
     directory: /apps/macos/backend
+    open-pull-requests-limit: 0
     schedule:
       interval: weekly
   - package-ecosystem: pip
     directory: /apps/windows/backend
+    open-pull-requests-limit: 0
     schedule:
       interval: weekly
   - package-ecosystem: gradle
     directory: /apps/android
+    open-pull-requests-limit: 0
     schedule:
       interval: weekly
   - package-ecosystem: gradle
     directory: /apps/tv
+    open-pull-requests-limit: 0
     schedule:
       interval: weekly
