@@ -34,7 +34,7 @@
     "electron-builder": "^26.0.12",
     "prettier": "^3.9.10",
     "tailwindcss": "^4.1.16",
-    "typescript": "^5.9.3",
+    "typescript": "^7.0.2",
     "vite": "^6.4.1"
   },
   "build": {
