@@ -17,13 +17,13 @@ android {
 dependencies {
  implementation("androidx.core:core-ktx:1.13.1")
  implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
- implementation("com.squareup.okhttp3:okhttp:4.12.0")
+ implementation("com.squareup.okhttp3:okhttp:5.5.1")
  implementation("io.coil-kt:coil:2.7.0")
  implementation("org.jmdns:jmdns:3.6.4")
  implementation("androidx.media3:media3-exoplayer:1.5.1")
  testImplementation("junit:junit:4.13.2")
  testImplementation("org.json:json:20240303")
- testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
- testImplementation("com.squareup.okhttp3:okhttp-tls:4.12.0")
+ testImplementation("com.squareup.okhttp3:mockwebserver:5.5.1")
+ testImplementation("com.squareup.okhttp3:okhttp-tls:5.5.1")
  testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
 }
