@@ -47,7 +47,7 @@ dependencies {
     implementation("dev.chrisbanes.haze:haze:1.1.1")
     implementation("androidx.media3:media3-exoplayer:1.5.1")
     testImplementation("junit:junit:4.13.2")
-    testImplementation("org.json:json:20240303")
+    testImplementation("org.json:json:20260814")
     testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
     testImplementation("com.squareup.okhttp3:okhttp-tls:4.12.0")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
