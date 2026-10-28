@@ -1,0 +1,30 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: npm
+    directory: /apps/macos
+    schedule:
+      interval: weekly
+  - package-ecosystem: npm
+    directory: /apps/windows
+    schedule:
+      interval: weekly
+  - package-ecosystem: pip
+    directory: /apps/macos/backend
+    schedule:
+      interval: weekly
+  - package-ecosystem: pip
+    directory: /apps/windows/backend
+    schedule:
+      interval: weekly
+  - package-ecosystem: gradle
+    directory: /apps/android
+    schedule:
+      interval: weekly
+  - package-ecosystem: gradle
+    directory: /apps/tv
+    schedule:
+      interval: weekly

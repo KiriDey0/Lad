@@ -1,0 +1,17 @@
+name: Предложение
+description: Улучшение функций или управления
+labels: [enhancement]
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: Какую задачу решает предложение?
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Ожидаемое поведение
+      description: Укажи платформу и пример использования
+    validations:
+      required: true

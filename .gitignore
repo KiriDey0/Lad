@@ -1,0 +1,45 @@
+# Build outputs and dependencies
+**/node_modules/
+**/.venv/
+**/build/
+**/release/
+**/dist/
+**/.gradle/
+**/.kotlin/
+**/__pycache__/
+**/.pytest_cache/
+**/*.pyc
+**/*.tsbuildinfo
+**/test-results/
+**/playwright-report/
+**/qa/
+work/
+artifacts/
+
+# Personal state, credentials, signing material
+.env*
+**/.env*
+**/local.properties
+*.enc
+**/session.enc
+**/queue.json
+**/window.json
+*.jks
+*.keystore
+*.pem
+*.key
+*.p12
+*.pfx
+*.log
+.DS_Store
+**/.DS_Store
+.idea/
+**/.idea/
+.vscode/
+
+# Applications belong in GitHub Releases
+*.apk
+*.aab
+*.exe
+*.zip
+*.app/

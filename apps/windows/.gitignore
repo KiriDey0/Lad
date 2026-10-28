@@ -1,0 +1,17 @@
+node_modules/
+.venv/
+build/
+release/
+dist/
+__pycache__/
+.pytest_cache/
+*.tsbuildinfo
+
+# User sessions and local diagnostics
+*.enc
+.env*
+queue.json
+window.json
+qa/
+test-results/
+playwright-report/

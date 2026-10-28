@@ -1,0 +1,30 @@
+name: Ошибка
+description: Поведение, шаги воспроизведения и версия Лада
+labels: [bug]
+body:
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Платформа
+      options: [macOS, Windows, Android, Android TV / YaOS]
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Версия Лада и ОС
+      placeholder: Версия из приложения и версия системы
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Как воспроизвести
+      description: Шаги, ожидаемый результат и то, что произошло
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: Дополнительные сведения
+      description: Только обезличенные снимки или логи. Не прикладывай токены, cookies, адреса устройств и каталоги пользовательских данных.

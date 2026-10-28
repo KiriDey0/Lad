@@ -1,0 +1,126 @@
+{
+  "name": "lad-music",
+  "version": "0.2.2",
+  "private": true,
+  "description": "Лад — Яндекс Музыка на компьютере и Станции",
+  "main": "electron/main.cjs",
+  "author": "Lad",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc -b && vite build",
+    "desktop": "node scripts/desktop.cjs",
+    "pack": "python3 scripts/build.py",
+    "test:ui": "playwright test",
+    "pack:windows": "python scripts/build.py"
+  },
+  "dependencies": {
+    "@fontsource-variable/golos-text": "^5.2.8",
+    "clsx": "^2.1.1",
+    "culori": "^4.0.2",
+    "lucide-react": "^0.468.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.1",
+    "@resvg/resvg-js": "^2.6.2",
+    "@tailwindcss/vite": "^4.1.16",
+    "@types/culori": "^4.0.1",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.7.0",
+    "electron": "45.1.0",
+    "electron-builder": "^26.0.12",
+    "prettier": "^3.9.10",
+    "tailwindcss": "^4.1.16",
+    "typescript": "^5.9.3",
+    "vite": "^6.4.1"
+  },
+  "build": {
+    "appId": "com.lad.music",
+    "productName": "Лад",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "build/backend/lad-backend",
+        "to": "backend"
+      },
+      {
+        "from": "backend",
+        "to": "backend-source",
+        "filter": [
+          "**/*.py"
+        ]
+      },
+      {
+        "from": "licenses",
+        "to": "licenses"
+      },
+      {
+        "from": "public/icon.png",
+        "to": "icon.png"
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.music",
+      "target": "dir",
+      "identity": null,
+      "extendInfo": {
+        "NSLocalNetworkUsageDescription": "Лад находит Яндекс Станцию в локальной сети и управляет музыкой.",
+        "NSBonjourServices": [
+          "_yandexio._tcp"
+        ]
+      },
+      "icon": "public/icon.png"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "public/icon.ico",
+      "artifactName": "Lad-Setup-${version}-${arch}.${ext}",
+      "executableName": "Lad",
+      "requestedExecutionLevel": "asInvoker"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowElevation": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Лад",
+      "runAfterFinish": false,
+      "deleteAppDataOnUninstall": false,
+      "installerLanguages": [
+        "ru_RU",
+        "en_US"
+      ],
+      "displayLanguageSelector": false,
+      "packElevateHelper": false
+    },
+    "artifactName": "Lad-${version}-${arch}.${ext}",
+    "compression": "normal"
+  },
+  "license": "AGPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/KiriDey0/Lad.git",
+    "directory": "apps/windows"
+  },
+  "homepage": "https://github.com/KiriDey0/Lad",
+  "bugs": "https://github.com/KiriDey0/Lad/issues"
+}

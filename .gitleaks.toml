@@ -1,0 +1,17 @@
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Public Yandex client/protocol constants from upstream compatibility code, never account tokens"
+condition = "AND"
+regexTarget = "secret"
+paths = [
+  '''apps/(macos|windows)/backend/(app\.py|vendor/yandex_music/(_client|_client_async)/device_auth\.py|vendor/yandex_music/utils/sign_request\.py)$''',
+  '''apps/(android|tv)/app/src/main/java/com/lad/music/YandexApi\.kt$'''
+]
+regexes = [
+  '''^ad0a908f0aa341a182a37ecd75bc319e$''',
+  '''^53bc75238f0c4d08a118e51fe9203300$''',
+  '''^p93jhgh689SBReK6ghtw62$''',
+  '''^kzqU4XhfCaY6B6JTHODeq5$'''
+]

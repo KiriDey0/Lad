@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Сообщить об уязвимости
+    url: https://github.com/KiriDey0/Lad/security/advisories/new
+    about: Приватный отчёт вместо публичного issue
