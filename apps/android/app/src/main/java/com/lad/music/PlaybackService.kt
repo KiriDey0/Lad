@@ -3,12 +3,17 @@ package com.lad.music
 
 import android.app.*
 import android.content.Intent
+import android.graphics.Bitmap
 import android.media.MediaMetadata
 import android.media.VolumeProvider
 import android.media.session.MediaSession
 import android.media.session.PlaybackState
 import android.os.IBinder
 import android.os.SystemClock
+import androidx.core.graphics.drawable.toBitmap
+import coil.imageLoader
+import coil.request.ImageRequest
+import coil.size.Precision
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 
@@ -16,8 +21,12 @@ class PlaybackService : Service() {
     private lateinit var engine: MusicEngine
     private lateinit var session: MediaSession
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-    private var signature = ""
-    private var metadataSignature: Pair<Track?, Long>? = null
+    private var signature: List<Any?>? = null
+    private var artworkUrl: String? = null
+    private var artwork: Bitmap? = null
+    private var foregroundStarted = false
+    private var notificationJob: Job? = null
+    private var metadataSignature: Triple<Track?, Long, Bitmap?>? = null
     private var playbackSignature = ""
     private var remoteVolume: VolumeProvider? = null
     private var volumeOutput = ""
@@ -67,18 +76,7 @@ class PlaybackService : Service() {
         scope.launch {
             engine.state.collect { s ->
                 val t = s.track
-                val metadata = t to s.durationMs
-                if (metadata != metadataSignature) {
-                    metadataSignature = metadata
-                    session.setMetadata(
-                        MediaMetadata.Builder()
-                            .putString(MediaMetadata.METADATA_KEY_TITLE, t?.title ?: "Лад")
-                            .putString(MediaMetadata.METADATA_KEY_ARTIST, t?.artist ?: "")
-                            .putString(MediaMetadata.METADATA_KEY_ALBUM, t?.album ?: "")
-                            .putLong(MediaMetadata.METADATA_KEY_DURATION, s.durationMs)
-                            .build()
-                    )
-                }
+                updatePresentation(s)
                 val playback =
                     "${t?.id}:${s.output}:${s.playing}:${s.loading}:${s.positionMs / 1000}"
                 if (playback != playbackSignature) {
@@ -136,13 +134,88 @@ class PlaybackService : Service() {
                 }
                 val volume = (s.volume * 100).toInt().coerceIn(0, 100)
                 remoteVolume?.let { if (it.currentVolume != volume) it.setCurrentVolume(volume) }
-                val next = "${t?.id}:${s.playing}:${s.outputName}:${s.profile?.uid}"
-                if (next != signature) {
-                    signature = next
-                    manager.notify(71, notification(s))
+            }
+        }
+        scope.launch {
+            engine.state.map { it.track?.cover }.distinctUntilChanged().collectLatest { url ->
+                // Clear the previous album immediately; never show it against the new title.
+                artworkUrl = url
+                artwork = null
+                updatePresentation(engine.state.value)
+                if (url != null) {
+                    val loaded = try {
+                        imageLoader.execute(
+                            ImageRequest.Builder(this@PlaybackService)
+                                .data(url)
+                                .size(384)
+                                .precision(Precision.EXACT)
+                                .allowHardware(false)
+                                .build()
+                        ).drawable?.let { drawable ->
+                            // Cached images can be larger than the requested decode size.
+                            val width = drawable.intrinsicWidth.coerceAtLeast(1)
+                            val height = drawable.intrinsicHeight.coerceAtLeast(1)
+                            val scale = minOf(1f, 384f / maxOf(width, height))
+                            drawable.toBitmap(
+                                (width * scale).toInt().coerceAtLeast(1),
+                                (height * scale).toInt().coerceAtLeast(1),
+                                Bitmap.Config.ARGB_8888,
+                            )
+                        }
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (_: Exception) {
+                        null
+                    }
+                    currentCoroutineContext().ensureActive()
+                    artwork = loaded
+                    updatePresentation(engine.state.value)
                 }
             }
         }
+    }
+
+    private fun artworkFor(s: MusicState): Bitmap? =
+        artwork.takeIf { artworkUrl == s.track?.cover }
+
+    private fun updatePresentation(s: MusicState) {
+        val t = s.track
+        val bitmap = artworkFor(s)
+        val metadata = Triple(t, s.durationMs, bitmap)
+        if (metadata != metadataSignature) {
+            metadataSignature = metadata
+            session.setMetadata(
+                MediaMetadata.Builder()
+                    .putString(MediaMetadata.METADATA_KEY_TITLE, t?.title ?: "Лад")
+                    .putString(MediaMetadata.METADATA_KEY_ARTIST, t?.artist ?: "")
+                    .putString(MediaMetadata.METADATA_KEY_ALBUM, t?.album ?: "")
+                    .putString(MediaMetadata.METADATA_KEY_ALBUM_ART_URI, t?.cover)
+                    .putBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART, bitmap)
+                    .putLong(MediaMetadata.METADATA_KEY_DURATION, s.durationMs)
+                    .build()
+            )
+        }
+        val next = listOf(t, s.playing, s.outputName, s.profile?.uid, bitmap)
+        if (next != signature) {
+            signature = next
+            if (!foregroundStarted) {
+                showNotification(s)
+            } else {
+                // Coalesce loading/transport/artwork changes. Foreground registration is
+                // asynchronous, and rapid replacements must not leave an older icon behind.
+                notificationJob?.cancel()
+                notificationJob = scope.launch {
+                    delay(250)
+                    getSystemService(NotificationManager::class.java)
+                        .notify(71, notification(engine.state.value))
+                }
+            }
+        }
+    }
+
+    private fun showNotification(s: MusicState) {
+        startForeground(71, notification(s))
+        foregroundStarted = true
     }
 
     private fun action(action: String): PendingIntent =
@@ -163,6 +236,7 @@ class PlaybackService : Service() {
             )
         return Notification.Builder(this, "playback")
             .setSmallIcon(android.R.drawable.ic_media_play)
+            .setLargeIcon(artworkFor(s))
             .setContentTitle(s.track?.title ?: "Лад")
             .setContentText((s.track?.artist ?: "Выбери музыку") + " · " + s.outputName)
             .setContentIntent(open)
@@ -204,7 +278,7 @@ class PlaybackService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        startForeground(71, notification(engine.state.value))
+        if (!foregroundStarted) showNotification(engine.state.value)
         when (intent?.action) {
             "toggle" -> engine.task { engine.toggle() }
             "next" -> engine.task { engine.advance(1) }
