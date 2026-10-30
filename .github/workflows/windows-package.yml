@@ -1,5 +1,10 @@
 name: Windows package
 on:
+  pull_request:
+    paths:
+      - apps/windows/**
+      - shared/wave/**
+      - .github/workflows/windows-package.yml
   workflow_dispatch:
 permissions:
   contents: read
