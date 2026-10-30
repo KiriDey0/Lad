@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { useEffect, useRef } from "react";
+import { attachWaveAudio, resetWaveAudio } from "../wave/audio";
 import { bridge } from "../bridge";
 import type { State, Track } from "../types";
 export function AudioEngine({
@@ -36,6 +37,8 @@ export function AudioEngine({
       }
     };
     const loaded = () => {
+      resetWaveAudio();
+      void attachWaveAudio(audio).catch(() => {});
       if (desired.current.position)
         audio.currentTime = Math.min(
           desired.current.position,
@@ -63,6 +66,8 @@ export function AudioEngine({
     };
     audio.addEventListener("loadedmetadata", loaded);
     audio.addEventListener("timeupdate", update);
+    const resumeGraph = () => { void attachWaveAudio(audio).catch(() => {}); };
+    audio.addEventListener("play", resumeGraph);
     audio.addEventListener("play", report);
     audio.addEventListener("pause", report);
     audio.addEventListener("waiting", report);
@@ -77,6 +82,7 @@ export function AudioEngine({
         generation.current = data.generation;
         desired.current = { position: data.position || 0, paused: data.paused };
         audio.volume = data.volume;
+        audio.crossOrigin = "anonymous";
         audio.src = data.url;
         audio.load();
       }
@@ -100,6 +106,7 @@ export function AudioEngine({
     });
     return () => {
       unsubscribe();
+      audio.removeEventListener("play", resumeGraph);
       for (const [name, fn] of [
         ["loadedmetadata", loaded],
         ["timeupdate", update],

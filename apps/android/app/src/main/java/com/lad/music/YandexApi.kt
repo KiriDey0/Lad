@@ -338,6 +338,23 @@ class YandexApi(
         )
     }
 
+    suspend fun waveSettings(): com.lad.music.wave.WavePreferences {
+        val first =
+            arr("/rotor/station/user:onyourwave/info").optJSONObject(0)
+                ?: throw IllegalStateException("Яндекс пока не вернул настройки волны")
+        return com.lad.music.wave.WavePreferences.parse(first)
+    }
+
+    suspend fun saveWaveSettings(value: com.lad.music.wave.WavePreferences) {
+        value.validate()
+        val json = JSONObject().put("type", "rotor")
+        value.selected.forEach { (key, v) ->
+            json.put(if (key == "mood_energy") "moodEnergy" else key, v)
+        }
+        val response = rawJson("${base}/rotor/station/user:onyourwave/settings3", json)
+        check(response.optString("result") == "ok") { "Яндекс не подтвердил настройки волны" }
+    }
+
     suspend fun wave(after: String = ""): Pair<List<Track>, String> {
         val j =
             obj(

@@ -209,6 +209,15 @@ fun SettingsView(s: MusicState, engine: MusicEngine, modifier: Modifier, bottom:
             steps = 6,
             modifier = Modifier.semantics { contentDescription = "Размер интерфейса" },
         )
+        Section("Моя волна")
+        Label("Выразительность · ${settings.waveIntensity.toInt()}%", 14, p.muted)
+        C4Slider(
+            settings.waveIntensity,
+            { engine.settings(settings.copy(waveIntensity = it)) },
+            valueRange = 0f..100f,
+            steps = 19,
+            modifier = Modifier.semantics { contentDescription = "Выразительность волны" },
+        )
         Section("Звук")
         SettingToggle(
             "Синхронизировать громкость с устройством",

@@ -44,6 +44,37 @@ class Music:
         return {'name': status.account.display_name or status.account.login,
                 'uid': str(status.account.uid), 'plus': bool(status.plus and status.plus.has_plus)}
 
+    async def wave_settings(self, selected=None):
+        info = await self.client.rotor_station_info('user:onyourwave')
+        if not info or not info[0].station:
+            raise ValueError('Яндекс пока не вернул настройки волны.')
+        result = info[0]
+        restrictions = result.station.restrictions2
+        current = result.settings2
+        groups = []
+        for key, title in [('diversity', 'Характер волны'), ('mood_energy', 'Настроение'), ('language', 'Язык')]:
+            restriction = getattr(restrictions, key, None)
+            values = [{'value': str(v.value), 'name': v.name} for v in (getattr(restriction, 'possible_values', None) or [])]
+            if values:
+                groups.append({'key': key, 'name': title, 'values': values, 'selected': getattr(current, key, '') or ''})
+        if not groups:
+            raise ValueError('Настройки волны сейчас недоступны у Яндекса.')
+        if selected is not None:
+            if not isinstance(selected, dict) or set(selected) != {g['key'] for g in groups}:
+                raise ValueError('Некорректные настройки волны.')
+            for group in groups:
+                if selected[group['key']] not in {v['value'] for v in group['values']}:
+                    raise ValueError('Яндекс не поддерживает выбранную настройку.')
+            values = {key: getattr(current, key, None) for key in ('mood_energy', 'diversity', 'language')}
+            values.update(selected)
+            if not all(isinstance(v, str) and v for v in values.values()):
+                raise ValueError('Яндекс не вернул полный набор настроек волны.')
+            if not await self.client.rotor_station_settings2('user:onyourwave', **values):
+                raise ValueError('Яндекс не подтвердил настройки волны.')
+            for group in groups:
+                group['selected'] = selected[group['key']]
+        return {'groups': groups}
+
     async def search(self, query, page=0, type_='all'):
         result = await self.client.search(query, type_=type_, page=page)
         def items(name):

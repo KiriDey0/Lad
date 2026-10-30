@@ -21,6 +21,7 @@ jobs:
       - run: python scripts/check-publication.py
       - run: python scripts/sync-version.py --check
       - run: python scripts/check-update-contract.py
+      - run: python scripts/check-wave-contract.py
   desktop:
     name: Desktop / ${{ matrix.platform }}
     runs-on: ubuntu-latest

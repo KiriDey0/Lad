@@ -329,6 +329,152 @@ fun NavBar(selected: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier
 }
 
 @Composable
+private fun WaveHome(
+    s: MusicState,
+    engine: MusicEngine,
+    lyrics: Lyrics,
+    onLyrics: () -> Unit,
+    onSettings: () -> Unit,
+    onPlay: () -> Unit,
+) {
+    val p = LocalPalette.current
+    Box(Modifier.fillMaxWidth().height(602.dp).clip(RoundedCornerShape(24.dp))) {
+        androidx.compose.ui.viewinterop.AndroidView(
+            factory = { context ->
+                com.lad.music.wave.WaveView(context).apply { audio = engine.waveAudio }
+            },
+            update = { v ->
+                v.playing = s.playing
+                v.local = s.output == "phone"
+                v.intensity = s.settings.waveIntensity
+                v.cover = s.track?.cover
+            },
+            modifier = Modifier.fillMaxWidth().height(430.dp),
+        )
+        Column(
+            Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Label("Моя волна", 24, weight = FontWeight.SemiBold)
+            Spacer(Modifier.height(8.dp))
+            Artwork(s.track?.cover, "Моя волна", 180.dp)
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Label(
+                        s.track?.title ?: "В твоём настроении",
+                        17,
+                        weight = FontWeight.SemiBold,
+                        modifier = Modifier.weight(1f, fill = false).basicMarquee(),
+                        maxLines = 1,
+                    )
+                    s.track?.let { Explicit(it) }
+                }
+                Label(
+                    s.track?.artist ?: "Знакомое и новое",
+                    13,
+                    p.muted,
+                    modifier = Modifier.basicMarquee(),
+                    maxLines = 1,
+                )
+            }
+            Box(Modifier.height(92.dp), contentAlignment = Alignment.Center) {
+                if (s.track != null) HomeLyric(engine, lyrics, s.settings.lyricOffsetMs, onLyrics)
+                else Label("Музыка, которая подойдёт тебе сейчас.", 13, p.muted, maxLines = 2)
+            }
+            Action(
+                if (s.source.startsWith("Моя волна") && s.owned)
+                    if (s.playing) "Пауза" else "Продолжить волну"
+                else "Включить Мою волну",
+                if (s.source.startsWith("Моя волна") && s.owned && s.playing) Icons.Outlined.Pause
+                else Icons.Outlined.PlayArrow,
+                modifier = Modifier.heightIn(min = 48.dp),
+                onClick = onPlay,
+            )
+            TextButton(onClick = onSettings) {
+                Icon(Icons.Outlined.Tune, null, Modifier.size(18.dp))
+                Spacer(Modifier.width(6.dp))
+                Text("Настроить", color = p.muted)
+            }
+        }
+    }
+}
+
+@Composable
+private fun WavePreferencesPane(s: MusicState, engine: MusicEngine, dismiss: () -> Unit) {
+    val scope = rememberCoroutineScope()
+    var value by remember { mutableStateOf<com.lad.music.wave.WavePreferences?>(null) }
+    var error by remember { mutableStateOf("") }
+    var saving by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        if (s.demo) error = "Настройки Яндекс Музыки появятся после входа."
+        else
+            try {
+                value = engine.api.waveSettings()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                error = e.message ?: "Не удалось загрузить настройки"
+            }
+    }
+    // Uses the same C4 glass surface and native Back as the other application panels.
+    Pane(
+        "Настроить волну",
+        s.settings,
+        dismiss,
+        footer = {
+            Action(
+                if (saving) "Применяем…" else "Со следующего трека",
+                Icons.Outlined.PlayArrow,
+                enabled = value != null && !saving,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                scope.launch {
+                    saving = true
+                    try {
+                        engine.applyWavePreferences(value!!)
+                        dismiss()
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        error = e.message ?: "Не удалось сохранить настройки"
+                    } finally {
+                        saving = false
+                    }
+                }
+            }
+        },
+    ) {
+        if (error.isNotBlank()) Label(error, 13, LocalPalette.current.muted)
+        else if (value == null) Label("Загружаю настройки…", 14, LocalPalette.current.muted)
+        value?.groups?.forEach { g ->
+            Label(g.name, 15, weight = FontWeight.SemiBold)
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                g.values.forEach { v ->
+                    FilterChip(
+                        selected = value?.selected?.get(g.key) == v.value,
+                        onClick = {
+                            value = value!!.copy(selected = value!!.selected + (g.key to v.value))
+                        },
+                        label = { Text(v.name) },
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun HomeLyric(engine: MusicEngine, lyrics: Lyrics, offset: Long, onClick: () -> Unit) {
     val line =
         remember(engine, lyrics, offset) {
@@ -339,13 +485,23 @@ private fun HomeLyric(engine: MusicEngine, lyrics: Lyrics, offset: Long, onClick
                 .distinctUntilChanged()
         }
     val active by line.collectAsStateWithLifecycle(-1)
-    lyrics.lines.getOrNull(active.coerceAtLeast(0))?.let {
-        Label(
-            it.text,
-            16,
-            LocalPalette.current.accent,
-            modifier = Modifier.clickable(onClick = onClick),
-        )
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+    ) {
+        val first = active.coerceAtLeast(0)
+        repeat(2) { i ->
+            Label(
+                lyrics.lines.getOrNull(first + i)?.text ?: if (i == 0) "" else " ",
+                15,
+                if (i == 0) LocalPalette.current.text else LocalPalette.current.muted,
+                modifier = Modifier.basicMarquee(),
+                maxLines = 1,
+            )
+        }
+        TextButton(onClick) {
+            Text("Открыть полный текст ↗", color = LocalPalette.current.muted, fontSize = 12.sp)
+        }
     }
 }
 
@@ -1047,72 +1203,17 @@ fun LadApp(engine: MusicEngine) {
                                         }
                                     if (detail == null && !likedPage && tab == 0)
                                         item {
-                                            Column(
-                                                Modifier.fillMaxWidth()
-                                                    .clip(RoundedCornerShape(24.dp))
-                                                    .background(p.surface)
-                                                    .padding(20.dp),
-                                                verticalArrangement = Arrangement.spacedBy(16.dp),
+                                            WaveHome(
+                                                s,
+                                                engine,
+                                                lyrics,
+                                                { showOverlay("lyrics") },
+                                                { showOverlay("wave-settings") },
                                             ) {
-                                                Row(
-                                                    verticalAlignment = Alignment.CenterVertically,
-                                                    horizontalArrangement =
-                                                        Arrangement.spacedBy(14.dp),
-                                                ) {
-                                                    Column(Modifier.weight(1f)) {
-                                                        Label("ЛИЧНАЯ ПОДБОРКА", 10, p.muted)
-                                                        Label(
-                                                            "Моя волна",
-                                                            28,
-                                                            weight = FontWeight.SemiBold,
-                                                        )
-                                                        Label(
-                                                            "Знакомое и новое.\nВ твоём настроении.",
-                                                            13,
-                                                            p.muted,
-                                                        )
-                                                    }
-                                                    Artwork(s.track?.cover, "Моя волна", 104.dp)
-                                                }
-                                                Action(
+                                                run {
                                                     if (s.source.startsWith("Моя волна") && s.owned)
-                                                        if (s.playing) "Пауза"
-                                                        else "Продолжить волну"
-                                                    else "Включить Мою волну",
-                                                    if (
-                                                        s.source.startsWith("Моя волна") &&
-                                                            s.playing
-                                                    )
-                                                        Icons.Outlined.Pause
-                                                    else Icons.Outlined.PlayArrow,
-                                                    modifier = Modifier.fillMaxWidth(),
-                                                ) {
-                                                    run {
-                                                        if (
-                                                            s.source.startsWith("Моя волна") &&
-                                                                s.owned
-                                                        )
-                                                            engine.toggle()
-                                                        else engine.wave()
-                                                    }
-                                                }
-                                                if (s.track != null) {
-                                                    Label(
-                                                        s.track!!.title,
-                                                        14,
-                                                        weight = FontWeight.Medium,
-                                                        modifier =
-                                                            Modifier.clickable {
-                                                                open(s.track!!.albumCard())
-                                                            },
-                                                    )
-                                                    HomeLyric(
-                                                        engine,
-                                                        lyrics,
-                                                        s.settings.lyricOffsetMs,
-                                                    ) {
-                                                        showOverlay("lyrics")
-                                                    }
+                                                        engine.toggle()
+                                                    else engine.wave()
                                                 }
                                             }
                                         }
@@ -1357,6 +1458,9 @@ fun LadApp(engine: MusicEngine) {
                                 )
                             }
                         }
+                    AnimatedPane(if (overlay == "wave-settings") Unit else null) {
+                        WavePreferencesPane(s, engine, { dismissOverlay() })
+                    }
                     AnimatedPane(if (overlay == "devices") Unit else null) {
                         DevicePane(s, engine, { dismissOverlay() })
                     }

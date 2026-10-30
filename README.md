@@ -15,6 +15,7 @@
 
 ## Возможности
 
+- **Моя волна.** Постоянная обложка, две строки текста и паутина, реагирующая на локальную музыку. Характер рекомендаций, настроение и язык загружаются из Яндекса.
 - **Музыка и коллекция.** Поиск треков, альбомов и исполнителей, свои и понравившиеся плейлисты, любимые треки и альбомы, Моя волна.
 - **Устройство или Станция.** Локальное воспроизведение и передача на Яндекс Станцию с сохранением позиции. Для управления колонкой устройства должны находиться в одной локальной сети. Bluetooth не требуется.
 - **Очередь под контролем.** Играть следующим, добавить в конец, изменить порядок. Эти действия доступны и для целого альбома или плейлиста.
@@ -52,12 +53,12 @@
 
 | Платформа | Требования | Скачать |
 | --- | --- | --- |
-| macOS | macOS 13+, Apple Silicon | [Приложение в ZIP](https://github.com/KiriDey0/Lad/releases/latest/download/Lad-macOS-arm64-0.3.1.zip) |
-| Windows | Windows 10/11, x64 | [Установщик](https://github.com/KiriDey0/Lad/releases/latest/download/Lad-Windows-Setup-0.3.1-x64.exe) · [Portable ZIP](https://github.com/KiriDey0/Lad/releases/latest/download/Lad-Windows-Portable-0.3.1-x64.zip) |
-| Android | Android 8.0+ | [APK](https://github.com/KiriDey0/Lad/releases/latest/download/Lad-Android-0.3.1.apk) |
-| Android TV / YaOS | Android 9+, ARMv7 | [TV APK](https://github.com/KiriDey0/Lad/releases/latest/download/Lad-TV-0.3.1-armv7.apk) |
+| macOS | macOS 13+, Apple Silicon | [Приложение в ZIP](https://github.com/KiriDey0/Lad/releases/latest/download/Lad-macOS-arm64-0.4.0.zip) |
+| Windows | Windows 10/11, x64 | [Установщик](https://github.com/KiriDey0/Lad/releases/latest/download/Lad-Windows-Setup-0.4.0-x64.exe) · [Portable ZIP](https://github.com/KiriDey0/Lad/releases/latest/download/Lad-Windows-Portable-0.4.0-x64.zip) |
+| Android | Android 8.0+ | [APK](https://github.com/KiriDey0/Lad/releases/latest/download/Lad-Android-0.4.0.apk) |
+| Android TV / YaOS | Android 9+, ARMv7 | [TV APK](https://github.com/KiriDey0/Lad/releases/latest/download/Lad-TV-0.4.0-armv7.apk) |
 
-[Все платформы одним архивом](https://github.com/KiriDey0/Lad/releases/latest/download/Lad-v0.3.1-all-platforms.zip) · [Исходный код](https://github.com/KiriDey0/Lad/releases/latest/download/Lad-Source-v0.3.1.zip) · [SHA256SUMS](https://github.com/KiriDey0/Lad/releases/latest/download/SHA256SUMS)
+[Все платформы одним архивом](https://github.com/KiriDey0/Lad/releases/latest/download/Lad-v0.4.0-all-platforms.zip) · [Исходный код](https://github.com/KiriDey0/Lad/releases/latest/download/Lad-Source-v0.4.0.zip) · [SHA256SUMS](https://github.com/KiriDey0/Lad/releases/latest/download/SHA256SUMS)
 
 Инструкции по установке, входу и подключению колонки — в [руководстве](docs/installation.md). Для доступа к каталогу и воспроизведению нужна учётная запись Яндекса с соответствующим доступом к Яндекс Музыке; приложение не заменяет подписку Яндекс Плюс.
 
