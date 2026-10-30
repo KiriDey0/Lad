@@ -6,3 +6,22 @@ test('30 and 120 FPS produce comparable particle paths',()=>{const a=new WebSimu
 test('closer pairs receive brighter connections',()=>{function brightness(gap){const w=new WebSimulation(2);for(let i=0;i<2;i++){w.nodes[i].angle=0;w.nodes[i].radius=w.nodes[i].rest=.30+i*gap;w.nodes[i].phase=0;}for(let i=0;i<8;i++)w.step(.01,{});assert.equal(w.lineCount,2);return w.lines[2];}assert.ok(brightness(.02)>brightness(.055)*1.3);});
 test('one beat moves different points in different directions',()=>{const music=new WebSimulation(120),control=new WebSimulation(120);for(let i=0;i<180;i++){music.step(1/60,{});control.step(1/60,{})}for(let i=0;i<12;i++){music.step(1/60,{bass:1,mid:.5,high:.3});control.step(1/60,{})}let inward=0,outward=0;for(let i=0;i<120;i++){const x=control.points[i*4],y=control.points[i*4+1],d=(music.points[i*4]-x)*x+(music.points[i*4+1]-y)*y;if(d>.00001)outward++;if(d<-.00001)inward++;}assert.ok(inward>20&&outward>20);});
 test('points listen to individual frequency bands',()=>{const w=new WebSimulation(160);for(let i=0;i<30;i++)w.step(1/60,{spectrum:[1,0,0,0,0,0,0,0]});const active=w.nodes.filter(n=>n.energy>.05).length;assert.ok(active>20&&active<100);assert.equal(new WebSimulation().count,300);});
+
+import {WaveFeatures, WaveMotion} from '../audio-features.mjs';
+test('a decoded bass attack moves visible points within 100 ms through the full smoothing chain', () => {
+  const music = new WebSimulation(180), silence = new WebSimulation(180);
+  const features = new WaveFeatures(), motion = new WaveMotion();
+  for(let i=0;i<180;i++){music.step(1/60);silence.step(1/60);features.process({spectrum:Array(8).fill(0)},1/60);}
+  let previous = Array.from(music.points), largestStep = 0;
+  for(let frame=0;frame<6;frame++){
+    const raw=[.14*Math.exp(-frame/7),.1*Math.exp(-frame/7),0,0,0,0,0,0];
+    music.step(1/60,motion.update(features.process({spectrum:raw},1/60),1/60,.75));
+    silence.step(1/60);
+    for(let i=0;i<music.count;i++)largestStep=Math.max(largestStep,Math.hypot(music.points[i*4]-previous[i*4],music.points[i*4+1]-previous[i*4+1]));
+    previous=Array.from(music.points);
+  }
+  let visible=0;
+  for(let i=0;i<music.count;i++)if(Math.hypot(music.points[i*4]-silence.points[i*4],music.points[i*4+1]-silence.points[i*4+1])>.006)visible++;
+  assert.ok(visible>=music.count*.2, 'at least 20% of the nodes visibly respond before the next beat');
+  assert.ok(largestStep<.02, 'no frame jumps larger than 2% of the scene');
+});

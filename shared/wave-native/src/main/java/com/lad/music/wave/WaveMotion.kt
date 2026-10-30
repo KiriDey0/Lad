@@ -85,9 +85,9 @@ class WaveMotion(val count: Int = 300, seed: Long = 7193) {
         val high = (bands[5] + bands[6] + bands[7]) / 3.0
         for (n in nodes) {
             val local =
-                bands[n.band] * (.65 + n.blend * .2) +
-                    bands[(n.band + 3) % 8] * (.35 - n.blend * .2)
-            n.energy = smooth(n.energy, local, dt * n.follow)
+                bands[n.band] * (.8 + n.blend * .15) +
+                    bands[(n.band + 3) % 8] * (.2 - n.blend * .15)
+            n.energy = smooth(n.energy, local, dt * n.follow * if (local > n.energy) 2 else 1)
             val attack = max(0.0, n.energy - n.previous)
             n.previous = n.energy
             val flow =
@@ -101,12 +101,12 @@ class WaveMotion(val count: Int = 300, seed: Long = 7193) {
                     dt * 2.4,
                 )
             n.angle += n.angular * dt
-            n.radial += attack * .085 * n.polarity
+            n.radial += attack * .18 * n.polarity
             val target =
-                n.rest + n.polarity * n.energy * .027 + .011 * sin(time * n.frequency + n.phase)
-            n.radial += ((target - n.radius) * 1.8 - n.radial * 1.9) * dt
+                n.rest + n.polarity * n.energy * .075 + .011 * sin(time * n.frequency + n.phase)
+            n.radial += ((target - n.radius) * 42 - n.radial * 11) * dt
             n.radius += n.radial * dt
-            val excursion = .010 + n.energy * .028
+            val excursion = .010 + n.energy * .055
             val x =
                 sin(time * n.frequency + n.phase * 2) +
                     .32 * cos(time * n.frequency * .71 + n.phase * 5)
@@ -195,14 +195,14 @@ class WaveEnvelope {
             val prior = average[i]
             average[i] = follow(prior, v, dt, if (age < .5) .2 else 2.5, 3.5)
             val absolute = ((20 * log10(max(v.toDouble(), .00001)) + 65) / 48).coerceIn(0.0, 1.0)
-            val dynamic = ((v / max(.003f, prior) - .65) / 2.2).coerceIn(0.0, 1.0)
+            val dynamic = ((v / max(.003f, prior) - .7) / 1.3).coerceIn(0.0, 1.0)
             values[i] =
-                follow(values[i], (absolute * (.22 + .78 * dynamic)).toFloat(), dt, .023, .19)
+                follow(values[i], (absolute * (.3 + .7 * dynamic)).toFloat(), dt, .012, .11)
         }
         for (i in 0..7) {
-            val target = values[i] * .6f + values[(i + 7) % 8] * .2f + values[(i + 1) % 8] * .2f
-            val delta = follow(motion[i], target, dt, .075 * .75, .38 * .75) - motion[i]
-            motion[i] += (delta.toDouble().coerceIn(-2.8 / .75 * dt, 2.8 / .75 * dt)).toFloat()
+            val target = values[i] * .85f + values[(i + 7) % 8] * .075f + values[(i + 1) % 8] * .075f
+            val delta = follow(motion[i], target, dt, .03 * .75, .16 * .75) - motion[i]
+            motion[i] += (delta.toDouble().coerceIn(-8.0 / .75 * dt, 8.0 / .75 * dt)).toFloat()
         }
         return motion
     }

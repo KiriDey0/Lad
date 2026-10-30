@@ -39,9 +39,9 @@ export class WaveFeatures {
       const relative = v / Math.max(0.003, prior);
       // Log compression retains quiet detail without turning silence into signal.
       const absolute = clamp((20 * Math.log10(Math.max(v, 0.00001)) + 65) / 48);
-      const dynamic = clamp((relative - 0.65) / 2.2);
-      const value = absolute * (0.22 + 0.78 * dynamic);
-      this.values[i] = follow(this.values[i], value, dt, 0.023, 0.19);
+      const dynamic = clamp((relative - 0.7) / 1.3);
+      const value = absolute * (0.3 + 0.7 * dynamic);
+      this.values[i] = follow(this.values[i], value, dt, 0.012, 0.11);
       if (
         i < 3 &&
         v > 0.003 &&
@@ -93,15 +93,15 @@ export class WaveMotion {
     dt = Math.min(0.05, Math.max(0.001, dt));
     const ease = (v, t) => {
       const delta =
-        follow(v, t, dt, 0.075 * responsiveness, 0.38 * responsiveness) - v;
-      const limit = (2.8 / responsiveness) * dt;
+        follow(v, t, dt, 0.03 * responsiveness, 0.16 * responsiveness) - v;
+      const limit = (8 / responsiveness) * dt;
       return v + Math.max(-limit, Math.min(limit, delta));
     };
     const raw = input.spectrum || new Float32Array(8);
     for (let i = 0; i < 8; i++)
       this.spectrum[i] = ease(
         this.spectrum[i],
-        raw[i] * 0.6 + raw[(i + 7) % 8] * 0.2 + raw[(i + 1) % 8] * 0.2,
+        raw[i] * 0.85 + raw[(i + 7) % 8] * 0.075 + raw[(i + 1) % 8] * 0.075,
       );
     for (const key of ["bass", "mid", "high", "level"])
       this[key] = ease(this[key], input[key] || 0);

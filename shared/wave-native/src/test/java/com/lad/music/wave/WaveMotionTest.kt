@@ -7,6 +7,34 @@ import org.junit.Test
 
 class WaveMotionTest {
     @Test
+    fun decodedBassAttackMovesVisiblePointsWithin100ms() {
+        val music = WaveMotion(180)
+        val quiet = WaveMotion(180)
+        val envelope = WaveEnvelope()
+        repeat(180) {
+            music.step(1.0 / 60)
+            quiet.step(1.0 / 60)
+            envelope.process(FloatArray(8), 1.0 / 60)
+        }
+        var largestStep = 0.0
+        repeat(6) { frame ->
+            val before = music.points.copyOf()
+            val raw = FloatArray(8)
+            raw[0] = (.14 * exp(-frame / 7.0)).toFloat()
+            raw[1] = (.1 * exp(-frame / 7.0)).toFloat()
+            music.step(1.0 / 60, envelope.process(raw, 1.0 / 60))
+            quiet.step(1.0 / 60)
+            for(i in 0 until music.count) largestStep = max(largestStep,
+                hypot((music.points[i*4]-before[i*4]).toDouble(), (music.points[i*4+1]-before[i*4+1]).toDouble()))
+        }
+        val visible = (0 until music.count).count { i ->
+            hypot((music.points[i*4]-quiet.points[i*4]).toDouble(), (music.points[i*4+1]-quiet.points[i*4+1]).toDouble()) > .006
+        }
+        assertTrue("At least 20% of nodes visibly respond within 100ms", visible > music.count * .2)
+        assertTrue("No frame jumps", largestStep < .02)
+    }
+
+    @Test
     fun fftSeparatesBassFromTrebleAndSilence() {
         fun fft(hz: Double): FloatArray {
             val f = WaveSpectrum()

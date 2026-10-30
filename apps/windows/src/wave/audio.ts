@@ -2,11 +2,13 @@
 import { WaveFeatures } from "../../../../shared/wave/audio-features.mjs";
 const features = new WaveFeatures();
 let active: HTMLAudioElement | null = null;
+const volumes = new WeakMap<HTMLAudioElement, number>();
 const graphs = new WeakMap<
   HTMLAudioElement,
   {
     context: AudioContext;
     analyser: AnalyserNode;
+    output: GainNode;
     data: Float32Array<ArrayBuffer>;
   }
 >();
@@ -35,10 +37,16 @@ export async function attachWaveAudio(audio: HTMLAudioElement) {
       analyser.fftSize = 2048;
       analyser.smoothingTimeConstant = 0;
       context.createMediaElementSource(audio).connect(analyser);
-      analyser.connect(context.destination);
+      // Analyse decoded PCM before listening gain. A quiet output must not make
+      // the visualiser quiet, and zero volume must still retain the beat.
+      const output = context.createGain();
+      output.gain.value = volumes.get(audio) ?? audio.volume;
+      analyser.connect(output).connect(context.destination);
+      audio.volume = 1;
       graph = {
         context,
         analyser,
+        output,
         data: new Float32Array(analyser.frequencyBinCount),
       };
       graphs.set(audio, graph);
@@ -46,6 +54,15 @@ export async function attachWaveAudio(audio: HTMLAudioElement) {
   }
   if (graph.context.state === "suspended")
     await graph.context.resume().catch(() => {});
+}
+export function setWaveVolume(audio: HTMLAudioElement, volume: number) {
+  const value = Math.max(0, Math.min(1, volume));
+  volumes.set(audio, value);
+  const graph = graphs.get(audio);
+  if (graph) {
+    graph.output.gain.setTargetAtTime(value, graph.context.currentTime, 0.012);
+    audio.volume = 1;
+  } else audio.volume = value;
 }
 export function resetWaveAudio() {
   features.reset();

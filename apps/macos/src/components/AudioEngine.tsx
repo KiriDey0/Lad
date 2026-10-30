@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { useEffect, useRef } from "react";
-import { attachWaveAudio, resetWaveAudio } from "../wave/audio";
+import { attachWaveAudio, resetWaveAudio, setWaveVolume } from "../wave/audio";
 import { bridge } from "../bridge";
 import type { State, Track } from "../types";
 export function AudioEngine({
@@ -81,7 +81,7 @@ export function AudioEngine({
         audio.pause();
         generation.current = data.generation;
         desired.current = { position: data.position || 0, paused: data.paused };
-        audio.volume = data.volume;
+        setWaveVolume(audio, data.volume);
         audio.crossOrigin = "anonymous";
         audio.src = data.url;
         audio.load();
@@ -100,7 +100,7 @@ export function AudioEngine({
         report();
       }
       if (data.action === "volume") {
-        audio.volume = data.value;
+        setWaveVolume(audio, data.value);
         report();
       }
     });
