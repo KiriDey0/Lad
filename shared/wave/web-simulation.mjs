@@ -67,9 +67,9 @@ export class WebSimulation {
     ];
     for (const n of this.nodes) {
       const local =
-        (bands[n.band] || 0) * (0.65 + n.blend * 0.2) +
-        (bands[(n.band + 3) % 8] || 0) * (0.35 - n.blend * 0.2);
-      n.energy = smooth(n.energy, local, dt * n.follow);
+        (bands[n.band] || 0) * (0.8 + n.blend * 0.15) +
+        (bands[(n.band + 3) % 8] || 0) * (0.2 - n.blend * 0.15);
+      n.energy = smooth(n.energy, local, dt * n.follow * (local > n.energy ? 2 : 1));
       const localAttack = Math.max(0, n.energy - n.previousEnergy);
       n.previousEnergy = n.energy;
       const flow =
@@ -83,15 +83,15 @@ export class WebSimulation {
         dt * 2.4,
       );
       n.angle += n.angularVelocity * dt;
-      n.radialVelocity += localAttack * 0.085 * n.polarity;
+      n.radialVelocity += localAttack * 0.18 * n.polarity;
       const target =
         n.rest +
-        n.polarity * n.energy * 0.027 +
+        n.polarity * n.energy * 0.075 +
         0.011 * Math.sin(this.time * n.frequency + n.phase);
       n.radialVelocity +=
-        ((target - n.radius) * 1.8 - n.radialVelocity * 1.9) * dt;
+        ((target - n.radius) * 42 - n.radialVelocity * 11) * dt;
       n.radius += n.radialVelocity * dt;
-      const excursion = 0.01 + n.energy * 0.028;
+      const excursion = 0.01 + n.energy * 0.055;
       const x =
         Math.sin(this.time * n.frequency + n.phase * 2) +
         0.32 * Math.cos(this.time * n.frequency * 0.71 + n.phase * 5);

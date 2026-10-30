@@ -513,7 +513,7 @@ test("local audio engine loads, seeks, pauses and changes volume", async () => {
     .poll(() =>
       page.locator("audio").evaluate((el: HTMLAudioElement) => el.volume),
     )
-    .toBe(0.65);
+    .toBe(1); // Listening gain is downstream; wave-volume.spec verifies the actual output.
   await page.locator("audio").evaluate((el: HTMLAudioElement) => {
     el.removeAttribute("src");
     el.load();

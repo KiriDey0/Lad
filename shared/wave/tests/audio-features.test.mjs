@@ -5,6 +5,22 @@ test('sustained tone does not repeatedly tear the ring',()=>{const f=new WaveFea
 test('high frequencies move their own sectors',()=>{const f=new WaveFeatures();let x;for(let i=0;i<120;i++)x=f.process({bass:0,mid:0,high:.05},1/60);assert.equal(x.bass,0);assert.equal(x.mid,0);assert.ok(x.high>.1);});
 test('response peak arrives within 50 ms and decays smoothly',()=>{const f=new WaveFeatures();for(let i=0;i<90;i++)f.process({bass:0,mid:0,high:0},1/60);let p=0;for(let i=0;i<3;i++)p=Math.max(p,f.process({bass:.1,mid:0,high:0},1/60).bass);assert.ok(p>.5);const first=f.process({bass:0,mid:0,high:0},1/60).bass;assert.ok(first>p*.8);let last=first;for(let i=0;i<120;i++)last=f.process({bass:0,mid:0,high:0},1/60).bass;assert.ok(last<.001);});
 import {WaveMotion} from "../audio-features.mjs";
-test('visual response limits sudden movement but follows the attack',()=>{const m=new WaveMotion(),loud={spectrum:Array(8).fill(1),bass:1,mid:1,high:1,level:1};let prev=0;for(let i=0;i<12;i++){const v=m.update(loud,1/60);assert.ok(v.bass-prev<=2.8/60+.00001);prev=v.bass;}assert.ok(prev>.5);const released=m.update({spectrum:Array(8).fill(0)},1/60);assert.ok(released.bass>prev*.9);});
-test('isolated frequency spikes blend into neighbouring petals',()=>{const m=new WaveMotion();for(let i=0;i<120;i++)m.update({spectrum:[0,0,0,1,0,0,0,0]},1/60);assert.ok(m.spectrum[3]>.59&&m.spectrum[3]<.61);assert.ok(m.spectrum[2]>.19);assert.ok(m.spectrum[4]>.19);});
-test('links respond a little faster while keeping gradual movement',()=>{const normal=new WaveMotion(),links=new WaveMotion(),input={spectrum:Array(8).fill(1),bass:1,mid:1,high:1,level:1};let oldValue=0;for(let i=0;i<6;i++){normal.update(input,1/60);links.update(input,1/60,.75);assert.ok(links.bass-oldValue<=2.8/.75/60+.00001);oldValue=links.bass;}assert.ok(links.bass>normal.bass);assert.ok(links.bass<normal.bass*1.4);});
+test('short attacks reach the motion model without a long visual ramp', () => {
+  const m = new WaveMotion(), loud = {spectrum:Array(8).fill(1),bass:1,mid:1,high:1,level:1};
+  let previous = 0;
+  for (let i = 0; i < 6; i++) {
+    const value = m.update(loud, 1/60).bass;
+    assert.ok(value > previous && value - previous < .18, 'smooth multi-frame attack');
+    previous = value;
+  }
+  assert.ok(previous > .75, 'attack is already visible within 100 ms');
+  assert.ok(m.update({spectrum:Array(8).fill(0)},1/60).bass > previous*.85, 'no hard cut on release');
+});
+test('isolated bands keep their own identity with a small neighbouring blend', () => {
+  const m = new WaveMotion();
+  for(let i=0;i<120;i++)m.update({spectrum:[0,0,0,1,0,0,0,0]},1/60);
+  assert.ok(m.spectrum[3] > .8);
+  assert.ok(m.spectrum[2] > 0 && m.spectrum[4] > 0);
+  assert.ok(m.spectrum[3] > m.spectrum[2]*8);
+  assert.equal(m.spectrum[0], 0);
+});
