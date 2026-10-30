@@ -19,7 +19,9 @@ test.beforeAll(async () => {
     executablePath: process.env.LAD_TEST_EXE || undefined,
     env: {
       ...process.env,
-      LAD_USER_DATA: process.env.LAD_TEST_PROFILE || path.resolve(root, "../../work/test-profile"),
+      LAD_USER_DATA:
+        process.env.LAD_TEST_PROFILE ||
+        path.resolve(root, "../../work/test-profile"),
     },
     timeout: 60000,
   });
@@ -29,7 +31,9 @@ test.beforeAll(async () => {
     localStorage.removeItem("lad:pinned:v1:demo:demo");
     localStorage.removeItem("lad:pinned:v1:demo:pin-isolation-test");
   });
-  expect(await page.evaluate(() => window.lad?.platform)).toBe(process.platform);
+  expect(await page.evaluate(() => window.lad?.platform)).toBe(
+    process.platform,
+  );
   await expect
     .poll(() =>
       app.evaluate(({ BrowserWindow }) =>
@@ -37,9 +41,10 @@ test.beforeAll(async () => {
       ),
     )
     .toBe(true);
-  if (process.platform !== "win32") await app.evaluate(({ BrowserWindow }) =>
-    BrowserWindow.getAllWindows()[0].hide(),
-  );
+  if (process.platform !== "win32")
+    await app.evaluate(({ BrowserWindow }) =>
+      BrowserWindow.getAllWindows()[0].hide(),
+    );
 });
 test.afterAll(async () => {
   await app?.close();
@@ -151,7 +156,7 @@ test("catalog search, collection, add next and no layout overflow", async () => 
   await page
     .getByRole("button", { name: "Включить Мою волну", exact: true })
     .click();
-  await expect(page.locator(".header-location")).toHaveText("Для тебя");
+  await expect(page.locator(".header-location")).toHaveText("Моя волна");
   await expect(page.locator(".wave-now-playing")).toBeVisible();
   await expect(page.locator(".wave-now-playing .art")).toBeVisible();
   await expect(page.getByLabel("Синхронный текст в карточке")).toBeVisible();
@@ -182,8 +187,10 @@ test("catalog search, collection, add next and no layout overflow", async () => 
   await expect(page.locator(".queue-panel")).toContainText(
     "Продолжить слушать",
   );
-  await expect(page.locator(".header-location")).toHaveText("Для тебя");
-  await page.keyboard.press(process.platform === "darwin" ? "Meta+k" : "Control+k");
+  await expect(page.locator(".header-location")).toHaveText("Моя волна");
+  await page.keyboard.press(
+    process.platform === "darwin" ? "Meta+k" : "Control+k",
+  );
   await page
     .getByRole("textbox", { name: "Поиск музыки", exact: true })
     .fill("Ближе");
@@ -377,14 +384,18 @@ test("collection pinning, album likes and batch queue actions", async () => {
     executablePath: process.env.LAD_TEST_EXE || undefined,
     env: {
       ...process.env,
-      LAD_USER_DATA: process.env.LAD_TEST_PROFILE || path.resolve(root, "../../work/test-profile"),
+      LAD_USER_DATA:
+        process.env.LAD_TEST_PROFILE ||
+        path.resolve(root, "../../work/test-profile"),
     },
     timeout: 30000,
   });
   page = await app.firstWindow();
   await page.waitForLoadState("domcontentloaded");
   if (process.platform !== "win32") {
-    await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].hide());
+    await app.evaluate(({ BrowserWindow }) =>
+      BrowserWindow.getAllWindows()[0].hide(),
+    );
   }
   await page
     .getByRole("button", { name: "Посмотреть демо", exact: true })
@@ -595,18 +606,32 @@ test("devices transfer, settings theme roles, login dialog and logout", async ()
   ).toBeGreaterThan(0);
   expect(await page.locator(".modal-footer").boundingBox()).toEqual(before);
   await expect(
-    page.getByRole("button", { name: process.platform === "darwin" ? "Слушать на Mac" : "Слушать на компьютере", exact: true }),
+    page.getByRole("button", {
+      name:
+        process.platform === "darwin"
+          ? "Слушать на Mac"
+          : "Слушать на компьютере",
+      exact: true,
+    }),
   ).toBeInViewport();
   await page.locator(".modal-scroll").evaluate((el) => {
     el.scrollTop = 0;
   });
   if (viewport) await page.setViewportSize(viewport);
-  const hoverAvailable = await page.evaluate(() =>
-    matchMedia("(hover: hover) and (pointer: fine)").matches,
+  const hoverAvailable = await page.evaluate(
+    () => matchMedia("(hover: hover) and (pointer: fine)").matches,
   );
   await page.locator(".modal").hover({ position: { x: 70, y: 50 } });
-  if (hoverAvailable) await expect(page.locator(".modal")).toHaveAttribute("data-pointer-active", "true");
-  else await expect(page.locator(".modal")).not.toHaveAttribute("data-pointer-active", "true");
+  if (hoverAvailable)
+    await expect(page.locator(".modal")).toHaveAttribute(
+      "data-pointer-active",
+      "true",
+    );
+  else
+    await expect(page.locator(".modal")).not.toHaveAttribute(
+      "data-pointer-active",
+      "true",
+    );
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.locator(".modal").hover({ position: { x: 100, y: 60 } });
   await expect(page.locator(".modal")).not.toHaveAttribute(
@@ -620,7 +645,10 @@ test("devices transfer, settings theme roles, login dialog and logout", async ()
     .click();
   await expect(page.locator(".device-selector")).toContainText("Станция Миди");
   await page.getByRole("button", { name: "Настройки", exact: true }).click();
-  const syncVolume = page.getByRole("switch", {name: "Синхронизировать громкость с устройством", exact: true});
+  const syncVolume = page.getByRole("switch", {
+    name: "Синхронизировать громкость с устройством",
+    exact: true,
+  });
   await expect(syncVolume).toHaveAttribute("aria-checked", "false");
   await syncVolume.click();
   await expect(syncVolume).toHaveAttribute("aria-checked", "true");
@@ -716,21 +744,45 @@ test("devices transfer, settings theme roles, login dialog and logout", async ()
 // Terminate only the sidecar of this isolated Electron test process.
 test("backend exit is reported without crashing or hanging RPC", async () => {
   const pid = await app.evaluate(() => process.pid);
-  const childIds = process.platform === "win32"
-    ? execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command",
-        `(Get-CimInstance Win32_Process -Filter 'ParentProcessId = ${pid}' | Where-Object { $_.Name -eq 'lad-backend.exe' }).ProcessId`], {encoding: "utf8"})
-    : execFileSync("ps", ["-axo", "pid=,ppid=,command="], {encoding: "utf8"})
-        .split("\n").filter(line => {
-          const parts = line.trim().split(/\s+/, 3);
-          return Number(parts[1]) === pid && /python|lad-backend/.test(line);
-        }).map(line => line.trim().split(/\s+/)[0]).join("\n");
+  const childIds =
+    process.platform === "win32"
+      ? execFileSync(
+          "powershell.exe",
+          [
+            "-NoProfile",
+            "-NonInteractive",
+            "-Command",
+            `(Get-CimInstance Win32_Process -Filter 'ParentProcessId = ${pid}' | Where-Object { $_.Name -eq 'lad-backend.exe' }).ProcessId`,
+          ],
+          { encoding: "utf8" },
+        )
+      : execFileSync("ps", ["-axo", "pid=,ppid=,command="], {
+          encoding: "utf8",
+        })
+          .split("\n")
+          .filter((line) => {
+            const parts = line.trim().split(/\s+/, 3);
+            return Number(parts[1]) === pid && /python|lad-backend/.test(line);
+          })
+          .map((line) => line.trim().split(/\s+/)[0])
+          .join("\n");
   const children = childIds.trim().split(/\s+/).filter(Boolean).map(Number);
   expect(children).toHaveLength(1);
   process.kill(children[0], "SIGKILL");
-  await expect.poll(async () => page.evaluate(async () => {
-    try { await window.lad!.rpc("snapshot"); return "alive"; }
-    catch { return "stopped"; }
-  }), {timeout: 5000}).toBe("stopped");
+  await expect
+    .poll(
+      async () =>
+        page.evaluate(async () => {
+          try {
+            await window.lad!.rpc("snapshot");
+            return "alive";
+          } catch {
+            return "stopped";
+          }
+        }),
+      { timeout: 5000 },
+    )
+    .toBe("stopped");
   expect(await page.title()).toContain("Лад");
   expect(app.process().exitCode).toBeNull();
 });

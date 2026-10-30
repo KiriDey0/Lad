@@ -26,7 +26,7 @@ import {
   Volume2,
   VolumeX,
   ListMusic,
-  Mic2,
+  FileText,
   Monitor,
   Speaker,
   Plus,
@@ -560,7 +560,7 @@ export default function App() {
               </div>
               <div className="sidebar-actions">
                 <NavItem
-                  icon={Mic2}
+                  icon={FileText}
                   label="Сейчас играет"
                   active={page === "now"}
                   onClick={() => nav("now")}
@@ -1224,7 +1224,11 @@ function Welcome({
             "Очередь под рукой",
             "Собирай, меняй порядок, добавляй следом.",
           ],
-          [Mic2, "Слова в такт", "Синхронный текст, когда он есть у Яндекса."],
+          [
+            FileText,
+            "Слова в такт",
+            "Синхронный текст, когда он есть у Яндекса.",
+          ],
           [Monitor, "Одно приложение", "Компьютер и Станция в одном плеере."],
         ].map(([Icon, title, text]) => {
           const I = Icon as typeof ListMusic;
@@ -1728,7 +1732,7 @@ function Player({
             />
           </div>
           <span className="player-divider" />
-          <IconButton icon={Mic2} label="Текст песни" onClick={onLyrics} />
+          <IconButton icon={FileText} label="Текст песни" onClick={onLyrics} />
           <IconButton
             icon={ListMusic}
             label="Показать очередь"
@@ -1986,7 +1990,7 @@ function LyricsPage({
   if (!track)
     return (
       <Empty
-        icon={Mic2}
+        icon={FileText}
         title="У каждой песни свои слова"
         action={
           <Button icon={Search} onClick={onBrowse}>
@@ -2039,7 +2043,7 @@ function LyricsPage({
         <span className="now-meta-line" />
         {lyrics?.synced ? (
           <span>
-            <Mic2 size={14} /> Синхронный текст
+            <FileText size={14} /> Синхронный текст
           </span>
         ) : lyrics?.lines.length ? (
           <span>Текст без временных меток</span>

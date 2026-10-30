@@ -19,12 +19,23 @@ test.beforeAll(async () => {
     args: process.env.LAD_TEST_EXE ? [] : [root],
     env: {
       ...process.env,
-      LAD_USER_DATA: process.env.LAD_TEST_PROFILE || path.resolve(root, "../../work/test-profile"),
+      LAD_USER_DATA:
+        process.env.LAD_TEST_PROFILE ||
+        path.resolve(root, "../../work/test-profile"),
     },
     timeout: 60000,
   });
   page = await app.firstWindow();
   await page.waitForLoadState("domcontentloaded");
+  const paths = await app.evaluate(({ app }) => ({
+    data: app.getPath("userData"),
+    session: app.getPath("sessionData"),
+  }));
+  expect(paths.data).toBe(
+    process.env.LAD_TEST_PROFILE ||
+      path.resolve(root, "../../work/test-profile"),
+  );
+  expect(paths.session).toBe(paths.data);
   await page.evaluate(() => {
     localStorage.removeItem("lad:pinned:v1:demo:demo");
     localStorage.removeItem("lad:pinned:v1:demo:pin-isolation-test");
@@ -151,7 +162,7 @@ test("catalog search, collection, add next and no layout overflow", async () => 
   await page
     .getByRole("button", { name: "Включить Мою волну", exact: true })
     .click();
-  await expect(page.locator(".header-location")).toHaveText("Для тебя");
+  await expect(page.locator(".header-location")).toHaveText("Моя волна");
   await expect(page.locator(".wave-now-playing")).toBeVisible();
   await expect(page.locator(".wave-now-playing .art")).toBeVisible();
   await expect(page.getByLabel("Синхронный текст в карточке")).toBeVisible();
@@ -182,7 +193,7 @@ test("catalog search, collection, add next and no layout overflow", async () => 
   await expect(page.locator(".queue-panel")).toContainText(
     "Продолжить слушать",
   );
-  await expect(page.locator(".header-location")).toHaveText("Для тебя");
+  await expect(page.locator(".header-location")).toHaveText("Моя волна");
   await page.keyboard.press("Meta+k");
   await page
     .getByRole("textbox", { name: "Поиск музыки", exact: true })
@@ -377,7 +388,9 @@ test("collection pinning, album likes and batch queue actions", async () => {
     args: process.env.LAD_TEST_EXE ? [] : [root],
     env: {
       ...process.env,
-      LAD_USER_DATA: process.env.LAD_TEST_PROFILE || path.resolve(root, "../../work/test-profile"),
+      LAD_USER_DATA:
+        process.env.LAD_TEST_PROFILE ||
+        path.resolve(root, "../../work/test-profile"),
     },
     timeout: 30000,
   });
@@ -619,7 +632,10 @@ test("devices transfer, settings theme roles, login dialog and logout", async ()
     .click();
   await expect(page.locator(".device-selector")).toContainText("Станция Миди");
   await page.getByRole("button", { name: "Настройки", exact: true }).click();
-  const syncVolume = page.getByRole("switch", {name: "Синхронизировать громкость с устройством", exact: true});
+  const syncVolume = page.getByRole("switch", {
+    name: "Синхронизировать громкость с устройством",
+    exact: true,
+  });
   await expect(syncVolume).toHaveAttribute("aria-checked", "false");
   await syncVolume.click();
   await expect(syncVolume).toHaveAttribute("aria-checked", "true");
@@ -715,21 +731,45 @@ test("devices transfer, settings theme roles, login dialog and logout", async ()
 // Terminate only the sidecar of this isolated Electron test process.
 test("backend exit is reported without crashing or hanging RPC", async () => {
   const pid = await app.evaluate(() => process.pid);
-  const childIds = process.platform === "win32"
-    ? execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command",
-        `(Get-CimInstance Win32_Process -Filter 'ParentProcessId = ${pid}' | Where-Object { $_.Name -eq 'lad-backend.exe' }).ProcessId`], {encoding: "utf8"})
-    : execFileSync("ps", ["-axo", "pid=,ppid=,command="], {encoding: "utf8"})
-        .split("\n").filter(line => {
-          const parts = line.trim().split(/\s+/, 3);
-          return Number(parts[1]) === pid && /python|lad-backend/.test(line);
-        }).map(line => line.trim().split(/\s+/)[0]).join("\n");
+  const childIds =
+    process.platform === "win32"
+      ? execFileSync(
+          "powershell.exe",
+          [
+            "-NoProfile",
+            "-NonInteractive",
+            "-Command",
+            `(Get-CimInstance Win32_Process -Filter 'ParentProcessId = ${pid}' | Where-Object { $_.Name -eq 'lad-backend.exe' }).ProcessId`,
+          ],
+          { encoding: "utf8" },
+        )
+      : execFileSync("ps", ["-axo", "pid=,ppid=,command="], {
+          encoding: "utf8",
+        })
+          .split("\n")
+          .filter((line) => {
+            const parts = line.trim().split(/\s+/, 3);
+            return Number(parts[1]) === pid && /python|lad-backend/.test(line);
+          })
+          .map((line) => line.trim().split(/\s+/)[0])
+          .join("\n");
   const children = childIds.trim().split(/\s+/).filter(Boolean).map(Number);
   expect(children).toHaveLength(1);
   process.kill(children[0], "SIGKILL");
-  await expect.poll(async () => page.evaluate(async () => {
-    try { await window.lad!.rpc("snapshot"); return "alive"; }
-    catch { return "stopped"; }
-  }), {timeout: 5000}).toBe("stopped");
+  await expect
+    .poll(
+      async () =>
+        page.evaluate(async () => {
+          try {
+            await window.lad!.rpc("snapshot");
+            return "alive";
+          } catch {
+            return "stopped";
+          }
+        }),
+      { timeout: 5000 },
+    )
+    .toBe("stopped");
   expect(await page.title()).toContain("Лад");
   expect(app.process().exitCode).toBeNull();
 });
