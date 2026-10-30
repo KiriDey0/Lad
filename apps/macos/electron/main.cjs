@@ -59,6 +59,7 @@ const allowed = new Set([
   "albumLike",
   "wave",
   "waveSettings",
+  "waveStream",
 ]);
 const dataPath = () => app.getPath("userData");
 const secretPath = () => path.join(dataPath(), "session.enc");
@@ -490,7 +491,8 @@ app.whenReady().then(() => {
     if (event.sender !== window.webContents || !allowed.has(method))
       throw new Error("Недоступное действие.");
     await backendReady;
-    return rpc(method, params);
+    const result = await rpc(method, params);
+    return method === "waveStream" ? {url: waveStreams.add(result.url)} : result;
   });
   ipcMain.handle("orbit:login", async (event) => {
     if (event.sender !== window.webContents) throw new Error("Недоступно");

@@ -49,6 +49,8 @@ class WaveAudio : TeeAudioProcessor.AudioBufferSink {
         }
     }
 
+    fun clear() { latest = Sample(FloatArray(8), 0) }
+
     fun sample(): FloatArray {
         val value = latest
         return if (SystemClock.elapsedRealtime() - value.at < 300) value.bands else FloatArray(8)

@@ -66,6 +66,13 @@ class MusicEngine(
             .map { it.positionMs }
             .distinctUntilChanged()
             .stateIn(scope, SharingStarted.WhileSubscribed(5000), state.value.positionMs)
+    val remoteWave by lazy {
+        com.lad.music.wave.RemoteWaveAudio(context, scope, { id -> api.stream(id) }) {
+            val s = state.value
+            com.lad.music.wave.RemoteWavePlayback(s.track?.id, s.positionMs, s.playing,
+                s.output == "station" && s.connection == "connected" && !s.demo && s.profile != null)
+        }
+    }
     private val mutableAuth = MutableStateFlow(AuthState())
     val auth = mutableAuth.asStateFlow()
     private val mutex = Mutex()
