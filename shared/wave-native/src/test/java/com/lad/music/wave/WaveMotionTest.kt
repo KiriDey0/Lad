@@ -6,6 +6,16 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class WaveMotionTest {
+    @Test fun remoteClockCorrectionsStayBoundedAndFollowSeeks() {
+        assertEquals(10000L, remoteWaveCorrection(10000, 30000).seekMs)
+        assertEquals(30000L, remoteWaveCorrection(30000, 10000).seekMs)
+        assertNull(remoteWaveCorrection(30000, 30000).seekMs)
+        assertEquals(1f, remoteWaveCorrection(30000, 30000).rate)
+        assertTrue(remoteWaveCorrection(30400, 30000).rate > 1f)
+        assertTrue(remoteWaveCorrection(29600, 30000).rate < 1f)
+        for (error in -650L..650L) assertTrue(remoteWaveCorrection(30000+error, 30000).rate in .96f..1.04f)
+    }
+
     @Test
     fun decodedBassAttackMovesVisiblePointsWithin100ms() {
         val music = WaveMotion(180)

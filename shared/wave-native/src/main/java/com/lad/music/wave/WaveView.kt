@@ -8,6 +8,7 @@ import android.graphics.drawable.BitmapDrawable
 import android.provider.Settings
 import android.view.Choreographer
 import android.view.View
+import android.view.ViewTreeObserver
 import androidx.media3.common.util.UnstableApi
 import coil.request.Disposable
 import coil.request.ImageRequest
@@ -42,6 +43,14 @@ class WaveView(context: Context) : View(context), Choreographer.FrameCallback {
 
     var audio: WaveAudio? = null
         set(value) {
+            field?.enabled = false
+            field = value
+            refreshAudio()
+        }
+
+    var remote: RemoteWaveAudio? = null
+        set(value) {
+            if (field === value) return
             field?.enabled = false
             field = value
             refreshAudio()
@@ -94,6 +103,9 @@ class WaveView(context: Context) : View(context), Choreographer.FrameCallback {
     private var last = 0L
     private var pause = 1f
     private var pending = false
+    private val visibleRect = Rect()
+    private val scrollVisibility = ViewTreeObserver.OnScrollChangedListener { refreshAudio(); schedule() }
+    private val layoutVisibility = ViewTreeObserver.OnGlobalLayoutListener { refreshAudio(); schedule() }
 
     init {
         isFocusable = false
@@ -170,14 +182,14 @@ class WaveView(context: Context) : View(context), Choreographer.FrameCallback {
         ) == 0f
 
     private fun refreshAudio() {
-        audio?.enabled =
-            playing &&
-                local &&
+        val active = playing &&
                 intensity > 0 &&
                 !reduced() &&
                 isAttachedToWindow &&
                 windowVisibility == VISIBLE &&
-                isShown
+                isShown && getGlobalVisibleRect(visibleRect)
+        audio?.enabled = active && local
+        remote?.enabled = active && !local
     }
 
     private fun schedule() {
@@ -189,6 +201,8 @@ class WaveView(context: Context) : View(context), Choreographer.FrameCallback {
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
+        viewTreeObserver.addOnScrollChangedListener(scrollVisibility)
+        viewTreeObserver.addOnGlobalLayoutListener(layoutVisibility)
         last = 0
         loadCover(cover)
         refreshAudio()
@@ -196,11 +210,14 @@ class WaveView(context: Context) : View(context), Choreographer.FrameCallback {
     }
 
     override fun onDetachedFromWindow() {
+        viewTreeObserver.removeOnScrollChangedListener(scrollVisibility)
+        viewTreeObserver.removeOnGlobalLayoutListener(layoutVisibility)
         Choreographer.getInstance().removeFrameCallback(this)
         pending = false
         last = 0
         coverRequest?.dispose()
         audio?.enabled = false
+        remote?.enabled = false
         super.onDetachedFromWindow()
     }
 
@@ -219,7 +236,8 @@ class WaveView(context: Context) : View(context), Choreographer.FrameCallback {
 
     override fun doFrame(frameTimeNanos: Long) {
         pending = false
-        if (windowVisibility != VISIBLE || !isShown) {
+        if (windowVisibility != VISIBLE || !isShown || !getGlobalVisibleRect(visibleRect)) {
+            refreshAudio()
             last = 0
             return
         }
@@ -234,7 +252,7 @@ class WaveView(context: Context) : View(context), Choreographer.FrameCallback {
         pause += ((targetPause - pause) * (1 - exp(-dt * 4))).toFloat()
         if (!computing) {
             computing = true
-            val raw = if (local && playing) audio?.sample() ?: FloatArray(8) else FloatArray(8)
+            val raw = if (playing) (if (local) audio else remote?.audio)?.sample() ?: FloatArray(8) else FloatArray(8)
             val movement = if (reduced()) 0.0 else dt * (1 - pause)
             val destination = back
             worker.execute {

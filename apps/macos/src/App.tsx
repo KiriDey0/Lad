@@ -761,6 +761,7 @@ export default function App() {
                           cover={current?.cover}
                           playing={state.playback.playing}
                           local={state.output === "local"}
+                          remote={state.output === "station" && state.connection === "connected" && !state.demo ? state.playback : undefined}
                           intensity={theme.waveIntensity}
                         />
                         <div className="wave-heading">

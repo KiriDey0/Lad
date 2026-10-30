@@ -3,6 +3,8 @@ import { useEffect, useRef } from "react";
 import { WebSimulation } from "../../../../shared/wave/web-simulation.mjs";
 import { WaveMotion } from "../../../../shared/wave/audio-features.mjs";
 import { sampleWaveAudio } from "./audio";
+import type { Playback } from "../types";
+import { useRemoteWaveAudio } from "./remote";
 const neutral = [
   [166, 182, 192],
   [190, 180, 165],
@@ -12,13 +14,16 @@ export function WaveScene({
   playing,
   local,
   intensity = 100,
+  remote,
 }: {
   cover?: string | null;
   playing: boolean;
   local: boolean;
   intensity?: number;
+  remote?: Playback;
 }) {
   const canvas = useRef<HTMLCanvasElement>(null);
+  useRemoteWaveAudio(remote, canvas, intensity);
   const palette = useRef(neutral.map((c) => c.slice()));
   const latest = useRef({ playing, local, intensity });
   latest.current = { playing, local, intensity };
@@ -124,7 +129,7 @@ export function WaveScene({
       const p = latest.current;
       pause += (Number(!p.playing) - pause) * (1 - Math.exp(-dt * 4));
       const f =
-        p.local && p.playing
+        p.playing
           ? sampleWaveAudio(dt)
           : {
               bass: 0,

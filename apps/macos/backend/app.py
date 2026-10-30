@@ -620,6 +620,17 @@ class App:
             emit('local', {'action': 'volume', 'value': 1 if enabled else self.playback['volume']})
             self.publish(True)
             return self.snapshot()
+        if method == 'waveStream':
+            # A read-only analysis stream for the current remote track only.
+            current = self.playback.get('track')
+            id_ = str(p.get('trackId') or '')
+            if self.demo or self.output != 'station' or self.connection != 'connected' or not current or str(current['id']) != id_:
+                raise ValueError('Поток анализа больше не соответствует треку Станции.')
+            url = await self.stream(id_)
+            self.require_operation(epoch)
+            if self.connection != 'connected' or self.output != 'station' or not self.playback.get('track') or str(self.playback['track']['id']) != id_:
+                raise ActionSuperseded('Трек Станции изменился.')
+            return {'url': url}
         if method == 'snapshot':
             return self.snapshot()
         if method == 'boot':

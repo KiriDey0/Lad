@@ -64,6 +64,16 @@ export function setWaveVolume(audio: HTMLAudioElement, volume: number) {
     audio.volume = 1;
   } else audio.volume = value;
 }
+export function suspendWaveAudio(audio: HTMLAudioElement) {
+  const graph = graphs.get(audio);
+  if (active === audio) active = null;
+  if (graph?.context.state === "running") void graph.context.suspend().catch(() => {});
+}
+export function detachWaveAudio(audio: HTMLAudioElement) {
+  const graph = graphs.get(audio);
+  if (active === audio) active = null;
+  if (graph) { graph.output.disconnect(); void graph.context.close(); graphs.delete(audio); }
+}
 export function resetWaveAudio() {
   features.reset();
 }

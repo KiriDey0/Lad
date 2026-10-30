@@ -3,7 +3,7 @@
 """Guard desktop adapter parity while all four apps share the approved wave models."""
 from pathlib import Path
 root=Path(__file__).resolve().parents[1]
-for name in ('src/wave/WaveScene.tsx','src/wave/audio.ts','electron/wave-stream.cjs'):
+for name in ('src/wave/WaveScene.tsx','src/wave/audio.ts','src/wave/remote.ts','electron/wave-stream.cjs'):
  assert (root/'apps/macos'/name).read_bytes()==(root/'apps/windows'/name).read_bytes(),name
 for platform in ('android','tv'):
  assert '../../../shared/wave-native/src/main/java' in (root/'apps'/platform/'app/build.gradle.kts').read_text()

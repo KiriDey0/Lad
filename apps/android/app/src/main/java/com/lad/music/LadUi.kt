@@ -341,7 +341,7 @@ private fun WaveHome(
     Box(Modifier.fillMaxWidth().height(602.dp).clip(RoundedCornerShape(24.dp))) {
         androidx.compose.ui.viewinterop.AndroidView(
             factory = { context ->
-                com.lad.music.wave.WaveView(context).apply { audio = engine.waveAudio }
+                com.lad.music.wave.WaveView(context).apply { audio = engine.waveAudio; remote = engine.remoteWave }
             },
             update = { v ->
                 v.playing = s.playing

@@ -888,6 +888,7 @@ class MainActivity : Activity() {
             (homeWave ?: com.lad.music.wave.WaveView(this).also { homeWave = it }).apply {
                 (parent as? android.view.ViewGroup)?.removeView(this)
                 audio = engine.waveAudio
+                remote = engine.remoteWave
                 playing = s.playing
                 local = s.output != "station"
                 intensity = s.settings.waveIntensity
