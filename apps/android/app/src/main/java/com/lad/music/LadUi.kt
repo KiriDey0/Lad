@@ -363,13 +363,20 @@ private fun WaveHome(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Label(
-                    s.track?.title ?: "В твоём настроении",
-                    17,
-                    weight = FontWeight.SemiBold,
-                    modifier = Modifier.basicMarquee(),
-                    maxLines = 1,
-                )
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Label(
+                        s.track?.title ?: "В твоём настроении",
+                        17,
+                        weight = FontWeight.SemiBold,
+                        modifier = Modifier.weight(1f, fill = false).basicMarquee(),
+                        maxLines = 1,
+                    )
+                    s.track?.let { Explicit(it) }
+                }
                 Label(
                     s.track?.artist ?: "Знакомое и новое",
                     13,

@@ -2,6 +2,7 @@
 package com.lad.music.wave
 
 import android.content.Context
+import android.content.res.Configuration
 import android.graphics.*
 import android.graphics.drawable.BitmapDrawable
 import android.provider.Settings
@@ -10,6 +11,7 @@ import android.view.View
 import androidx.media3.common.util.UnstableApi
 import coil.request.Disposable
 import coil.request.ImageRequest
+import java.util.concurrent.Executors
 import kotlin.math.*
 
 /** Decorative only: never takes focus, clicks or D-pad input from the player. */
@@ -55,6 +57,35 @@ class WaveView(context: Context) : View(context), Choreographer.FrameCallback {
 
     private val simulation = WaveMotion()
     private val envelope = WaveEnvelope()
+
+    private class Frame(count: Int) {
+        val points = FloatArray(count * 4)
+        val lines = FloatArray(count * 30 * 6)
+        var lineCount = 0
+    }
+
+    private var front = Frame(simulation.count)
+    private var back = Frame(simulation.count)
+    private var computing = false
+    private val lineBuckets = Array(12) { FloatArray(simulation.count * 30 * 4) }
+    private val lineSizes = IntArray(12)
+    private val pointBuckets = Array(8) { FloatArray(simulation.count * 2) }
+    private val pointSizes = IntArray(8)
+    private val frameInterval =
+        if (
+            (resources.configuration.uiMode and Configuration.UI_MODE_TYPE_MASK) ==
+                Configuration.UI_MODE_TYPE_TELEVISION
+        )
+            30_000_000L
+        else 15_000_000L
+
+    companion object {
+        private val worker =
+            Executors.newSingleThreadExecutor { task ->
+                Thread(task, "LadWave").apply { isDaemon = true }
+            }
+    }
+
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val base = arrayOf(floatArrayOf(166f, 182f, 192f), floatArrayOf(190f, 180f, 165f))
     private var target = base.map { it.copyOf() }
@@ -68,6 +99,9 @@ class WaveView(context: Context) : View(context), Choreographer.FrameCallback {
         isFocusable = false
         importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
         simulation.step(.016)
+        simulation.points.copyInto(front.points)
+        simulation.lines.copyInto(front.lines, endIndex = simulation.lineCount * 3)
+        front.lineCount = simulation.lineCount
     }
 
     private fun loadCover(url: String?) {
@@ -189,8 +223,8 @@ class WaveView(context: Context) : View(context), Choreographer.FrameCallback {
             last = 0
             return
         }
-        // API 28 / ARMv7: a steady 30 fps, independent of the TV's refresh rate.
-        if (last != 0L && frameTimeNanos - last < 30_000_000L) {
+        // Keep TV at 30 fps; touch devices use 60 fps without blocking input.
+        if (last != 0L && frameTimeNanos - last < frameInterval) {
             schedule()
             return
         }
@@ -198,12 +232,25 @@ class WaveView(context: Context) : View(context), Choreographer.FrameCallback {
         last = frameTimeNanos
         val targetPause = if (playing) 0f else 1f
         pause += ((targetPause - pause) * (1 - exp(-dt * 4))).toFloat()
-        val bands =
-            envelope.process(
-                if (local && playing) audio?.sample() ?: FloatArray(8) else FloatArray(8),
-                dt,
-            )
-        if (!reduced() && pause < .999f) simulation.step(dt * (1 - pause), bands)
+        if (!computing) {
+            computing = true
+            val raw = if (local && playing) audio?.sample() ?: FloatArray(8) else FloatArray(8)
+            val movement = if (reduced()) 0.0 else dt * (1 - pause)
+            val destination = back
+            worker.execute {
+                val bands = envelope.process(raw, dt)
+                if (movement > 0) simulation.step(movement, bands)
+                simulation.points.copyInto(destination.points)
+                simulation.lines.copyInto(destination.lines, endIndex = simulation.lineCount * 3)
+                destination.lineCount = simulation.lineCount
+                post {
+                    back = front
+                    front = destination
+                    computing = false
+                    if (isAttachedToWindow) invalidate()
+                }
+            }
+        }
         for (i in 0..1) for (j in 0..2) colors[i][j] +=
             ((target[i][j] - colors[i][j]) * (1 - exp(-dt * 2))).toFloat()
         invalidate()
@@ -229,31 +276,50 @@ class WaveView(context: Context) : View(context), Choreographer.FrameCallback {
                 (colors[0][1] * a + colors[1][1] * (1 - a)).toInt(),
                 (colors[0][2] * a + colors[1][2] * (1 - a)).toInt(),
             )
-        paint.strokeWidth = max(.7f, resources.displayMetrics.density * .65f)
-        paint.color = tint(.55f)
-        for (i in 0 until simulation.lineCount step 2) {
+        val frame = front
+        lineSizes.fill(0)
+        pointSizes.fill(0)
+        for (i in 0 until frame.lineCount step 2) {
             val o = i * 3
-            paint.alpha =
-                (simulation.lines[o + 2] * strength * 1.65f * 255).toInt().coerceIn(0, 255)
-            canvas.drawLine(
-                cx + simulation.lines[o] * size,
-                cy + simulation.lines[o + 1] * size,
-                cx + simulation.lines[o + 3] * size,
-                cy + simulation.lines[o + 4] * size,
-                paint,
-            )
+            val bucket = (frame.lines[o + 2] * strength * 1.65f * 40).toInt().coerceIn(0, 11)
+            if (bucket == 0) continue
+            val b = lineBuckets[bucket]
+            val n = lineSizes[bucket]
+            b[n] = cx + frame.lines[o] * size
+            b[n + 1] = cy + frame.lines[o + 1] * size
+            b[n + 2] = cx + frame.lines[o + 3] * size
+            b[n + 3] = cy + frame.lines[o + 4] * size
+            lineSizes[bucket] += 4
+        }
+        paint.style = Paint.Style.STROKE
+        paint.strokeWidth = max(.7f, resources.displayMetrics.density * .65f)
+        paint.strokeCap = Paint.Cap.BUTT
+        paint.color = tint(.55f)
+        for (i in 1..11) if (lineSizes[i] > 0) {
+            paint.alpha = (i / 40f * 255).toInt()
+            canvas.drawLines(lineBuckets[i], 0, lineSizes[i], paint)
         }
         for (i in 0 until simulation.count) {
             val o = i * 4
-            val depth = simulation.points[o + 3]
-            val r = simulation.points[o + 2] * size * .5f
-            val x = cx + simulation.points[o] * size
-            val y = cy + simulation.points[o + 1] * size
+            val bucket = (frame.points[o + 3] * 8).toInt().coerceIn(0, 7)
+            val b = pointBuckets[bucket]
+            val n = pointSizes[bucket]
+            b[n] = cx + frame.points[o] * size
+            b[n + 1] = cy + frame.points[o + 1] * size
+            pointSizes[bucket] += 2
+        }
+        paint.strokeCap = Paint.Cap.ROUND
+        for (i in 0..7) if (pointSizes[i] > 0) {
+            val depth = (i + .5f) / 8
             paint.color = tint(depth)
             paint.alpha = ((.2f + depth * .48f) * strength * 2 * 255).toInt().coerceIn(0, 255)
-            canvas.drawCircle(x, y, max(.5f, r * .42f), paint)
+            paint.strokeWidth = max(1f, (.0035f + depth * .0025f) * size * .42f)
+            canvas.drawPoints(pointBuckets[i], 0, pointSizes[i], paint)
             paint.alpha = (.07f * strength * 255).toInt()
-            canvas.drawCircle(x, y, r * 1.4f, paint)
+            paint.strokeWidth *= 3.2f
+            canvas.drawPoints(pointBuckets[i], 0, pointSizes[i], paint)
         }
+        paint.strokeCap = Paint.Cap.BUTT
+        paint.style = Paint.Style.FILL
     }
 }
