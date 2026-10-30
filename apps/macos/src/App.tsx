@@ -763,6 +763,7 @@ export default function App() {
                           local={state.output === "local"}
                           remote={state.output === "station" && state.connection === "connected" && !state.demo ? state.playback : undefined}
                           intensity={theme.waveIntensity}
+                          smoothing={theme.waveSmoothing}
                         />
                         <div className="wave-heading">
                           <span className="eyebrow">ТВОЙ РИТМ</span>
@@ -2984,8 +2985,8 @@ function SettingsPage({
         <h2>Текст и воспроизведение</h2>
         <div className="setting-row">
           <div>
-            <strong>Выразительность волны</strong>
-            <p>Движение и яркость паутины вокруг обложки.</p>
+            <strong>Яркость волны</strong>
+            <p>Свет точек и связей вокруг обложки.</p>
           </div>
           <div className="flex items-center gap-3">
             <input
@@ -2994,12 +2995,24 @@ function SettingsPage({
               max="100"
               step="5"
               value={theme.waveIntensity}
-              aria-label="Выразительность волны"
+              aria-label="Яркость волны"
               onChange={(e) =>
                 update({ waveIntensity: Number(e.target.value) })
               }
             />
             <span>{theme.waveIntensity}%</span>
+          </div>
+        </div>
+        <div className="setting-row">
+          <div>
+            <strong>Плавность движения</strong>
+            <p>Меньше — резкая реакция на музыку. Больше — мягкие и спокойные движения.</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <input type="range" min="0" max="100" step="5"
+              value={theme.waveSmoothing} aria-label="Плавность движения"
+              onChange={(e) => update({ waveSmoothing: Number(e.target.value) })} />
+            <span>{theme.waveSmoothing}%</span>
           </div>
         </div>
         <div className="setting-row">

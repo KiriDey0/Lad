@@ -22,6 +22,7 @@ class WaveMotion(val count: Int = 300, seed: Long = 7193) {
         val follow: Double,
     ) {
         var radius = rest
+        var shownRadius = rest
         var radial = 0.0
         var angular = 0.0
         var energy = 0.0
@@ -66,8 +67,8 @@ class WaveMotion(val count: Int = 300, seed: Long = 7193) {
     private fun updatePoints() {
         nodes.forEachIndexed { i, n ->
             val o = i * 4
-            points[o] = (cos(n.angle) * n.radius + n.x).toFloat()
-            points[o + 1] = (sin(n.angle) * n.radius / 1.06 + n.y).toFloat()
+            points[o] = (cos(n.angle) * n.shownRadius + n.x).toFloat()
+            points[o + 1] = (sin(n.angle) * n.shownRadius / 1.06 + n.y).toFloat()
             points[o + 2] = (.0035 + n.shine * .0025 + n.energy * .0007).toFloat()
             points[o + 3] =
                 ((.35 + n.shine * .45) *
@@ -77,17 +78,18 @@ class WaveMotion(val count: Int = 300, seed: Long = 7193) {
         }
     }
 
-    fun step(seconds: Double, bands: FloatArray = FloatArray(8)) {
+    fun step(seconds: Double, bands: FloatArray = FloatArray(8), smoothing: Float = 50f) {
         if (seconds <= 0) return
         val dt = seconds.coerceAtMost(.05)
-        time += dt
+        val tune = waveSmoothing(smoothing)
+        time += dt * tune.flow
         val mid = (bands[2] + bands[3] + bands[4]) / 3.0
         val high = (bands[5] + bands[6] + bands[7]) / 3.0
         for (n in nodes) {
             val local =
                 bands[n.band] * (.8 + n.blend * .15) +
                     bands[(n.band + 3) % 8] * (.2 - n.blend * .15)
-            n.energy = smooth(n.energy, local, dt * n.follow * if (local > n.energy) 2 else 1)
+            n.energy = smooth(n.energy, local, dt * n.follow * (if (local > n.energy) 2 else 1) / tune.response)
             val attack = max(0.0, n.energy - n.previous)
             n.previous = n.energy
             val flow =
@@ -98,23 +100,25 @@ class WaveMotion(val count: Int = 300, seed: Long = 7193) {
                 smooth(
                     n.angular,
                     flow * (1 + mid * .25) + individual * (.6 + n.energy * .7),
-                    dt * 2.4,
+                    dt * 2.4 / tune.response,
                 )
-            n.angle += n.angular * dt
-            n.radial += attack * .18 * n.polarity
+            n.angle += n.angular * dt * tune.flow
+            n.radial += attack * .18 * n.polarity * tune.travel
             val target =
-                n.rest + n.polarity * n.energy * .075 + .011 * sin(time * n.frequency + n.phase)
-            n.radial += ((target - n.radius) * 42 - n.radial * 11) * dt
-            n.radius += n.radial * dt
-            val excursion = .010 + n.energy * .055
+                n.rest + (n.polarity * n.energy * .075 + .011 * sin(time * n.frequency + n.phase)) * tune.travel
+            val physicsDt = dt / max(1.0, tune.response)
+            n.radial += ((target - n.radius) * 42 - n.radial * 11) * physicsDt
+            n.radius += n.radial * physicsDt
+            n.shownRadius = n.radius + (target - n.radius) * tune.direct
+            val excursion = (.010 + n.energy * .055) * tune.travel
             val x =
                 sin(time * n.frequency + n.phase * 2) +
                     .32 * cos(time * n.frequency * .71 + n.phase * 5)
             val y =
                 cos(time * n.frequency * .73 + n.phase * 3) +
                     .30 * sin(time * n.frequency * 1.17 + n.phase)
-            n.x = smooth(n.x, x * excursion, dt * n.follow)
-            n.y = smooth(n.y, y * excursion, dt * n.follow)
+            n.x = smooth(n.x, x * excursion, dt * n.follow / tune.response)
+            n.y = smooth(n.y, y * excursion, dt * n.follow / tune.response)
         }
         updatePoints()
         val grid = HashMap<Int, MutableList<Int>>()
@@ -153,7 +157,7 @@ class WaveMotion(val count: Int = 300, seed: Long = 7193) {
         while (iterator.hasNext()) {
             val (k, e) = iterator.next()
             val on = chosen.contains(k)
-            e.alpha = smooth(e.alpha, if (on) 1.0 else 0.0, dt / if (on) .16 else .32)
+            e.alpha = smooth(e.alpha, if (on) 1.0 else 0.0, dt / ((if (on) .16 else .32) * sqrt(tune.response)))
             if (!on && e.alpha < .008) {
                 iterator.remove()
                 continue
@@ -187,9 +191,10 @@ class WaveEnvelope {
     private fun follow(v: Float, t: Float, dt: Double, attack: Double, release: Double) =
         (v + (t - v) * (1 - exp(-dt / if (t > v) attack else release))).toFloat()
 
-    fun process(raw: FloatArray, seconds: Double): FloatArray {
+    fun process(raw: FloatArray, seconds: Double, smoothing: Float = 50f): FloatArray {
         val dt = seconds.coerceIn(.001, .05)
         age += dt
+        val response = waveSmoothing(smoothing).response
         for (i in 0..7) {
             val v = raw[i].coerceAtLeast(0f)
             val prior = average[i]
@@ -201,8 +206,8 @@ class WaveEnvelope {
         }
         for (i in 0..7) {
             val target = values[i] * .85f + values[(i + 7) % 8] * .075f + values[(i + 1) % 8] * .075f
-            val delta = follow(motion[i], target, dt, .03 * .75, .16 * .75) - motion[i]
-            motion[i] += (delta.toDouble().coerceIn(-8.0 / .75 * dt, 8.0 / .75 * dt)).toFloat()
+            val delta = follow(motion[i], target, dt, .03 * .75 * response, .16 * .75 * response) - motion[i]
+            motion[i] += (delta.toDouble().coerceIn(-8.0 / (.75 * response) * dt, 8.0 / (.75 * response) * dt)).toFloat()
         }
         return motion
     }

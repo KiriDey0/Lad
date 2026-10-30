@@ -5,6 +5,7 @@ import { WaveMotion } from "../../../../shared/wave/audio-features.mjs";
 import { sampleWaveAudio } from "./audio";
 import type { Playback } from "../types";
 import { useRemoteWaveAudio } from "./remote";
+import {waveBrightness} from "../../../../shared/wave/appearance.mjs";
 const neutral = [
   [166, 182, 192],
   [190, 180, 165],
@@ -14,19 +15,21 @@ export function WaveScene({
   playing,
   local,
   intensity = 100,
+  smoothing = 50,
   remote,
 }: {
   cover?: string | null;
   playing: boolean;
   local: boolean;
   intensity?: number;
+  smoothing?: number;
   remote?: Playback;
 }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   useRemoteWaveAudio(remote, canvas, intensity);
   const palette = useRef(neutral.map((c) => c.slice()));
-  const latest = useRef({ playing, local, intensity });
-  latest.current = { playing, local, intensity };
+  const latest = useRef({ playing, local, intensity, smoothing });
+  latest.current = { playing, local, intensity, smoothing };
   useEffect(() => {
     palette.current = neutral.map((c) => c.slice());
     if (!cover) return;
@@ -138,14 +141,14 @@ export function WaveScene({
               level: 0,
               spectrum: new Float32Array(8),
             };
-      const audio = motion.update(f, dt, 0.75);
-      if (!reduced.matches && pause < 0.999) sim.step(dt * (1 - pause), audio);
+      const audio = motion.update(f, dt, 0.75, p.smoothing);
+      if (!reduced.matches && pause < 0.999) sim.step(dt * (1 - pause), audio, p.smoothing);
       ctx.clearRect(0, 0, w, h);
       const size = Math.min(w, h) * 1.08,
         cx = w * 0.5,
         cy = h * 0.42;
       const strength =
-        (Math.max(0, Math.min(100, p.intensity)) / 100) * (1 - pause * 0.82);
+        waveBrightness(p.intensity) * (1 - pause * 0.82);
       colors.forEach((c, i) =>
         c.forEach(
           (v, j) =>
@@ -174,7 +177,7 @@ export function WaveScene({
         const color = colors[1].map((v, j) =>
           Math.round(v + (colors[0][j] - v) * depth),
         );
-        ctx.fillStyle = `rgba(${color.join(",")},${Math.min(1, (0.2 + depth * 0.48) * strength * 2)})`;
+        ctx.fillStyle = `rgba(${color.join(",")},${Math.min(1, Math.min(1, (0.2 + depth * 0.48) * 2) * strength)})`;
         ctx.beginPath();
         ctx.arc(x, y, Math.max(0.5, r * 0.42), 0, Math.PI * 2);
         ctx.fill();

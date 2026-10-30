@@ -3,7 +3,7 @@ import {test, expect, _electron} from '@playwright/test';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import ts from 'typescript';
+import {buildSync} from 'esbuild';
 
 test('decoded PCM remains identical at 0%, 10% and 100% listening volume', async () => {
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'lad-volume-'));
@@ -12,9 +12,9 @@ test('decoded PCM remains identical at 0%, 10% and 100% listening volume', async
   const app = await _electron.launch({args:[main]});
   try {
     const page = await app.firstWindow();
-    const features = fs.readFileSync(path.resolve(__dirname,'../../../shared/wave/audio-features.mjs'),'utf8').replace(/^export /gm,'');
-    const source = fs.readFileSync(path.resolve(__dirname,'../src/wave/audio.ts'),'utf8').replace(/^import .*;\n/m,'').replace(/^export /gm,'');
-    await page.addScriptTag({content: features + '\n' + ts.transpile(source,{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.None}) + '\nwindow.waveTest={attachWaveAudio,setWaveVolume,sampleWaveAudio,resetWaveAudio};'});
+    const root = path.resolve(__dirname,'..');
+    const bundle = buildSync({stdin:{contents:`import {attachWaveAudio,setWaveVolume,sampleWaveAudio,resetWaveAudio} from ${JSON.stringify(path.join(root,'src/wave/audio.ts'))};window.waveTest={attachWaveAudio,setWaveVolume,sampleWaveAudio,resetWaveAudio};`,resolveDir:root},bundle:true,write:false});
+    await page.addScriptTag({content:bundle.outputFiles[0].text});
     const result = await page.evaluate(async () => {
       const api = (window as any).waveTest;
       const NativeContext = window.AudioContext;

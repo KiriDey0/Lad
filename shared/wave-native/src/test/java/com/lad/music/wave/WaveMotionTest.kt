@@ -6,6 +6,51 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class WaveMotionTest {
+    @Test fun smoothingChangesReactionWithoutFreezingOrChangingTheDefault() {
+        fun trace(smoothing: Float): Pair<Double, Int> {
+            val music = WaveMotion(90)
+            val quiet = WaveMotion(90)
+            val envelope = WaveEnvelope()
+            var previous: FloatArray? = null
+            var travel = 0.0
+            var firstVisible = Int.MAX_VALUE
+            repeat(360) { frame ->
+                val t = frame / 60.0
+                val pulse = if (t >= 2 && t < 5) (.14 * exp(-(t % .5) / .055)).toFloat() else 0f
+                music.step(1.0 / 60, envelope.process(floatArrayOf(pulse, pulse * .8f, 0f, 0f, pulse * .3f, 0f, 0f, 0f), 1.0 / 60, smoothing), smoothing)
+                quiet.step(1.0 / 60, smoothing = smoothing)
+                val difference = FloatArray(180)
+                var visible = 0
+                repeat(90) { i ->
+                    val x = music.points[i * 4] - quiet.points[i * 4]
+                    val y = music.points[i * 4 + 1] - quiet.points[i * 4 + 1]
+                    assertTrue(x.isFinite() && y.isFinite())
+                    difference[i * 2] = x
+                    difference[i * 2 + 1] = y
+                    if (hypot(x, y) > .006) visible++
+                    previous?.let { travel += hypot((x - it[i * 2]).toDouble(), (y - it[i * 2 + 1]).toDouble()) }
+                }
+                if (visible >= 18 && firstVisible == Int.MAX_VALUE) firstVisible = frame - 120
+                previous = difference
+            }
+            return travel to firstVisible
+        }
+        val sharp = trace(0f)
+        val normal = trace(50f)
+        val calm = trace(100f)
+        assertTrue(sharp.second < normal.second)
+        assertTrue(sharp.second <= 3)
+        assertTrue(calm.first > .005 && calm.first < normal.first * .4)
+        val a = WaveMotion(60)
+        val b = WaveMotion(60)
+        repeat(180) {
+            val bands = FloatArray(8) { i -> sin((it + i) / 7.0).pow(2).toFloat() }
+            a.step(1.0 / 60, bands)
+            b.step(1.0 / 60, bands, 50f)
+        }
+        assertArrayEquals(a.points, b.points, 0f)
+    }
+
     @Test fun remoteClockCorrectionsStayBoundedAndFollowSeeks() {
         assertEquals(10000L, remoteWaveCorrection(10000, 30000).seekMs)
         assertEquals(30000L, remoteWaveCorrection(30000, 10000).seekMs)

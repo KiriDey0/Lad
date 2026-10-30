@@ -347,6 +347,7 @@ private fun WaveHome(
                 v.playing = s.playing
                 v.local = s.output == "phone"
                 v.intensity = s.settings.waveIntensity
+                v.smoothing = s.settings.waveSmoothing
                 v.cover = s.track?.cover
             },
             modifier = Modifier.fillMaxWidth().height(430.dp),

@@ -8,6 +8,7 @@ export type Theme = {
   lyricOffset: number;
   scale: number;
   waveIntensity: number;
+  waveSmoothing: number;
 };
 export const defaultTheme: Theme = {
   base: "dark",
@@ -17,6 +18,7 @@ export const defaultTheme: Theme = {
   lyricOffset: 0,
   scale: 85,
   waveIntensity: 100,
+  waveSmoothing: 50,
 };
 export function loadTheme(): Theme {
   try {
@@ -29,6 +31,7 @@ export function loadTheme(): Theme {
         ? Math.max(75, Math.min(115, Math.round(theme.scale / 5) * 5))
         : defaultTheme.scale;
     theme.waveIntensity = Number.isFinite(theme.waveIntensity) ? Math.max(0, Math.min(100, theme.waveIntensity)) : 100;
+    theme.waveSmoothing = Number.isFinite(theme.waveSmoothing) ? Math.max(0, Math.min(100, theme.waveSmoothing)) : 50;
     return theme;
   } catch {
     return defaultTheme;

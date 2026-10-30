@@ -194,6 +194,7 @@ data class Settings(
     val blockExplicit: Boolean = false,
     val lyricOffsetMs: Long = 0,
     val waveIntensity: Float = 100f,
+    val waveSmoothing: Float = 50f,
 )
 
 data class MusicState(
