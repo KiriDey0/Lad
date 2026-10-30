@@ -69,6 +69,10 @@ class MainActivity : Activity() {
     private var devicesError = ""
     private var pendingOutputId: String? = null
     private var outputReturnFocus = ""
+    private var wavePreferences: com.lad.music.wave.WavePreferences? = null
+    private var wavePreferenceError = ""
+    private var wavePreferenceLoading = false
+    private var homeWave: com.lad.music.wave.WaveView? = null
     private var playerTime: TextView? = null
     private var lineText: TextView? = null
     private var previousLine: TextView? = null
@@ -446,8 +450,14 @@ class MainActivity : Activity() {
         scope.launch {
             updater.state.collect { update ->
                 if (modal == "updates") {
-                    if (update.phase != updatePhase) { updatePhase = update.phase; build(activeFocus) }
-                    else updateProgressLabel?.text = if(update.phase=="downloading") "Загружено ${update.progress}% · можно слушать музыку" else update.message
+                    if (update.phase != updatePhase) {
+                        updatePhase = update.phase
+                        build(activeFocus)
+                    } else
+                        updateProgressLabel?.text =
+                            if (update.phase == "downloading")
+                                "Загружено ${update.progress}% · можно слушать музыку"
+                            else update.message
                 }
             }
         }
@@ -872,39 +882,80 @@ class MainActivity : Activity() {
             hint("OK — выбрать    Стрелки — перемещение    Назад — меню")
             return
         }
-        val body = viewport(248, 160, 1576, 920, "home", 1360)
-        val hero = frame(body, 0, 0, 1576, 252, surface)
-        label(hero, "ТВОЯ МУЗЫКА. БЕЗ ЛИШНИХ ДВИЖЕНИЙ.", 28, 31, 1000, 22, 22, muted)
-        label(hero, "Моя волна", 28, 65, 1000, 46, 48, ink, true)
-        label(hero, "Знакомое и новое. В твоём настроении.", 28, 123, 1000, 26, 28, muted)
+        val body = viewport(248, 160, 1576, 920, "home", 1480)
+        val hero = frame(body, 0, 0, 1576, 650, if (s.settings.oled) Color.BLACK else bg)
+        val wave =
+            (homeWave ?: com.lad.music.wave.WaveView(this).also { homeWave = it }).apply {
+                (parent as? android.view.ViewGroup)?.removeView(this)
+                audio = engine.waveAudio
+                playing = s.playing
+                local = s.output != "station"
+                intensity = s.settings.waveIntensity
+                cover = s.track?.cover
+            }
+        place(hero, wave, 0, 0, 1576, 600)
+        label(hero, "Моя волна", 288, 26, 1000, 46, 40, ink, true).gravity = Gravity.CENTER
+        artwork(hero, "Моя волна", s.track?.cover, 658, 120, 260)
+        label(hero, s.track?.title ?: "В твоём настроении", 288, 402, 1000, 36, 30, ink, true)
+            .apply {
+                gravity = Gravity.CENTER
+                ellipsize = TextUtils.TruncateAt.MARQUEE
+                marqueeRepeatLimit = -1
+                isSelected = true
+                isSingleLine = true
+            }
+        label(hero, s.track?.artist ?: "Знакомое и новое", 288, 444, 1000, 30, 24, muted).gravity =
+            Gravity.CENTER
+        lineText = label(hero, "", 238, 486, 1100, 32, 26, ink).apply { gravity = Gravity.CENTER }
+        nextLine = label(hero, "", 238, 524, 1100, 30, 24, muted).apply { gravity = Gravity.CENTER }
         button(
             hero,
             "wave",
-            if (s.source.startsWith("Моя волна") && s.owned) "Продолжить волну"
+            if (s.source.startsWith("Моя волна") && s.owned)
+                if (s.playing) "Пауза" else "Продолжить волну"
             else "Включить Мою волну",
-            28,
-            161,
-            374,
-            64,
+            264,
+            578,
+            332,
+            56,
         ) {
             engine.task {
-                if (s.source.startsWith("Моя волна") && s.owned) engine.resume() else engine.wave()
+                if (s.source.startsWith("Моя волна") && s.owned) engine.toggle() else engine.wave()
             }
         }
-        artwork(hero, "Моя волна", s.track?.cover, 1372, 38, 176)
-        label(body, "Продолжить из коллекции", 12, 288, 1500, 38, 32, ink, true)
+        button(hero, "home-lyrics", "Полный текст ↗", 620, 578, 332, 56) { go("lyrics", "follow") }
+        button(hero, "wave-settings", "Настроить", 976, 578, 332, 56) {
+            wavePreferences = null
+            wavePreferenceError = ""
+            wavePreferenceLoading = true
+            showModal("wave-settings")
+            scope.launch {
+                try {
+                    if (s.demo) error("Настройки Яндекс Музыки появятся после входа")
+                    wavePreferences = engine.api.waveSettings()
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    wavePreferenceError = e.message ?: "Не удалось загрузить настройки"
+                } finally {
+                    wavePreferenceLoading = false
+                    if (modal == "wave-settings") build(activeFocus)
+                }
+            }
+        }
+        label(body, "Продолжить из коллекции", 12, 704, 1500, 38, 32, ink, true)
         val entries =
             (listOf(Card("liked", "liked", "Мне нравится", "Любимые треки")) +
                     library.playlists.ifEmpty { home.cards })
                 .take(7)
-        cards(body, entries, 0, 336, "home-card")
-        label(body, "Треки для тебя", 12, 632, 1500, 56, 38, ink, true)
+        cards(body, entries, 0, 752, "home-card")
+        label(body, "Треки для тебя", 12, 1048, 1500, 56, 38, ink, true)
         home.tracks.take(2).forEachIndexed { i, t ->
-            trackRow(body, t, i, 0, 698 + i * 104, 1576, "home-track-$i") {
+            trackRow(body, t, i, 0, 1114 + i * 104, 1576, "home-track-$i") {
                 playTracks(home.tracks, i, "Для тебя")
             }
         }
-        if (busy) label(hero, "Загружаем подборки…", 650, 288, 510, 56, 28, muted)
+        if (busy) label(body, "Загружаем подборки…", 650, 1350, 510, 56, 28, muted)
         if (screenError.isNotBlank()) label(body, screenError, 0, 1190, 1576, 64, 28, muted)
         hint("OK — включить    ↓ — твоя коллекция    ← — меню")
     }
@@ -1420,7 +1471,7 @@ class MainActivity : Activity() {
                     lyricError = e.message ?: "Не удалось загрузить текст"
                 }
                 lyricLoading = false
-                if (page in listOf("player", "lyrics")) build(activeFocus)
+                if (page in listOf("home", "player", "lyrics")) build(activeFocus)
             }
     }
 
@@ -1708,7 +1759,17 @@ class MainActivity : Activity() {
 
     private fun settingsPage() {
         label(pageLayer, "Настройки", 260, 160, 1500, 58, 48, ink, true)
-        button(pageLayer,"settings-updates","Лад ${BuildConfig.VERSION_NAME} · Обновления",1336,164,488,64) { showModal("updates") }
+        button(
+            pageLayer,
+            "settings-updates",
+            "Лад ${BuildConfig.VERSION_NAME} · Обновления",
+            1336,
+            164,
+            488,
+            64,
+        ) {
+            showModal("updates")
+        }
         val body = frame(pageLayer, 248, 244, 1576, 512)
         val accentName =
             when (s.settings.accent) {
@@ -1775,27 +1836,155 @@ class MainActivity : Activity() {
         ) {
             showModal("account")
         }
+        settingRow(
+            body,
+            "setting-wave",
+            "Выразительность волны",
+            "${s.settings.waveIntensity.toInt()}%",
+            528,
+        ) {
+            val values = listOf(0f, 25f, 50f, 75f, 100f)
+            engine.settings(
+                s.settings.copy(
+                    waveIntensity =
+                        values[(values.indexOf(s.settings.waveIntensity) + 1) % values.size]
+                )
+            )
+        }
         hint("OK — изменить    ↑ / ↓ — настройка    Назад — меню")
     }
 
     private fun drawUpdates(dim: FrameLayout) {
         val u = updater.state.value
         updatePhase = u.phase
-        val p = glass(dim,960,96,864,888)
-        label(p,"Обновления Лада",40,40,784,68,44,ink,true)
-        label(p,"Лад ${BuildConfig.VERSION_NAME} · стабильный выпуск",40,120,784,48,28,muted)
-        val title = when(u.phase){"checking"->"Проверяем GitHub…";"available"->"Доступен Лад ${u.version}";"downloading"->"Скачивание обновления";"ready"->"Лад ${u.version} готов к установке";"current"->"Установлена последняя версия";"error"->"Не удалось обновить Лад";"installing"->"Установка обновления";else->"Обновления с GitHub"}
-        label(p,title,40,208,784,64,34,ink,true)
-        updateProgressLabel = paragraph(p,if(u.phase=="downloading")"Загружено ${u.progress}% · можно слушать музыку" else u.message.ifBlank{if(u.phase=="ready")"Откроется системное окно установки. Вход, настройки и очередь сохранятся." else "Проверка и загрузка выполняются по твоей команде."},40,292,784,132,28)
-        if(u.notes.isNotBlank() && u.phase in listOf("available","ready"))paragraph(p,u.notes.take(600),40,440,784,184,26)
-        when(u.phase) {
-            "available" -> button(p,"update-download","Скачать · ${(u.size+1048575)/1048576} МБ",40,672,784,72){updater.download()}
-            "ready" -> button(p,"update-install","Установить обновление",40,672,784,72){updater.install(this)}
-            "checking","downloading" -> button(p,"update-cancel","Отменить",40,672,784,72){updater.cancel()}
-            "installing" -> label(p,"Подтверди установку в системном окне",40,672,784,72,26,muted)
-            else -> button(p,"update-check","Проверить обновления",40,672,784,72){updater.check()}
+        val p = glass(dim, 960, 96, 864, 888)
+        label(p, "Обновления Лада", 40, 40, 784, 68, 44, ink, true)
+        label(p, "Лад ${BuildConfig.VERSION_NAME} · стабильный выпуск", 40, 120, 784, 48, 28, muted)
+        val title =
+            when (u.phase) {
+                "checking" -> "Проверяем GitHub…"
+                "available" -> "Доступен Лад ${u.version}"
+                "downloading" -> "Скачивание обновления"
+                "ready" -> "Лад ${u.version} готов к установке"
+                "current" -> "Установлена последняя версия"
+                "error" -> "Не удалось обновить Лад"
+                "installing" -> "Установка обновления"
+                else -> "Обновления с GitHub"
+            }
+        label(p, title, 40, 208, 784, 64, 34, ink, true)
+        updateProgressLabel =
+            paragraph(
+                p,
+                if (u.phase == "downloading") "Загружено ${u.progress}% · можно слушать музыку"
+                else
+                    u.message.ifBlank {
+                        if (u.phase == "ready")
+                            "Откроется системное окно установки. Вход, настройки и очередь сохранятся."
+                        else "Проверка и загрузка выполняются по твоей команде."
+                    },
+                40,
+                292,
+                784,
+                132,
+                28,
+            )
+        if (u.notes.isNotBlank() && u.phase in listOf("available", "ready"))
+            paragraph(p, u.notes.take(600), 40, 440, 784, 184, 26)
+        when (u.phase) {
+            "available" ->
+                button(
+                    p,
+                    "update-download",
+                    "Скачать · ${(u.size+1048575)/1048576} МБ",
+                    40,
+                    672,
+                    784,
+                    72,
+                ) {
+                    updater.download()
+                }
+            "ready" ->
+                button(p, "update-install", "Установить обновление", 40, 672, 784, 72) {
+                    updater.install(this)
+                }
+            "checking",
+            "downloading" ->
+                button(p, "update-cancel", "Отменить", 40, 672, 784, 72) { updater.cancel() }
+            "installing" ->
+                label(p, "Подтверди установку в системном окне", 40, 672, 784, 72, 26, muted)
+            else ->
+                button(p, "update-check", "Проверить обновления", 40, 672, 784, 72) {
+                    updater.check()
+                }
         }
-        button(p,"update-close","Закрыть",40,776,784,64){modal=null;build(returnFocus)}
+        button(p, "update-close", "Закрыть", 40, 776, 784, 64) {
+            modal = null
+            build(returnFocus)
+        }
+    }
+
+    private fun drawWavePreferences(dim: FrameLayout) {
+        val p = glass(dim, 800, 96, 1024, 888)
+        label(p, "Настроить волну", 40, 32, 944, 64, 40, ink, true)
+        label(p, "Твои настройки Яндекс Музыки", 40, 104, 944, 40, 26, muted)
+        if (wavePreferenceLoading) label(p, "Загружаю настройки…", 40, 200, 944, 64, 28, muted)
+        if (wavePreferenceError.isNotBlank())
+            paragraph(p, wavePreferenceError, 40, 168, 944, 100, 26, muted)
+        var y = if (wavePreferenceError.isBlank()) 176 else 280
+        wavePreferences?.groups?.forEach { g ->
+            label(p, g.name, 40, y, 944, 40, 28, ink, true)
+            y += 48
+            val columns = 3
+            val width = 300
+            g.values.forEachIndexed { i, v ->
+                val id = "wave-choice-${g.key}-$i"
+                val b =
+                    button(
+                        p,
+                        id,
+                        (if (wavePreferences?.selected?.get(g.key) == v.value) "✓ " else "") +
+                            v.name,
+                        40 + (i % columns) * 312,
+                        y + (i / columns) * 64,
+                        width,
+                        56,
+                    ) {
+                        wavePreferences =
+                            wavePreferences!!.copy(
+                                selected = wavePreferences!!.selected + (g.key to v.value)
+                            )
+                        build(id)
+                    }
+                b.contentDescription =
+                    v.name +
+                        if (wavePreferences?.selected?.get(g.key) == v.value) " · выбрано" else ""
+            }
+            y += ((g.values.size + columns - 1) / columns) * 64 + 24
+        }
+        if (wavePreferences != null && !wavePreferenceLoading)
+            button(p, "wave-apply", "Со следующего трека", 40, 736, 944, 64) {
+                wavePreferenceLoading = true
+                wavePreferenceError = ""
+                build("wave-close")
+                scope.launch {
+                    try {
+                        engine.applyWavePreferences(wavePreferences!!)
+                        modal = null
+                        build("wave")
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        wavePreferenceError = e.message ?: "Не удалось сохранить настройки"
+                    } finally {
+                        wavePreferenceLoading = false
+                        if (modal == "wave-settings") build("wave-close")
+                    }
+                }
+            }
+        button(p, "wave-close", "Закрыть", 40, 816, 944, 56) {
+            modal = null
+            build(returnFocus)
+        }
     }
 
     private fun drawModal(type: String) {
@@ -1804,7 +1993,14 @@ class MainActivity : Activity() {
         buttons.clear()
         actions.clear()
         val dim = frame(overlay, 0, 0, 1920, 1080, Color.argb(128, 0, 0, 0))
-        if (type == "updates") { drawUpdates(dim); return }
+        if (type == "updates") {
+            drawUpdates(dim)
+            return
+        }
+        if (type == "wave-settings") {
+            drawWavePreferences(dim)
+            return
+        }
         if (type == "devices") {
             drawDevices(dim)
             return

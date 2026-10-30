@@ -8,6 +8,8 @@ const {
   session,
   Menu,
   clipboard,
+  protocol,
+  net,
 } = require("electron");
 const { spawn } = require("node:child_process");
 const fs = require("node:fs");
@@ -15,6 +17,8 @@ const path = require("node:path");
 const readline = require("node:readline");
 const { isYandexUrl } = require("./auth-policy.cjs");
 app.commandLine.appendSwitch("autoplay-policy", "no-user-gesture-required");
+protocol.registerSchemesAsPrivileged([{scheme:"lad-audio",privileges:{standard:true,secure:true,supportFetchAPI:true,corsEnabled:true,stream:true}}]);
+const waveStreams=new (require("./wave-stream.cjs").WaveStreams)();
 let window,
   child,
   authWindow,
@@ -54,6 +58,7 @@ const allowed = new Set([
   "like",
   "albumLike",
   "wave",
+  "waveSettings",
 ]);
 const dataPath = () => app.getPath("userData");
 const secretPath = () => path.join(dataPath(), "session.enc");
@@ -206,6 +211,9 @@ function startBackend() {
     }
     if (msg.event === "state") {
       lastState = msg.data;
+    }
+    if(msg.event === "local" && msg.data.action === "load") {
+      msg.data.url = waveStreams.add(msg.data.url);
     }
     send(msg.event, msg.data);
   });
@@ -371,6 +379,9 @@ app.whenReady().then(() => {
   app.setName("Лад");
   if (process.env.LAD_USER_DATA)
     app.setPath("userData", process.env.LAD_USER_DATA);
+  if (process.env.LAD_USER_DATA)
+    app.setPath("sessionData", process.env.LAD_USER_DATA);
+  protocol.handle("lad-audio", request => waveStreams.handle(request, (url, init) => net.fetch(url, init)));
   loadSession();
   const { UpdateService } = require("./updates.cjs");
   const platform = process.platform === "darwin" ? "macos-arm64" :

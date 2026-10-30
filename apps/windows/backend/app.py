@@ -909,6 +909,27 @@ class App:
                 await self.start_track(0)
                 return self.snapshot()
         self.require_music()
+        if method == 'waveSettings':
+            async with self.lock:
+                result = await self.music.wave_settings(p.get('settings'))
+                if p.get('settings') is not None and self.radio and self.queue.owned and self.queue.current:
+                    current = self.queue.current
+                    context = {'id': 'user:onyourwave'}
+                    additions = []
+                    for _ in range(4):
+                        candidates = await self.radio_batch(context, current['id'])
+                        additions = [t for t in candidates if track_key(t['id']) != track_key(current['id'])]
+                        if additions:
+                            break
+                    self.require_operation(epoch)
+                    if not additions:
+                        raise ValueError('Настройки сохранены. Яндекс пока не вернул новые треки; прежняя очередь сохранена.')
+                    self.queue.tracks = self.queue.tracks[:self.queue.index + 1] + additions
+                    self.queue.shuffled = False
+                    self.queue.original = []
+                    self.radio = context
+                    self.publish(True)
+                return result
         if method == 'search':
             return await self.music.search(p['query'][:300], int(p.get('page', 0)), p.get('type', 'all'))
         if method == 'liked':

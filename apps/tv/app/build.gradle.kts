@@ -2,6 +2,8 @@
 plugins { id("com.android.application"); id("org.jetbrains.kotlin.android") }
 val releaseKeystore = System.getenv("LAD_ANDROID_KEYSTORE")
 android {
+    sourceSets.getByName("main").java.srcDir("../../../shared/wave-native/src/main/java")
+    sourceSets.getByName("test").java.srcDir("../../../shared/wave-native/src/test/java")
     if (releaseKeystore != null) signingConfigs.create("distribution") {
         storeFile = file(releaseKeystore)
         storePassword = System.getenv("LAD_ANDROID_STORE_PASSWORD")
@@ -13,7 +15,7 @@ android {
  useLibrary("android.test.mock")
  namespace = "com.lad.music"
  compileSdk = 35
- defaultConfig { applicationId = "com.lad.music.tv"; minSdk = 28; targetSdk = 35; versionCode = 30001; versionName = "0.3.1"; testInstrumentationRunner = "android.test.InstrumentationTestRunner"; ndk { abiFilters += "armeabi-v7a" } }
+ defaultConfig { applicationId = "com.lad.music.tv"; minSdk = 28; targetSdk = 35; versionCode = 40000; versionName = "0.4.0"; testInstrumentationRunner = "android.test.InstrumentationTestRunner"; ndk { abiFilters += "armeabi-v7a" } }
  compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
  kotlinOptions { jvmTarget = "17" }
  buildFeatures { buildConfig = true }

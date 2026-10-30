@@ -207,3 +207,16 @@ async def test_native_pause_after_exhausted_radio_search_keeps_wave_retryable(wa
     wave.music.client.rotor_station_tracks=refill
     await wave.advance()
     assert wave.test.played==['3'] and wave.station_continuation is None
+
+@pytest.mark.asyncio
+async def test_wave_preferences_replace_only_upcoming_tracks_without_restarting_current(wave):
+    async def settings(selected):return {'groups':[]}
+    wave.music.wave_settings=settings
+    wave.playback.update(position=46,playing=True)
+    old=wave.playback.copy()
+    await wave.rpc('waveSettings',{'settings':{'diversity':'discover'}})
+    assert wave.playback==old
+    assert wave.queue.index==0
+    assert [t['id']for t in wave.queue.tracks]==['1','3','4']
+    assert not wave.test.played
+    assert wave.queue.owned

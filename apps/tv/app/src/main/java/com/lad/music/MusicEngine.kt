@@ -31,6 +31,7 @@ data class AuthState(
     val error: String = "",
 )
 
+@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 class MusicEngine(
     val context: Context,
     private val streamLoader: (suspend (String) -> String)? = null,
@@ -40,8 +41,9 @@ class MusicEngine(
     private val storage = Storage(context)
     private var accessToken = ""
     val api = YandexApi({ accessToken })
+    val waveAudio = com.lad.music.wave.WaveAudio()
     val player =
-        ExoPlayer.Builder(context).build().apply {
+        ExoPlayer.Builder(context, waveAudio.renderers(context)).build().apply {
             setAudioAttributes(
                 AudioAttributes.Builder()
                     .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
@@ -476,6 +478,32 @@ class MusicEngine(
         } catch (e: Exception) {
             restorePlayback(old, epoch, e.message)
             throw e
+        }
+    }
+
+    suspend fun applyWavePreferences(value: com.lad.music.wave.WavePreferences) = playbackLock {
+        val epoch = operationEpoch
+        api.saveWaveSettings(value)
+        val before = state.value
+        val current = before.track
+        if (radio != null && before.owned && current != null) {
+            val context = WaveSession(api::wave, api::radioFeedback)
+            val tracks =
+                context.replenish(
+                    listOf(current),
+                    current.id,
+                    before.settings.blockExplicit,
+                    isCurrent = { operationEpoch == epoch },
+                )
+            requireOperation(epoch)
+            check(tracks.isNotEmpty()) {
+                "Настройки сохранены. Новых треков пока нет; прежняя очередь сохранена."
+            }
+            radio = context
+            originalQueue = null
+            update {
+                it.copy(queue = before.queue.take(before.index + 1) + tracks, shuffle = false)
+            }
         }
     }
 

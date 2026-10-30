@@ -6,7 +6,7 @@ import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-paths = subprocess.check_output(['git', 'ls-files', '-z'], cwd=ROOT).decode().split('\0')
+paths = subprocess.check_output(['git', 'ls-files', '--cached', '--others', '--exclude-standard', '-z'], cwd=ROOT).decode().split('\0')
 forbidden = {'session.enc', 'queue.json', 'window.json', 'local.properties', '.DS_Store'}
 private_dirs = {'node_modules', '.venv', '.gradle', '.kotlin', '__pycache__', 'userData', 'work'}
 patterns = [
@@ -33,4 +33,4 @@ for name, reason in issues:
     print(f'{name}: {reason}')
 if issues:
     raise SystemExit(1)
-print(f'Public tree check passed: {len([p for p in paths if p])} tracked files')
+print(f'Public tree check passed: {len([p for p in paths if p])} source files')

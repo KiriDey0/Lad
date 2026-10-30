@@ -7,6 +7,7 @@ export type Theme = {
   transparency: boolean;
   lyricOffset: number;
   scale: number;
+  waveIntensity: number;
 };
 export const defaultTheme: Theme = {
   base: "dark",
@@ -15,6 +16,7 @@ export const defaultTheme: Theme = {
   transparency: true,
   lyricOffset: 0,
   scale: 85,
+  waveIntensity: 100,
 };
 export function loadTheme(): Theme {
   try {
@@ -26,6 +28,7 @@ export function loadTheme(): Theme {
       typeof theme.scale === "number" && Number.isFinite(theme.scale)
         ? Math.max(75, Math.min(115, Math.round(theme.scale / 5) * 5))
         : defaultTheme.scale;
+    theme.waveIntensity = Number.isFinite(theme.waveIntensity) ? Math.max(0, Math.min(100, theme.waveIntensity)) : 100;
     return theme;
   } catch {
     return defaultTheme;

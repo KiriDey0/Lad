@@ -1,3 +1,4 @@
+import { WaveScene } from "./wave/WaveScene";
 // SPDX-License-Identifier: AGPL-3.0-only
 import {
   useState,
@@ -109,7 +110,9 @@ export default function App() {
   const [state, setState] = useState<State>(initialState);
   const [page, setPage] = useState<Page>("home");
   const [queueOpen, setQueueOpen] = useState(true);
-  const [modal, setModal] = useState<"login" | "devices" | "link" | null>(null);
+  const [modal, setModal] = useState<
+    "login" | "devices" | "link" | "wave" | null
+  >(null);
   const [toast, setToast] = useState("");
   const [busy, setBusy] = useState(false);
   const [content, setContent] = useState<Content>({ cards: [], tracks: [] });
@@ -606,7 +609,7 @@ export default function App() {
                   <span className="header-location">
                     {
                       {
-                        home: "Для тебя",
+                        home: "Моя волна",
                         search: "Поиск",
                         collection: "Коллекция",
                         liked: "Мне нравится",
@@ -753,14 +756,36 @@ export default function App() {
                         </div>
                       </>
                     ) : page === "home" ? (
-                      <div className="home-hero">
-                        <div>
-                          <span className="eyebrow">ЛИЧНАЯ ПОДБОРКА</span>
+                      <div className="home-hero wave-home">
+                        <WaveScene
+                          cover={current?.cover}
+                          playing={state.playback.playing}
+                          local={state.output === "local"}
+                          intensity={theme.waveIntensity}
+                        />
+                        <div className="wave-heading">
+                          <span className="eyebrow">ТВОЙ РИТМ</span>
                           <h1>Моя волна</h1>
-                          <p>
-                            Знакомое и новое.
-                            <br />В твоём настроении.
-                          </p>
+                        </div>
+                        {current ? (
+                          <WaveNowPlaying
+                            state={state}
+                            theme={theme}
+                            onExpand={() => nav("now")}
+                          />
+                        ) : (
+                          <div className="wave-empty">
+                            <Art
+                              item={{ id: "orbit-hero", art: 0 }}
+                              size="lg"
+                            />
+                            <p>
+                              Знакомое и новое.
+                              <br />В твоём настроении.
+                            </p>
+                          </div>
+                        )}
+                        <div className="wave-home-controls">
                           <Button
                             icon={
                               state.queue.source.startsWith("Моя волна") &&
@@ -784,21 +809,14 @@ export default function App() {
                                 : "Продолжить волну"
                               : "Включить Мою волну"}
                           </Button>
+                          <Button
+                            variant="secondary"
+                            icon={SlidersHorizontal}
+                            onClick={() => setModal("wave")}
+                          >
+                            Настроить
+                          </Button>
                         </div>
-                        {current ? (
-                          <WaveNowPlaying
-                            state={state}
-                            theme={theme}
-                            onExpand={() => nav("now")}
-                          />
-                        ) : (
-                          <div className="hero-art" aria-hidden="true">
-                            <Art
-                              item={{ id: "orbit-hero", art: 0 }}
-                              size="lg"
-                            />
-                          </div>
-                        )}
                       </div>
                     ) : page === "liked" ? (
                       <div className="collection-heading">
@@ -843,7 +861,7 @@ export default function App() {
                     ) : (
                       <CollectionHeading card={detail}>
                         {detail && <Art item={detail} size="md" />}
-                      <div className="collection-details">
+                        <div className="collection-details">
                           <span className="eyebrow">
                             {detail?.type === "artist"
                               ? "ИСПОЛНИТЕЛЬ"
@@ -1078,6 +1096,9 @@ export default function App() {
             onDevice={() => setModal("devices")}
             like={() => current && void toggleLike(current)}
           />
+          {modal === "wave" && (
+            <WaveSettingsModal close={() => setModal(null)} demo={state.demo} />
+          )}
           {modal === "login" && (
             <LoginModal
               close={() => setModal(null)}
@@ -2180,6 +2201,110 @@ function Modal({
     </div>
   );
 }
+type WavePreference = {
+  key: string;
+  name: string;
+  selected: string;
+  values: { value: string; name: string }[];
+};
+function WaveSettingsModal({
+  close,
+  demo,
+}: {
+  close: () => void;
+  demo: boolean;
+}) {
+  const [groups, setGroups] = useState<WavePreference[]>([]),
+    [error, setError] = useState(""),
+    [loading, setLoading] = useState(true),
+    [saving, setSaving] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    if (demo) {
+      setError("Настройки из Яндекс Музыки появятся после входа.");
+      setLoading(false);
+      return;
+    }
+    void bridge
+      .rpc<{ groups: WavePreference[] }>("waveSettings", {})
+      .then((r) => {
+        if (!cancelled) setGroups(r.groups);
+      })
+      .catch((e) => {
+        if (!cancelled) setError(e.message);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [demo]);
+  async function apply() {
+    setSaving(true);
+    setError("");
+    try {
+      await bridge.rpc("waveSettings", {
+        settings: Object.fromEntries(groups.map((g) => [g.key, g.selected])),
+      });
+      close();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Не удалось настроить волну");
+    } finally {
+      setSaving(false);
+    }
+  }
+  return (
+    <Modal
+      title="Настроить волну"
+      subtitle="Твои настройки Яндекс Музыки"
+      close={close}
+      footer={
+        <Button
+          icon={Play}
+          loading={saving}
+          disabled={
+            loading ||
+            !groups.length ||
+            groups.some((g) => !g.values.some((v) => v.value === g.selected))
+          }
+          onClick={() => void apply()}
+        >
+          Со следующего трека
+        </Button>
+      }
+    >
+      {loading && <p className="text-(--muted)">Загружаю настройки…</p>}
+      {error && (
+        <p role="alert" className="text-(--muted)">
+          {error}
+        </p>
+      )}
+      {groups.map((g) => (
+        <div className="wave-preference" key={g.key}>
+          <h3>{g.name}</h3>
+          <div className="wave-preference-values">
+            {g.values.map((v) => (
+              <button
+                key={v.value}
+                aria-pressed={g.selected === v.value}
+                onClick={() =>
+                  setGroups((old) =>
+                    old.map((x) =>
+                      x.key === g.key ? { ...x, selected: v.value } : x,
+                    ),
+                  )
+                }
+              >
+                {v.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
+    </Modal>
+  );
+}
 function LoginModal({
   close,
   notice,
@@ -2689,11 +2814,20 @@ function SettingsPage({
         <div className="setting-row">
           <div>
             <strong>Синхронизировать громкость с устройством</strong>
-            <p>Системный регулятор управляет Ладом, в том числе на Станции. Выключено по умолчанию.</p>
+            <p>
+              Системный регулятор управляет Ладом, в том числе на Станции.
+              Выключено по умолчанию.
+            </p>
           </div>
-          <button role="switch" aria-label="Синхронизировать громкость с устройством"
-            aria-checked={!!state.syncVolume} className={clsx("switch", state.syncVolume && "switch-on")}
-            onClick={() => void act("setVolumeSync", {enabled: !state.syncVolume})}>
+          <button
+            role="switch"
+            aria-label="Синхронизировать громкость с устройством"
+            aria-checked={!!state.syncVolume}
+            className={clsx("switch", state.syncVolume && "switch-on")}
+            onClick={() =>
+              void act("setVolumeSync", { enabled: !state.syncVolume })
+            }
+          >
             <span aria-hidden="true" />
           </button>
         </div>
@@ -2843,6 +2977,26 @@ function SettingsPage({
       </section>
       <section className="settings-section">
         <h2>Текст и воспроизведение</h2>
+        <div className="setting-row">
+          <div>
+            <strong>Выразительность волны</strong>
+            <p>Движение и яркость паутины вокруг обложки.</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <input
+              type="range"
+              min="0"
+              max="100"
+              step="5"
+              value={theme.waveIntensity}
+              aria-label="Выразительность волны"
+              onChange={(e) =>
+                update({ waveIntensity: Number(e.target.value) })
+              }
+            />
+            <span>{theme.waveIntensity}%</span>
+          </div>
+        </div>
         <div className="setting-row">
           <div>
             <strong>Поправка синхронизации текста</strong>

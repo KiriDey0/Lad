@@ -194,6 +194,7 @@ data class Settings(
     val blockExplicit: Boolean = false,
     val lyricOffsetMs: Long = 0,
     val syncVolume: Boolean = false,
+    val waveIntensity: Float = 100f,
 )
 
 data class MusicState(

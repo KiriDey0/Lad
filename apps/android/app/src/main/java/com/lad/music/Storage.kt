@@ -70,6 +70,7 @@ class Storage(private val context: Context) {
             prefs.getBoolean("blockExplicit", false),
             prefs.getLong("lyricOffset", 0),
             prefs.getBoolean("syncVolume", false),
+            prefs.getFloat("waveIntensity", 100f).let { if(it.isFinite())it.coerceIn(0f,100f)else 100f },
         )
 
     fun settings(s: Settings) {
@@ -82,6 +83,7 @@ class Storage(private val context: Context) {
             .putFloat("scale", s.scale)
             .putBoolean("blockExplicit", s.blockExplicit)
             .putBoolean("syncVolume", s.syncVolume)
+            .putFloat("waveIntensity", s.waveIntensity)
             .putLong("lyricOffset", s.lyricOffsetMs)
             .apply()
     }
