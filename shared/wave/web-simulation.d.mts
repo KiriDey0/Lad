@@ -12,5 +12,6 @@ export class WebSimulation {
       high?: number;
       spectrum?: ArrayLike<number>;
     },
+    smoothing?: number,
   ): this;
 }

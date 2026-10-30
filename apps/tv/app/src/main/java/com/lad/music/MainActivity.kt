@@ -892,6 +892,7 @@ class MainActivity : Activity() {
                 playing = s.playing
                 local = s.output != "station"
                 intensity = s.settings.waveIntensity
+                smoothing = s.settings.waveSmoothing
                 cover = s.track?.cover
             }
         place(hero, wave, 0, 0, 1576, 600)
@@ -1771,7 +1772,7 @@ class MainActivity : Activity() {
         ) {
             showModal("updates")
         }
-        val body = frame(pageLayer, 248, 244, 1576, 512)
+        val body = frame(pageLayer, 248, 244, 1576, 708)
         val accentName =
             when (s.settings.accent) {
                 0xFF83AED3 -> "голубой"
@@ -1840,7 +1841,7 @@ class MainActivity : Activity() {
         settingRow(
             body,
             "setting-wave",
-            "Выразительность волны",
+            "Яркость волны",
             "${s.settings.waveIntensity.toInt()}%",
             528,
         ) {
@@ -1851,6 +1852,11 @@ class MainActivity : Activity() {
                         values[(values.indexOf(s.settings.waveIntensity) + 1) % values.size]
                 )
             )
+        }
+        settingRow(body, "setting-wave-smoothing", "Плавность движения",
+            "${s.settings.waveSmoothing.toInt()}% · меньше — резче, больше — мягче", 616) {
+            val values = listOf(0f, 25f, 50f, 75f, 100f)
+            engine.settings(s.settings.copy(waveSmoothing = values[(values.indexOf(s.settings.waveSmoothing) + 1) % values.size]))
         }
         hint("OK — изменить    ↑ / ↓ — настройка    Назад — меню")
     }

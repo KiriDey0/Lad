@@ -15,5 +15,5 @@ export class WaveMotion implements AudioFeatures {
   mid: number;
   high: number;
   level: number;
-  update(input: AudioFeatures, dt: number, responsiveness?: number): this;
+  update(input: AudioFeatures, dt: number, responsiveness?: number, smoothing?: number): this;
 }

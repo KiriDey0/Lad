@@ -41,6 +41,12 @@ class WaveView(context: Context) : View(context), Choreographer.FrameCallback {
             schedule()
         }
 
+    var smoothing = 50f
+        set(value) {
+            field = wavePercent(value, 50f)
+            schedule()
+        }
+
     var audio: WaveAudio? = null
         set(value) {
             field?.enabled = false
@@ -255,9 +261,10 @@ class WaveView(context: Context) : View(context), Choreographer.FrameCallback {
             val raw = if (playing) (if (local) audio else remote?.audio)?.sample() ?: FloatArray(8) else FloatArray(8)
             val movement = if (reduced()) 0.0 else dt * (1 - pause)
             val destination = back
+            val smooth = smoothing
             worker.execute {
-                val bands = envelope.process(raw, dt)
-                if (movement > 0) simulation.step(movement, bands)
+                val bands = envelope.process(raw, dt, smooth)
+                if (movement > 0) simulation.step(movement, bands, smooth)
                 simulation.points.copyInto(destination.points)
                 simulation.lines.copyInto(destination.lines, endIndex = simulation.lineCount * 3)
                 destination.lineCount = simulation.lineCount
@@ -287,7 +294,7 @@ class WaveView(context: Context) : View(context), Choreographer.FrameCallback {
         val size = min(width.toFloat(), height.toFloat()) * 1.08f
         val cx = width * .5f
         val cy = height * .42f
-        val strength = intensity.coerceIn(0f, 100f) / 100 * (1 - pause * .82f)
+        val strength = waveBrightness(intensity) * (1 - pause * .82f)
         fun tint(a: Float) =
             Color.rgb(
                 (colors[0][0] * a + colors[1][0] * (1 - a)).toInt(),
@@ -299,7 +306,7 @@ class WaveView(context: Context) : View(context), Choreographer.FrameCallback {
         pointSizes.fill(0)
         for (i in 0 until frame.lineCount step 2) {
             val o = i * 3
-            val bucket = (frame.lines[o + 2] * strength * 1.65f * 40).toInt().coerceIn(0, 11)
+            val bucket = (frame.lines[o + 2] * (1 - pause * .82f) * 1.65f * 40).toInt().coerceIn(0, 11)
             if (bucket == 0) continue
             val b = lineBuckets[bucket]
             val n = lineSizes[bucket]
@@ -314,7 +321,7 @@ class WaveView(context: Context) : View(context), Choreographer.FrameCallback {
         paint.strokeCap = Paint.Cap.BUTT
         paint.color = tint(.55f)
         for (i in 1..11) if (lineSizes[i] > 0) {
-            paint.alpha = (i / 40f * 255).toInt()
+            paint.alpha = (i / 40f * waveBrightness(intensity) * 255).toInt().coerceIn(0, 255)
             canvas.drawLines(lineBuckets[i], 0, lineSizes[i], paint)
         }
         for (i in 0 until simulation.count) {
@@ -330,10 +337,10 @@ class WaveView(context: Context) : View(context), Choreographer.FrameCallback {
         for (i in 0..7) if (pointSizes[i] > 0) {
             val depth = (i + .5f) / 8
             paint.color = tint(depth)
-            paint.alpha = ((.2f + depth * .48f) * strength * 2 * 255).toInt().coerceIn(0, 255)
+            paint.alpha = ((.2f + depth * .48f).times(2).coerceAtMost(1f) * strength * 255).toInt().coerceIn(0, 255)
             paint.strokeWidth = max(1f, (.0035f + depth * .0025f) * size * .42f)
             canvas.drawPoints(pointBuckets[i], 0, pointSizes[i], paint)
-            paint.alpha = (.07f * strength * 255).toInt()
+            paint.alpha = (.07f * strength * 255).toInt().coerceIn(0, 255)
             paint.strokeWidth *= 3.2f
             canvas.drawPoints(pointBuckets[i], 0, pointSizes[i], paint)
         }

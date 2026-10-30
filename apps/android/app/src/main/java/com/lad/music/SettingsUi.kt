@@ -210,14 +210,27 @@ fun SettingsView(s: MusicState, engine: MusicEngine, modifier: Modifier, bottom:
             modifier = Modifier.semantics { contentDescription = "Размер интерфейса" },
         )
         Section("Моя волна")
-        Label("Выразительность · ${settings.waveIntensity.toInt()}%", 14, p.muted)
+        Label("Яркость волны · ${settings.waveIntensity.toInt()}%", 14, p.muted)
         C4Slider(
             settings.waveIntensity,
             { engine.settings(settings.copy(waveIntensity = it)) },
             valueRange = 0f..100f,
             steps = 19,
-            modifier = Modifier.semantics { contentDescription = "Выразительность волны" },
+            modifier = Modifier.semantics { contentDescription = "Яркость волны" },
         )
+        Label("Плавность движения · ${settings.waveSmoothing.toInt()}%", 14, p.muted)
+        C4Slider(
+            settings.waveSmoothing,
+            { engine.settings(settings.copy(waveSmoothing = it)) },
+            valueRange = 0f..100f,
+            steps = 19,
+            modifier = Modifier.semantics { contentDescription = "Плавность движения" },
+        )
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Label("Резче", 12, p.muted)
+            Label("Мягче", 12, p.muted)
+        }
+        Label("Меньше — резкая реакция на музыку. Больше — мягкие и спокойные движения.", 13, p.muted)
         Section("Звук")
         SettingToggle(
             "Синхронизировать громкость с устройством",

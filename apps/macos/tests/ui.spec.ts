@@ -667,6 +667,18 @@ test("devices transfer, settings theme roles, login dialog and logout", async ()
   expect(await page.locator(".nav-item svg").first().boundingBox()).toEqual(
     originalIconSize,
   );
+  const brightness = page.getByRole("slider", {name:"Яркость волны", exact:true});
+  const smoothing = page.getByRole("slider", {name:"Плавность движения", exact:true});
+  await expect(brightness).toHaveValue("100");
+  await expect(smoothing).toHaveValue("50");
+  await brightness.fill("50");
+  await smoothing.fill("0");
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem("orbit-theme")!).waveSmoothing)).toBe(0);
+  await smoothing.fill("100");
+  await expect(brightness).toHaveValue("50");
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem("orbit-theme")!).waveSmoothing)).toBe(100);
+  await smoothing.fill("50");
+  await brightness.fill("100");
   const contentFilter = page.getByRole("switch", {
     name: "Не воспроизводить 18+",
     exact: true,

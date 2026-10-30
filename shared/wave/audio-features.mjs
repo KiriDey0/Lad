@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
+import {waveSmoothing} from "./appearance.mjs";
 const clamp = (v) => Math.max(0, Math.min(1, v));
 const follow = (v, t, dt, attack, release) =>
   v + (t - v) * (1 - Math.exp(-dt / (t > v ? attack : release)));
@@ -89,12 +90,13 @@ export class WaveMotion {
     this.high = 0;
     this.level = 0;
   }
-  update(input, dt, responsiveness = 1) {
+  update(input, dt, responsiveness = 1, smoothing = 50) {
     dt = Math.min(0.05, Math.max(0.001, dt));
+    const response = responsiveness * waveSmoothing(smoothing).response;
     const ease = (v, t) => {
       const delta =
-        follow(v, t, dt, 0.03 * responsiveness, 0.16 * responsiveness) - v;
-      const limit = (8 / responsiveness) * dt;
+        follow(v, t, dt, 0.03 * response, 0.16 * response) - v;
+      const limit = (8 / response) * dt;
       return v + Math.max(-limit, Math.min(limit, delta));
     };
     const raw = input.spectrum || new Float32Array(8);

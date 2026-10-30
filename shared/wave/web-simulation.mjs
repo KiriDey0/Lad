@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
+import {waveSmoothing} from "./appearance.mjs";
 const smooth = (a, b, t) => a + (b - a) * (1 - Math.exp(-t));
 export class WebSimulation {
   constructor(count = 300, seed = 7193) {
@@ -17,6 +18,7 @@ export class WebSimulation {
         radius: rest,
         rest,
         radialVelocity: 0,
+        shownRadius: rest,
         angularVelocity: 0,
         phase: random() * Math.PI * 2,
         shine: random(),
@@ -38,9 +40,9 @@ export class WebSimulation {
   updatePoints() {
     for (let i = 0; i < this.count; i++) {
       const n = this.nodes[i];
-      this.points[i * 4] = Math.cos(n.angle) * n.radius + n.wanderX;
+      this.points[i * 4] = Math.cos(n.angle) * n.shownRadius + n.wanderX;
       this.points[i * 4 + 1] =
-        (Math.sin(n.angle) * n.radius) / 1.06 + n.wanderY;
+        (Math.sin(n.angle) * n.shownRadius) / 1.06 + n.wanderY;
       this.points[i * 4 + 2] = 0.0035 + n.shine * 0.0025 + n.energy * 0.0007;
       this.points[i * 4 + 3] =
         (0.35 + n.shine * 0.45) *
@@ -48,10 +50,11 @@ export class WebSimulation {
         (0.92 + 0.12 * Math.sin(this.time * 0.42 + n.phase * 3));
     }
   }
-  step(dt, audio = {}) {
+  step(dt, audio = {}, smoothing = 50) {
     if (dt <= 0) return this;
     dt = Math.min(0.05, dt);
-    this.time += dt;
+    const tune = waveSmoothing(smoothing);
+    this.time += dt * tune.flow;
     const bass = audio.bass || 0,
       mid = audio.mid || 0,
       high = audio.high || 0;
@@ -69,7 +72,7 @@ export class WebSimulation {
       const local =
         (bands[n.band] || 0) * (0.8 + n.blend * 0.15) +
         (bands[(n.band + 3) % 8] || 0) * (0.2 - n.blend * 0.15);
-      n.energy = smooth(n.energy, local, dt * n.follow * (local > n.energy ? 2 : 1));
+      n.energy = smooth(n.energy, local, dt * n.follow * (local > n.energy ? 2 : 1) / tune.response);
       const localAttack = Math.max(0, n.energy - n.previousEnergy);
       n.previousEnergy = n.energy;
       const flow =
@@ -80,26 +83,28 @@ export class WebSimulation {
       n.angularVelocity = smooth(
         n.angularVelocity,
         flow * (1 + mid * 0.25) + individual * (0.6 + n.energy * 0.7),
-        dt * 2.4,
+        dt * 2.4 / tune.response,
       );
-      n.angle += n.angularVelocity * dt;
-      n.radialVelocity += localAttack * 0.18 * n.polarity;
+      n.angle += n.angularVelocity * dt * tune.flow;
+      n.radialVelocity += localAttack * 0.18 * n.polarity * tune.travel;
       const target =
         n.rest +
-        n.polarity * n.energy * 0.075 +
-        0.011 * Math.sin(this.time * n.frequency + n.phase);
+        n.polarity * n.energy * 0.075 * tune.travel +
+        0.011 * Math.sin(this.time * n.frequency + n.phase) * tune.travel;
+      const physicsDt = dt / Math.max(1, tune.response);
       n.radialVelocity +=
-        ((target - n.radius) * 42 - n.radialVelocity * 11) * dt;
-      n.radius += n.radialVelocity * dt;
-      const excursion = 0.01 + n.energy * 0.055;
+        ((target - n.radius) * 42 - n.radialVelocity * 11) * physicsDt;
+      n.radius += n.radialVelocity * physicsDt;
+      n.shownRadius = n.radius + (target - n.radius) * tune.direct;
+      const excursion = (0.01 + n.energy * 0.055) * tune.travel;
       const x =
         Math.sin(this.time * n.frequency + n.phase * 2) +
         0.32 * Math.cos(this.time * n.frequency * 0.71 + n.phase * 5);
       const y =
         Math.cos(this.time * n.frequency * 0.73 + n.phase * 3) +
         0.3 * Math.sin(this.time * n.frequency * 1.17 + n.phase);
-      n.wanderX = smooth(n.wanderX, x * excursion, dt * n.follow);
-      n.wanderY = smooth(n.wanderY, y * excursion, dt * n.follow);
+      n.wanderX = smooth(n.wanderX, x * excursion, dt * n.follow / tune.response);
+      n.wanderY = smooth(n.wanderY, y * excursion, dt * n.follow / tune.response);
     }
     this.updatePoints();
     const reach = 0.08,
@@ -149,7 +154,7 @@ export class WebSimulation {
     this.lineCount = 0;
     for (const [k, e] of this.edges) {
       const on = chosen.has(k);
-      e.alpha = smooth(e.alpha, on ? 1 : 0, dt / (on ? 0.16 : 0.32));
+      e.alpha = smooth(e.alpha, on ? 1 : 0, dt / ((on ? 0.16 : 0.32) * Math.sqrt(tune.response)));
       if (!on && e.alpha < 0.008) {
         this.edges.delete(k);
         continue;
