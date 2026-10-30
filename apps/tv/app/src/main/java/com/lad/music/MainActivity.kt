@@ -1928,12 +1928,15 @@ class MainActivity : Activity() {
         label(p, "Настроить волну", 40, 32, 944, 64, 40, ink, true)
         label(p, "Твои настройки Яндекс Музыки", 40, 104, 944, 40, 26, muted)
         if (wavePreferenceLoading) label(p, "Загружаю настройки…", 40, 200, 944, 64, 28, muted)
-        if (wavePreferenceError.isNotBlank())
-            paragraph(p, wavePreferenceError, 40, 168, 944, 100, 26, muted)
-        var y = if (wavePreferenceError.isBlank()) 176 else 280
+        if (wavePreferenceError.isNotBlank()) {
+            if (wavePreferences == null)
+                paragraph(p, wavePreferenceError, 40, 168, 944, 100, 26, muted)
+            else label(p, wavePreferenceError, 40, 700, 944, 28, 20, muted)
+        }
+        var y = 176
         wavePreferences?.groups?.forEach { g ->
             label(p, g.name, 40, y, 944, 40, 28, ink, true)
-            y += 48
+            y += 44
             val columns = 3
             val width = 300
             g.values.forEachIndexed { i, v ->
@@ -1945,9 +1948,9 @@ class MainActivity : Activity() {
                         (if (wavePreferences?.selected?.get(g.key) == v.value) "✓ " else "") +
                             v.name,
                         40 + (i % columns) * 312,
-                        y + (i / columns) * 64,
+                        y + (i / columns) * 60,
                         width,
-                        56,
+                        52,
                     ) {
                         wavePreferences =
                             wavePreferences!!.copy(
@@ -1959,7 +1962,7 @@ class MainActivity : Activity() {
                     v.name +
                         if (wavePreferences?.selected?.get(g.key) == v.value) " · выбрано" else ""
             }
-            y += ((g.values.size + columns - 1) / columns) * 64 + 24
+            y += ((g.values.size + columns - 1) / columns) * 60 + 16
         }
         if (wavePreferences != null && !wavePreferenceLoading)
             button(p, "wave-apply", "Со следующего трека", 40, 736, 944, 64) {
