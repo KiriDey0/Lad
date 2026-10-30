@@ -7,7 +7,11 @@ test('content scrolls behind glass while the final card stays reachable',async()
  const app=await electron.launch({executablePath:process.env.LAD_TEST_EXE||undefined,args:process.env.LAD_TEST_EXE?[]:[root],env:{...process.env,LAD_USER_DATA:process.env.LAD_UNDERLAY_PROFILE||path.resolve(root,'../../work/underlay-'+Date.now())},timeout:60000});
  try {
   const page=await app.firstWindow();
+  await expect.poll(()=>page.evaluate(async()=>{
+   try {await window.lad!.rpc('snapshot');return true;} catch {return false;}
+  })).toBe(true);
   await page.getByRole('button',{name:'Посмотреть демо'}).click();
+  await expect(page.getByText('Демо · без звука',{exact:true})).toBeVisible();
   await page.evaluate(()=>window.lad!.rpc('control',{action:'pause'}));
   await page.getByRole('button',{name:'Коллекция',exact:true}).click();
   await expect(page.locator('.music-card').first()).toBeVisible();
