@@ -946,11 +946,11 @@ class MusicEngine(
         }
     }
 
-    suspend fun transfer(device: Device, manualHost: String = "") = playbackLock {
+    suspend fun transfer(device: Device, manualHost: String = "", allowAmbiguous: Boolean = false) = playbackLock {
         val epoch = operationEpoch
         val s = state.value
         check(!s.devicesLoading || s.demo) { "Дождись обновления списка Станций" }
-        check(!deviceIdentityAmbiguous(device, s.devices)) { AMBIGUOUS_DEVICE }
+        requireIdentifiableDevice(device, s.devices, allowAmbiguous)
         val currentDevice = s.devices.find { it.id == device.id }
         check(currentDevice == null || currentDevice.selectionLabel == device.selectionLabel) {
             "Имя или комната изменились. Выбери Станцию заново."

@@ -57,9 +57,22 @@ test('rooms distinguish identical speakers and sound transfer requires explicit 
     },state);
     await page.getByRole('button',{name:'Устройство воспроизведения',exact:true}).click();
     await page.locator('.device-option').nth(1).click();
-    await expect(page.getByRole('button',{name:'Продолжить: Яндекс Станция',exact:true})).toBeDisabled();
-    await expect(page.getByText('Не удалось различить Станции. Укажи разные имена или комнаты в «Доме с Алисой» и обнови список.',{exact:true})).toBeVisible();
+    const continueButton=page.getByRole('button',{name:'Продолжить: Яндекс Станция',exact:true});
+    await expect(continueButton).toBeEnabled();
+    await continueButton.click();
+    await expect(page.getByRole('alert')).toContainText('Точно на эту Станцию?');
+    await expect(page.getByRole('alert')).toContainText('room-a');
     expect(await app.evaluate(()=>(globalThis as any).deviceCalls.length)).toBe(2);
+    await page.getByRole('button',{name:'Назад к выбору',exact:true}).click();
+    await expect(page.getByRole('button',{name:'Всё равно включить',exact:true})).toHaveCount(0);
+    await continueButton.click();
+    // Playback state updates must not erase the pending warning.
+    await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].webContents.send('orbit:event',{event:'state',data:{...(globalThis as any).deviceFixture,devices:[...(globalThis as any).deviceFixture.devices]}}));
+    await page.getByRole('button',{name:'Всё равно включить',exact:true}).click();
+    expect(await app.evaluate(()=>(globalThis as any).deviceCalls.slice(2))).toEqual([
+      {method:'connect',params:{id:'room-a',identity:{name:'Яндекс Станция',room:'',household:''},allowAmbiguous:true}},
+      {method:'output',params:{output:'station',transfer:true}},
+    ]);
   } finally {
     await app.close();
     fs.rmSync(profile,{recursive:true,force:true});
@@ -70,7 +83,8 @@ test('a late startup snapshot cannot replace a newer account and device list', a
   const profile=fs.mkdtempSync(path.join(os.tmpdir(),'lad-startup-qa-'));
   const root=path.resolve(__dirname,'..');
   const main=path.join(profile,'main.cjs');
-  fs.writeFileSync(main,`const {app,BrowserWindow}=require('electron');app.setPath('userData',${JSON.stringify(profile)});app.whenReady().then(()=>new BrowserWindow({show:false}).loadURL('about:blank'));`);
+  fs.writeFileSync(path.join(profile,'index.html'),'<div id="root"></div>');
+  fs.writeFileSync(main,`const {app,BrowserWindow}=require('electron');app.setPath('userData',${JSON.stringify(profile)});app.whenReady().then(()=>new BrowserWindow({show:false}).loadFile(${JSON.stringify(path.join(profile,'index.html'))}));`);
   const bundle=buildSync({stdin:{contents:`import React from 'react';import {createRoot} from 'react-dom/client';import App from ${JSON.stringify(path.join(root,'src/App.tsx'))};import {initialState} from ${JSON.stringify(path.join(root,'src/types.ts'))};window.initialFixture=initialState;createRoot(document.getElementById('root')).render(<App/>);`,resolveDir:root,loader:'tsx'},bundle:true,write:false,jsx:'automatic'});
   const app=await _electron.launch({args:[main]});
   try {

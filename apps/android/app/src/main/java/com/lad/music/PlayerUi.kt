@@ -538,6 +538,7 @@ fun DevicePane(s: MusicState, engine: MusicEngine, dismiss: () -> Unit) {
     var transferError by remember { mutableStateOf("") }
     val selectedDevice = s.devices.find { it.id == selected }
     val ambiguous = selectedDevice?.let { deviceIdentityAmbiguous(it, s.devices) } == true
+    var confirmAmbiguous by remember(selected, selectedDevice?.selectionLabel, s.devices) { mutableStateOf(false) }
     val alreadyActive =
         (selected == "phone" && s.output == "phone") ||
             (selected != "phone" && selected == s.deviceId && s.output == "station" && s.connection == "connected")
@@ -548,13 +549,18 @@ fun DevicePane(s: MusicState, engine: MusicEngine, dismiss: () -> Unit) {
         footer = {
             Action(
                 if (alreadyActive) "Готово"
+                else if (ambiguous && confirmAmbiguous) "Всё равно включить"
                 else if (selected == "phone") "Продолжить на телефоне" else "Продолжить: ${selectedDevice?.selectionLabel.orEmpty()}",
                 if (selected == "phone") Icons.Outlined.PhoneAndroid else Icons.Outlined.Speaker,
-                enabled = !busy && (!s.devicesLoading || selected == "phone") && (alreadyActive || (!ambiguous && (selected == "phone" || selectedDevice != null))),
+                enabled = !busy && (!s.devicesLoading || selected == "phone") && (alreadyActive || selected == "phone" || selectedDevice != null),
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 if (alreadyActive) {
                     dismiss()
+                    return@Action
+                }
+                if (ambiguous && !confirmAmbiguous) {
+                    confirmAmbiguous = true
                     return@Action
                 }
                 busy = true
@@ -566,7 +572,7 @@ fun DevicePane(s: MusicState, engine: MusicEngine, dismiss: () -> Unit) {
                             val d =
                                 engine.state.value.devices.find { it.id == selected }
                                     ?: error("Обнови список Станций")
-                            engine.transfer(d, host)
+                            engine.transfer(d, host, allowAmbiguous = ambiguous && confirmAmbiguous)
                         }
                         dismiss()
                     } catch (e: Exception) {
@@ -626,7 +632,10 @@ fun DevicePane(s: MusicState, engine: MusicEngine, dismiss: () -> Unit) {
             }
         }
         if (s.devicesLoading) Label("Обновляем имена и комнаты…", 13, p.muted)
-        if (ambiguous) Label(AMBIGUOUS_DEVICE, 13, p.accent)
+        if (ambiguous) {
+            Label((if (confirmAmbiguous) "Точно на эту Станцию? " else "") + AMBIGUOUS_DEVICE + " Выбрана: ${selectedDevice?.selectionLabel} · ID ${selectedDevice?.id?.takeLast(8)}", 13, p.accent)
+            if (confirmAmbiguous) Action("Назад к выбору", Icons.Outlined.ArrowBack, true) { confirmAmbiguous = false }
+        }
         if (s.devices.isEmpty())
             Label(
                 "Станции из аккаунта появятся здесь. Телефон и Станция должны быть в одной сети Wi-Fi.",

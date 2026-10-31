@@ -44,4 +44,12 @@ class DeviceIdentityTest {
         m.getJSONArray("devices").getJSONObject(0).put("room", JSONObject.NULL)
         assertEquals("", enrichDeviceIdentities(devices, m)[1].room)
     }
+    @Test fun ambiguousChoiceRequiresExplicitConsentEveryTime() {
+        val result = enrichDeviceIdentities(devices, null)
+        assertTrue(runCatching { requireIdentifiableDevice(result[0], result) }.isFailure)
+        requireIdentifiableDevice(result[0], result, allowAmbiguous = true)
+        assertTrue(runCatching { requireIdentifiableDevice(result[0], result) }.isFailure)
+        requireIdentifiableDevice(result[0], listOf(result[0]))
+    }
+
 }

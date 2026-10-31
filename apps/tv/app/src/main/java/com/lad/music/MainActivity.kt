@@ -69,6 +69,7 @@ class MainActivity : Activity() {
     private var devicesError = ""
     private var pendingOutputId: String? = null
     private var selectedOutputId: String? = null
+    private var ambiguousOutputKey: String? = null
     private var outputReturnFocus = ""
     private var wavePreferences: com.lad.music.wave.WavePreferences? = null
     private var wavePreferenceError = ""
@@ -2272,11 +2273,13 @@ class MainActivity : Activity() {
 
     private fun openOutputs() {
         selectedOutputId = if (s.output == "station") s.deviceId else null
+        ambiguousOutputKey = null
         showModal("devices")
         scanOutputs()
     }
 
     private fun scanOutputs() {
+        ambiguousOutputKey = null
         if (deviceScanJob?.isActive == true) return
         devicesLoading = true
         devicesError = ""
@@ -2296,7 +2299,7 @@ class MainActivity : Activity() {
             }
     }
 
-    private fun selectOutput(device: Device?) {
+    private fun selectOutput(device: Device?, allowAmbiguous: Boolean = false) {
         if (pendingOutputId != null) return
         if (
             (device == null && s.output == "phone") ||
@@ -2325,7 +2328,7 @@ class MainActivity : Activity() {
                         "Станция не найдена в сети. Подключи телевизор и колонку к одной домашней сети и обнови список."
                     }
                     check(target.selectionLabel == device.selectionLabel) { "Имя или комната изменились. Выбери Станцию заново." }
-                    engine.transfer(target)
+                    engine.transfer(target, allowAmbiguous = allowAmbiguous)
                 }
                 modal = null
                 build(returnFocus)
@@ -2362,6 +2365,7 @@ class MainActivity : Activity() {
             64,
         ) {
             selectedOutputId = null
+            ambiguousOutputKey = null
             build("devices-apply")
         }
         val scroll =
@@ -2389,6 +2393,7 @@ class MainActivity : Activity() {
             val row = item(devices, "device-${d.id}", 0, i * 120, 856, 108,
                 if (selected) raised else surface) {
                 selectedOutputId = d.id
+                ambiguousOutputKey = null
                 build("devices-apply")
             }
             row.contentDescription = d.selectionLabel + " · " + status + if (selected) " · выбрана" else ""
@@ -2428,16 +2433,19 @@ class MainActivity : Activity() {
             (selectedOutputId == s.deviceId && s.output == "station" && s.connection == "connected")
         val ambiguous = selectedDevice?.let { deviceIdentityAmbiguous(it, s.devices) } == true
         val unavailable = selectedOutputId != null && selectedDevice == null
+        val identityKey = selectedDevice?.let { "${it.id}|${it.selectionLabel}" }
+        val confirmAmbiguous = identityKey != null && ambiguousOutputKey == identityKey
         paragraph(p, when {
             s.devicesLoading -> "Обновляем имена и комнаты…"
-            ambiguous -> AMBIGUOUS_DEVICE
+            ambiguous -> (if (confirmAmbiguous) "Точно на эту Станцию? " else "") + AMBIGUOUS_DEVICE + " ID ${selectedDevice?.id?.takeLast(8)}"
             unavailable -> "Устройство исчезло из списка. Выбери Станцию заново."
             devicesError.isNotBlank() -> devicesError
             else -> "Выбор в списке не включает звук. Перенос — кнопкой ниже."
-        }, 40, 680, 856, 64, 23, muted)
+        }, 40, 676, 856, 96, 22, muted)
         val apply = button(p, "devices-apply", when {
             pendingOutputId != null -> "Переносим звук…"
             unchanged -> "Готово"
+            ambiguous && confirmAmbiguous -> "Всё равно включить"
             selectedOutputId == null -> "Продолжить на телевизоре"
             else -> "Продолжить: ${selectedDevice?.selectionLabel.orEmpty()}"
         }, 40, 780, 856, 64) {
@@ -2446,10 +2454,15 @@ class MainActivity : Activity() {
                 build(returnFocus)
                 return@button
             }
-            if (ambiguous || unavailable || pendingOutputId != null || (s.devicesLoading && selectedOutputId != null)) return@button
-            selectOutput(selectedDevice)
+            if (unavailable || pendingOutputId != null || (s.devicesLoading && selectedOutputId != null)) return@button
+            if (ambiguous && !confirmAmbiguous) {
+                ambiguousOutputKey = identityKey
+                build("devices-apply")
+                return@button
+            }
+            selectOutput(selectedDevice, allowAmbiguous = ambiguous && confirmAmbiguous)
         }
-        apply.isEnabled = pendingOutputId == null && (!s.devicesLoading || selectedOutputId == null) && (unchanged || (!ambiguous && !unavailable))
+        apply.isEnabled = pendingOutputId == null && (!s.devicesLoading || selectedOutputId == null) && (unchanged || !unavailable)
         apply.alpha = if (apply.isEnabled) 1f else .45f
         label(
             p,

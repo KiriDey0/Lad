@@ -47,4 +47,8 @@ fun deviceIdentityAmbiguous(device: Device, devices: List<Device>): Boolean {
     return devices.any { it.id != device.id && identity(it) == identity(device) }
 }
 
-const val AMBIGUOUS_DEVICE = "Не удалось различить Станции. Укажи разные имена или комнаты в «Доме с Алисой» и обнови список."
+const val AMBIGUOUS_DEVICE = "У нескольких Станций совпадают имя и комната. Лад не может определить, где включится звук."
+
+fun requireIdentifiableDevice(device: Device, devices: List<Device>, allowAmbiguous: Boolean = false) {
+    check(allowAmbiguous || !deviceIdentityAmbiguous(device, devices)) { AMBIGUOUS_DEVICE }
+}

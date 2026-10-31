@@ -243,7 +243,7 @@ class App:
         self.publish()
         return self.snapshot()['devices']
 
-    async def connect(self, id_, host=None, identity=None):
+    async def connect(self, id_, host=None, identity=None, allow_ambiguous=False):
         if self.devices_refreshing:
             raise ValueError('Дождись обновления списка Станций')
         d = next((d for d in self.devices if d['id'] == id_), None)
@@ -251,7 +251,7 @@ class App:
             raise ValueError('Этой Станции нет в аккаунте. Обнови список.')
         if identity is not None and any((identity.get(k) or '') != (d.get(k) or '') for k in ('name', 'room', 'household')):
             raise ValueError('Имя или комната изменились. Выбери Станцию заново.')
-        if device_ambiguous(d, self.devices):
+        if device_ambiguous(d, self.devices) and not (allow_ambiguous is True and identity is not None):
             raise ValueError(AMBIGUOUS_DEVICE)
         if host:
             d['host'] = local_host(host)
@@ -789,7 +789,7 @@ class App:
                 self.connection = 'connected'
                 self.publish()
                 return self.snapshot()
-            return await self.connect(p['id'], p.get('host'), p.get('identity'))
+            return await self.connect(p['id'], p.get('host'), p.get('identity'), p.get('allowAmbiguous', False))
         if method == 'output':
             target = p['output']
             if target not in ('local', 'station'):

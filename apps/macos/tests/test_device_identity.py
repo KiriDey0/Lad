@@ -71,6 +71,36 @@ async def test_ambiguous_or_changed_selection_is_rejected_before_connecting_or_a
 
 
 @pytest.mark.asyncio
+async def test_explicit_override_requires_exact_identity_and_does_not_persist(monkeypatch):
+    import app as module
+    a = App()
+    a.devices = enrich_devices(sample()[0])
+    for d in a.devices: d['host'] = '192.168.1.4'
+    d = a.devices[1]
+    identity = {k: d[k] for k in ('name', 'room', 'household')}
+    for consent in (False, 'true', 1):
+        with pytest.raises(ValueError, match='различить'):
+            await a.connect(d['id'], identity=identity, allow_ambiguous=consent)
+    with pytest.raises(ValueError, match='различить'):
+        await a.connect(d['id'], allow_ambiguous=True)
+    with pytest.raises(ValueError, match='изменились'):
+        await a.connect(d['id'], identity={**identity, 'room': 'Кухня'}, allow_ambiguous=True)
+    calls = []
+    class Station:
+        def __init__(self, *args, **kwargs): calls.append(args[2]['id'])
+        async def connect(self): calls.append('connect')
+        async def close(self): pass
+    monkeypatch.setattr(module, 'Station', Station)
+    monkeypatch.setattr(module, 'emit', lambda *args: None)
+    a.session = object()
+    a.music_token = 'fixture'
+    await a.connect(d['id'], identity=identity, allow_ambiguous=True)
+    assert calls == [d['id'], 'connect']
+    with pytest.raises(ValueError, match='различить'):
+        await a.connect(d['id'], identity=identity)
+
+
+@pytest.mark.asyncio
 async def test_metadata_is_read_only_and_failed_optional_request_does_not_hide_speakers(monkeypatch):
     import app as module
     a = App()

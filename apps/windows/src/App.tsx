@@ -2519,10 +2519,16 @@ function DeviceModal({
   const [error, setError] = useState("");
   const selectedDevice = devices.find(d => d.id === selected);
   const ambiguous = deviceAmbiguous(selectedDevice, devices);
+  const selectionKey = JSON.stringify([selectedOutput, selectedDevice?.id, selectedDevice?.name, selectedDevice?.room, selectedDevice?.household]);
+  const [warningKey, setWarningKey] = useState("");
+  const confirmAmbiguous = warningKey === selectionKey;
+  const devicesKey = JSON.stringify(devices.map(d => [d.id, d.name, d.room, d.household]));
+  useEffect(() => setWarningKey(""), [selectionKey, devicesKey]);
   useEffect(() => {
     if (state.devices.length || !state.demo) setDevices(state.devices);
   }, [state.devices, state.demo]);
   const refresh = async () => {
+    setWarningKey("");
     setBusy(true);
     try {
       const items = await bridge.rpc<State["devices"]>("devices");
@@ -2536,13 +2542,13 @@ function DeviceModal({
   useEffect(() => {
     if (state.hasStationSession || state.demo) void refresh();
   }, []);
-  const choose = async (id: string) => {
+  const choose = async (id: string, allowAmbiguous = false) => {
     setBusy(true);
     setError("");
     try {
       const d = devices.find(item => item.id === id);
-      if (!d || deviceAmbiguous(d, devices)) throw Error("Не удалось различить Станции. Укажи разные имена или комнаты в «Доме с Алисой» и обнови список.");
-      await bridge.rpc("connect", { id, host: host || undefined, identity: {name:d.name,room:d.room || "",household:d.household || ""} });
+      if (!d) throw Error("Обнови список Станций");
+      await bridge.rpc("connect", { id, host: host || undefined, identity: {name:d.name,room:d.room || "",household:d.household || ""}, ...(allowAmbiguous ? {allowAmbiguous:true} : {}) });
       await bridge.rpc("output", { output: "station", transfer: true });
       close();
     } catch (e) {
@@ -2570,9 +2576,12 @@ function DeviceModal({
               icon={selectedOutput === "station" ? Speaker : Monitor}
               className="w-full"
               loading={busy}
-              disabled={selectedOutput === "station" && (!selectedDevice || ambiguous)}
+              disabled={selectedOutput === "station" && !selectedDevice}
               onClick={async () => {
-                if (selectedOutput === "station") await choose(selected);
+                if (selectedOutput === "station") {
+                  if (ambiguous && !confirmAmbiguous) { setWarningKey(selectionKey); return; }
+                  await choose(selected, ambiguous && confirmAmbiguous);
+                }
                 else {
                   const result = await act("output", {
                     output: "local",
@@ -2583,7 +2592,7 @@ function DeviceModal({
               }}
             >
               {selectedOutput === "station"
-                ? `Продолжить: ${deviceLabel(selectedDevice)}`
+                ? (ambiguous && confirmAmbiguous ? "Всё равно включить" : `Продолжить: ${deviceLabel(selectedDevice)}`)
                 : bridge.platform === "darwin"
                   ? "Слушать на Mac"
                   : "Слушать на компьютере"}
@@ -2659,7 +2668,8 @@ function DeviceModal({
           )}
         </button>
       ))}
-      {ambiguous && <div className="error-note">Не удалось различить Станции. Укажи разные имена или комнаты в «Доме с Алисой» и обнови список.</div>}
+      {ambiguous && <div className="error-note" role="alert">{confirmAmbiguous ? "Точно на эту Станцию? " : ""}У нескольких Станций совпадают имя и комната. Лад не может определить, где включится звук. Выбрана: {deviceLabel(selectedDevice)} · ID {selectedDevice?.id.slice(-8)}. Укажи разные имена или комнаты в «Доме с Алисой», чтобы различать их.</div>}
+      {ambiguous && confirmAmbiguous && <Button variant="secondary" onClick={() => setWarningKey("")}>Назад к выбору</Button>}
       {!devices.length && !busy && (
         <Empty
           icon={Speaker}
