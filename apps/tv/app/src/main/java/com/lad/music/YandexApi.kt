@@ -29,6 +29,7 @@ class YandexApi(
             .readTimeout(20, TimeUnit.SECONDS)
             .build(),
     private val quasarBase: String = "https://quasar.yandex.net",
+    private val iotBase: String = "https://api.iot.yandex.net",
 ) {
     companion object {
         const val MUSIC_CLIENT = "YandexMusicAndroid/24023621"
@@ -485,7 +486,7 @@ class YandexApi(
     suspend fun devices(): List<Device> {
         val j = quasar("/glagol/device_list")
         if (!j.has("devices")) throw ApiError(401, "Яндекс не вернул Станции. Войди снова.")
-        return j.array("devices").objects().mapNotNull { d ->
+        val devices = j.array("devices").objects().mapNotNull { d ->
             val cert =
                 d.optJSONObject("glagol")
                     ?.optJSONObject("security")
@@ -493,6 +494,22 @@ class YandexApi(
                     .orEmpty()
             if (cert.isBlank()) null
             else Device(d.text("id"), d.text("name", "Станция"), d.text("platform"), cert)
+        }
+        val info = try { deviceMetadata() }
+        catch (e: CancellationException) { throw e }
+        catch (_: Exception) { null }
+        return enrichDeviceIdentities(devices, info)
+    }
+
+    private suspend fun deviceMetadata(): JSONObject = withContext(Dispatchers.IO) {
+        // A separate read-only request. Never send the token through a redirect.
+        val client = http.newBuilder().followRedirects(false).followSslRedirects(false)
+            .callTimeout(8, TimeUnit.SECONDS).build()
+        val request = Request.Builder().url(iotBase + "/v1.0/user/info")
+            .header("Authorization", "Bearer ${token()}").get().build()
+        client.newCall(request).execute().use { r ->
+            check(r.isSuccessful) { "Не удалось получить имена и комнаты" }
+            JSONObject(r.body?.string().orEmpty())
         }
     }
 

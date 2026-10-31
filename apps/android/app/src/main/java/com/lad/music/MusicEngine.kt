@@ -869,7 +869,16 @@ class MusicEngine(
         persist()
     }
 
+    private var deviceRefreshGeneration = 0L
+
     suspend fun refreshDevices() {
+        val generation = ++deviceRefreshGeneration
+        update { it.copy(devicesLoading = true) }
+        try { refreshDevicesAt(generation) }
+        finally { if (generation == deviceRefreshGeneration) update { it.copy(devicesLoading = false) } }
+    }
+
+    private suspend fun refreshDevicesAt(generation: Long) {
         val epoch = operationEpoch
         val s = state.value
         if (s.demo) {
@@ -883,6 +892,7 @@ class MusicEngine(
         val owned = api.devices()
         val found = StationDiscovery(context).discover()
         requireOperation(epoch)
+        if (generation != deviceRefreshGeneration) return
         val uid = s.profile?.uid.orEmpty()
         update { current ->
             current.copy(
@@ -936,9 +946,15 @@ class MusicEngine(
         }
     }
 
-    suspend fun transfer(device: Device, manualHost: String = "") = playbackLock {
+    suspend fun transfer(device: Device, manualHost: String = "", allowAmbiguous: Boolean = false) = playbackLock {
         val epoch = operationEpoch
         val s = state.value
+        check(!s.devicesLoading || s.demo) { "Дождись обновления списка Станций" }
+        requireIdentifiableDevice(device, s.devices, allowAmbiguous)
+        val currentDevice = s.devices.find { it.id == device.id }
+        check(s.demo || (currentDevice != null && currentDevice.selectionLabel == device.selectionLabel)) {
+            "Имя или комната изменились. Выбери Станцию заново."
+        }
         if (s.output == "phone") phoneVolumeBeforeCast = s.volume
         if (s.demo) {
             update { it.copy(output = "station", deviceId = device.id, connection = "connected") }

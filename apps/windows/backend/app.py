@@ -20,6 +20,7 @@ import aiohttp
 from yandex_music import ClientAsync
 from core import Queue, cover_url, track_key
 from music import Music, track
+from device_identity import enrich_devices, device_ambiguous, AMBIGUOUS_DEVICE
 from station import Station, discover, local_host
 
 logging.disable(logging.CRITICAL)
@@ -72,6 +73,8 @@ class App:
         self.demo_albums = []
         self.output = 'local'
         self.devices = []
+        self.device_refresh_generation = 0
+        self.devices_refreshing = False
         self.device_id = None
         self.hosts = {}
         self.station = None
@@ -135,7 +138,7 @@ class App:
 
     def snapshot(self):
         return {'profile': self.profile, 'demo': self.demo, 'output': self.output,
-                'devices': [{k: d.get(k) for k in ('id', 'name', 'platform', 'host', 'port')} for d in self.devices],
+                'devices': [{k: d.get(k) for k in ('id', 'name', 'platform', 'host', 'port', 'model', 'room', 'household', 'metadataStatus')} for d in self.devices],
                 'deviceId': self.device_id, 'connection': self.connection, 'stationMessage': self.station_message,
                 'playback': self.playback, 'queue': self.queue.snapshot(), 'feedbackError': self.feedback_error,
                 'hasStationSession': bool(self.cookie or self.music_token), 'hasMusicSession': bool(self.music_token),
@@ -198,27 +201,58 @@ class App:
         return self.snapshot()
 
     async def refresh_devices(self):
+        self.device_refresh_generation += 1
+        generation = self.device_refresh_generation
+        self.devices_refreshing = True
+        try:
+            return await self._refresh_devices(generation)
+        finally:
+            if generation == self.device_refresh_generation:
+                self.devices_refreshing = False
+
+    async def _refresh_devices(self, generation):
+        epoch = self.operation_epoch
         base_url, headers = self.quasar_auth()
         async with self.session.get(base_url + '/glagol/device_list', headers=headers) as response:
             result = await response.json(content_type=None)
         if 'devices' not in result:
             raise ValueError('Яндекс не вернул список Станций. Обнови вход в аккаунт.')
-        self.devices = result['devices']
-        for device in self.devices:
+        info = None
+        if self.music_token:
+            try:
+                async with self.session.get('https://api.iot.yandex.net/v1.0/user/info',
+                        headers={'Authorization': f'Bearer {self.music_token}'},
+                        timeout=aiohttp.ClientTimeout(total=8), allow_redirects=False) as response:
+                    if response.status == 200:
+                        info = await response.json(content_type=None)
+            except (aiohttp.ClientError, asyncio.TimeoutError, ValueError):
+                pass
+        devices = enrich_devices(result['devices'], info)
+        for device in devices:
             device.get('glagol', {}).get('security', {}).pop('server_private_key', None)
         lan = await discover()
-        for d in self.devices:
+        self.require_operation(epoch)
+        if generation != self.device_refresh_generation:
+            return self.snapshot()['devices']
+        for d in devices:
             if d['id'] in lan:
                 d.update(lan[d['id']])
             elif self.hosts.get(d['id']):
                 d.update(self.hosts[d['id']])
+        self.devices = devices
         self.publish()
         return self.snapshot()['devices']
 
-    async def connect(self, id_, host=None):
+    async def connect(self, id_, host=None, identity=None, allow_ambiguous=False):
+        if self.devices_refreshing:
+            raise ValueError('Дождись обновления списка Станций')
         d = next((d for d in self.devices if d['id'] == id_), None)
         if not d:
             raise ValueError('Этой Станции нет в аккаунте. Обнови список.')
+        if identity is not None and any((identity.get(k) or '') != (d.get(k) or '') for k in ('name', 'room', 'household')):
+            raise ValueError('Имя или комната изменились. Выбери Станцию заново.')
+        if device_ambiguous(d, self.devices) and not (allow_ambiguous is True and identity is not None):
+            raise ValueError(AMBIGUOUS_DEVICE)
         if host:
             d['host'] = local_host(host)
             d['port'] = 1961
@@ -755,7 +789,7 @@ class App:
                 self.connection = 'connected'
                 self.publish()
                 return self.snapshot()
-            return await self.connect(p['id'], p.get('host'))
+            return await self.connect(p['id'], p.get('host'), p.get('identity'), p.get('allowAmbiguous', False))
         if method == 'output':
             target = p['output']
             if target not in ('local', 'station'):

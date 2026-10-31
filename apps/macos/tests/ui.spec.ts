@@ -628,7 +628,7 @@ test("devices transfer, settings theme roles, login dialog and logout", async ()
   await page.emulateMedia({ reducedMotion: "no-preference" });
   await page.getByRole("button", { name: /Станция Миди · пример/ }).click();
   await page
-    .getByRole("button", { name: "Продолжить на Станции", exact: true })
+    .getByRole("button", { name: "Продолжить: Станция Миди · пример", exact: true })
     .click();
   await expect(page.locator(".device-selector")).toContainText("Станция Миди");
   await page.getByRole("button", { name: "Настройки", exact: true }).click();

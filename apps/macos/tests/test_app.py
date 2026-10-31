@@ -104,6 +104,7 @@ async def test_glagol_device_list_uses_music_oauth_without_browser_cookie(engine
     import app as module
     requests = []
     class Response:
+        status = 403
         async def __aenter__(self): return self
         async def __aexit__(self, *args): pass
         async def json(self, **kwargs):
