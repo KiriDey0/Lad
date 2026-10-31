@@ -952,7 +952,7 @@ class MusicEngine(
         check(!s.devicesLoading || s.demo) { "Дождись обновления списка Станций" }
         requireIdentifiableDevice(device, s.devices, allowAmbiguous)
         val currentDevice = s.devices.find { it.id == device.id }
-        check(currentDevice == null || currentDevice.selectionLabel == device.selectionLabel) {
+        check(s.demo || (currentDevice != null && currentDevice.selectionLabel == device.selectionLabel)) {
             "Имя или комната изменились. Выбери Станцию заново."
         }
         if (s.output == "phone") phoneVolumeBeforeCast = s.volume

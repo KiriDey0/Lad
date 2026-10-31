@@ -563,16 +563,20 @@ fun DevicePane(s: MusicState, engine: MusicEngine, dismiss: () -> Unit) {
                     confirmAmbiguous = true
                     return@Action
                 }
+                val target = selectedDevice
+                val targetIsPhone = selected == "phone"
+                val consent = ambiguous && confirmAmbiguous
+                val targetHost = host
                 busy = true
                 transferError = ""
                 engine.task {
                     try {
-                        if (selected == "phone") engine.transferPhone()
+                        if (targetIsPhone) engine.transferPhone()
                         else {
                             val d =
-                                engine.state.value.devices.find { it.id == selected }
+                                target
                                     ?: error("Обнови список Станций")
-                            engine.transfer(d, host, allowAmbiguous = ambiguous && confirmAmbiguous)
+                            engine.transfer(d, targetHost, allowAmbiguous = consent)
                         }
                         dismiss()
                     } catch (e: Exception) {
@@ -593,7 +597,7 @@ fun DevicePane(s: MusicState, engine: MusicEngine, dismiss: () -> Unit) {
             Modifier.fillMaxWidth()
                 .clip(RoundedCornerShape(20.dp))
                 .background(if (selected == "phone") p.tonal else p.surface)
-                .clickable { selected = "phone" }
+                .clickable(enabled = !busy) { selected = "phone" }
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(14.dp),
@@ -610,7 +614,7 @@ fun DevicePane(s: MusicState, engine: MusicEngine, dismiss: () -> Unit) {
                 Modifier.fillMaxWidth()
                     .clip(RoundedCornerShape(20.dp))
                     .background(if (selected == device.id) p.tonal else p.surface)
-                    .clickable { selected = device.id }
+                    .clickable(enabled = !busy) { selected = device.id }
                     .padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
@@ -649,6 +653,7 @@ fun DevicePane(s: MusicState, engine: MusicEngine, dismiss: () -> Unit) {
             enabled = !busy,
             modifier = Modifier.fillMaxWidth(),
         ) {
+            confirmAmbiguous = false
             busy = true
             engine.task {
                 try {
