@@ -183,6 +183,10 @@ data class Device(
     val certificate: String,
     val host: String = "",
     val port: Int = 1961,
+    val room: String = "",
+    val household: String = "",
+    val model: String = name,
+    val metadataStatus: String = "unavailable",
 )
 
 data class Settings(
@@ -211,6 +215,7 @@ data class MusicState(
     val output: String = "phone",
     val deviceId: String? = null,
     val devices: List<Device> = emptyList(),
+    val devicesLoading: Boolean = false,
     val connection: String = "disconnected",
     val loading: Boolean = false,
     val repeat: Int = 0,
@@ -225,7 +230,7 @@ data class MusicState(
     val outputName
         get() =
             if (output == "phone") "Этот телевизор"
-            else devices.find { it.id == deviceId }?.name ?: "Станция"
+            else devices.find { it.id == deviceId }?.selectionLabel ?: "Станция"
 }
 
 fun parseLyrics(text: String): Lyrics {

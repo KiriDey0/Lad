@@ -24,6 +24,7 @@ class GlagolApiTest {
                 http = OkHttpClient.Builder().retryOnConnectionFailure(false).build(),
                 quasarBase =
                     server.url("/").newBuilder().host("127.0.0.1").build().toString().trimEnd('/'),
+                iotBase = server.url("/").toString().trimEnd('/'),
             )
     }
 
@@ -38,10 +39,15 @@ class GlagolApiTest {
                     """{"devices":[{"id":"midi","name":"Миди","platform":"cucumber","glagol":{"security":{"server_certificate":"fixture-certificate"}}}]}"""
                 )
         )
+        server.enqueue(MockResponse().setResponseCode(403))
         assertEquals("midi", api.devices().single().id)
-        assertEquals(2, server.requestCount)
+        assertEquals(3, server.requestCount)
         server.takeRequest() // connection closed before the first request headers arrived
         assertEquals("OAuth fixture-token", server.takeRequest().getHeader("Authorization"))
+        val metadata = server.takeRequest()
+        assertEquals("GET", metadata.method)
+        assertEquals("/v1.0/user/info", metadata.path)
+        assertEquals("Bearer fixture-token", metadata.getHeader("Authorization"))
     }
 
     @Test
@@ -54,6 +60,27 @@ class GlagolApiTest {
             assertEquals(401, e.code)
         }
         assertEquals(1, server.requestCount)
+    }
+
+    @Test
+    fun namesAndRoomsAreOptionalReadOnlyMetadataAndRedirectsNeverReceiveTheToken() = runBlocking {
+        fun glagol() = MockResponse().setBody("""{"devices":[{"id":"a","name":"Яндекс Станция","glagol":{"security":{"server_certificate":"cert"}}},{"id":"b","name":"Яндекс Станция","glagol":{"security":{"server_certificate":"cert"}}}]}""")
+        server.enqueue(glagol())
+        server.enqueue(MockResponse().setBody("""{"status":"ok","rooms":[{"id":"k","name":"Кухня","household_id":"h"},{"id":"b","name":"Спальня","household_id":"h"}],"households":[{"id":"h","name":"Дом"}],"devices":[{"id":"cloud-b","name":"Яндекс Станция","household_id":"h","room":"b","quasar_info":{"device_id":"b"}},{"id":"cloud-a","name":"Яндекс Станция","household_id":"h","room":"k","quasar_info":{"device_id":"a"}}]}"""))
+        val devices = api.devices()
+        assertEquals("Кухня", devices[0].displayTitle)
+        assertEquals("Спальня", devices[1].displayTitle)
+        assertFalse(deviceIdentityAmbiguous(devices[0], devices))
+        repeat(2) { assertEquals("GET", server.takeRequest().method) }
+        val other = MockWebServer().also { it.start() }
+        try {
+            server.enqueue(glagol())
+            server.enqueue(MockResponse().setResponseCode(302).setHeader("Location", other.url("/no-credentials")))
+            val fallback = api.devices()
+            assertTrue(fallback.all { it.room.isBlank() && it.metadataStatus == "unavailable" })
+            assertTrue(deviceIdentityAmbiguous(fallback[0], fallback))
+            assertEquals(0, other.requestCount)
+        } finally { other.shutdown() }
     }
 
     @Test

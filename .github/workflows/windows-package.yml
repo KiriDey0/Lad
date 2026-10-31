@@ -4,6 +4,7 @@ on:
     paths:
       - apps/windows/**
       - shared/wave/**
+      - shared/devices/**
       - .github/workflows/windows-package.yml
   workflow_dispatch:
 permissions:

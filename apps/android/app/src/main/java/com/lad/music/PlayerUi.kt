@@ -531,13 +531,16 @@ fun QueueView(
 @Composable
 fun DevicePane(s: MusicState, engine: MusicEngine, dismiss: () -> Unit) {
     val p = LocalPalette.current
-    var selected by remember { mutableStateOf(s.deviceId ?: "phone") }
+    var selected by remember { mutableStateOf(if (s.output == "phone") "phone" else s.deviceId ?: "phone") }
     var host by
         remember(selected) { mutableStateOf(s.devices.find { it.id == selected }?.host.orEmpty()) }
     var busy by remember { mutableStateOf(false) }
     var transferError by remember { mutableStateOf("") }
+    val selectedDevice = s.devices.find { it.id == selected }
+    val ambiguous = selectedDevice?.let { deviceIdentityAmbiguous(it, s.devices) } == true
     val alreadyActive =
-        selected == (s.deviceId ?: "phone") && (selected == "phone" || s.connection == "connected")
+        (selected == "phone" && s.output == "phone") ||
+            (selected != "phone" && selected == s.deviceId && s.output == "station" && s.connection == "connected")
     Pane(
         "Где будем слушать?",
         s.settings,
@@ -545,9 +548,9 @@ fun DevicePane(s: MusicState, engine: MusicEngine, dismiss: () -> Unit) {
         footer = {
             Action(
                 if (alreadyActive) "Готово"
-                else if (selected == "phone") "Продолжить на телефоне" else "Продолжить на Станции",
+                else if (selected == "phone") "Продолжить на телефоне" else "Продолжить: ${selectedDevice?.selectionLabel.orEmpty()}",
                 if (selected == "phone") Icons.Outlined.PhoneAndroid else Icons.Outlined.Speaker,
-                enabled = !busy,
+                enabled = !busy && (!s.devicesLoading || selected == "phone") && (alreadyActive || (!ambiguous && (selected == "phone" || selectedDevice != null))),
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 if (alreadyActive) {
@@ -608,7 +611,10 @@ fun DevicePane(s: MusicState, engine: MusicEngine, dismiss: () -> Unit) {
             ) {
                 Icon(Icons.Outlined.Speaker, null, tint = p.muted)
                 Column(Modifier.weight(1f)) {
-                    Label(device.name, 16, weight = FontWeight.Medium)
+                    Label(device.displayTitle, 16, weight = FontWeight.Medium)
+                    Label(device.locationDescription, 12, p.muted)
+                    if (deviceIdentityAmbiguous(device, s.devices))
+                        Label("Нельзя различить · ID ${device.id.takeLast(8)}", 12, p.muted)
                     Label(
                         if (device.host.isNotBlank()) "Найдена в локальной сети"
                         else "Укажи IP или обнови поиск",
@@ -619,6 +625,8 @@ fun DevicePane(s: MusicState, engine: MusicEngine, dismiss: () -> Unit) {
                 if (selected == device.id) Icon(Icons.Outlined.Check, null, tint = p.accent)
             }
         }
+        if (s.devicesLoading) Label("Обновляем имена и комнаты…", 13, p.muted)
+        if (ambiguous) Label(AMBIGUOUS_DEVICE, 13, p.accent)
         if (s.devices.isEmpty())
             Label(
                 "Станции из аккаунта появятся здесь. Телефон и Станция должны быть в одной сети Wi-Fi.",

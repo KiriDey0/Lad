@@ -42,6 +42,10 @@ export interface QueueState {
   shuffled: boolean;
 }
 export interface Device {
+  room?: string;
+  household?: string;
+  model?: string;
+  metadataStatus?: string;
   id: string;
   name: string;
   host?: string;
