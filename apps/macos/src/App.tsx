@@ -2566,6 +2566,10 @@ function DeviceModal({
       footer={
         (devices.length > 0 || selectedOutput === "local") && (
           <div className="transfer-action">
+            {ambiguous && confirmAmbiguous && <>
+              <div className="error-note" role="alert">Точно на эту Станцию? У нескольких Станций совпадают имя и комната. Лад не может определить, где включится звук. Выбрана: {deviceLabel(selectedDevice)} · ID {selectedDevice?.id.slice(-8)}.</div>
+              <Button variant="secondary" onClick={() => setWarningKey("")}>Назад к выбору</Button>
+            </>}
             {state.playback.track && (
               <p>
                 «{state.playback.track.title}» продолжится с{" "}
@@ -2668,8 +2672,7 @@ function DeviceModal({
           )}
         </button>
       ))}
-      {ambiguous && <div className="error-note" role="alert">{confirmAmbiguous ? "Точно на эту Станцию? " : ""}У нескольких Станций совпадают имя и комната. Лад не может определить, где включится звук. Выбрана: {deviceLabel(selectedDevice)} · ID {selectedDevice?.id.slice(-8)}. Укажи разные имена или комнаты в «Доме с Алисой», чтобы различать их.</div>}
-      {ambiguous && confirmAmbiguous && <Button variant="secondary" onClick={() => setWarningKey("")}>Назад к выбору</Button>}
+      {ambiguous && !confirmAmbiguous && <div className="error-note" role="alert">{confirmAmbiguous ? "Точно на эту Станцию? " : ""}У нескольких Станций совпадают имя и комната. Лад не может определить, где включится звук. Выбрана: {deviceLabel(selectedDevice)} · ID {selectedDevice?.id.slice(-8)}. Укажи разные имена или комнаты в «Доме с Алисой», чтобы различать их.</div>}
       {!devices.length && !busy && (
         <Empty
           icon={Speaker}

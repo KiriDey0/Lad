@@ -547,6 +547,11 @@ fun DevicePane(s: MusicState, engine: MusicEngine, dismiss: () -> Unit) {
         s.settings,
         dismiss,
         footer = {
+          Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (ambiguous && confirmAmbiguous) {
+                Label("Точно на эту Станцию? " + AMBIGUOUS_DEVICE + " Выбрана: ${selectedDevice?.selectionLabel} · ID ${selectedDevice?.id?.takeLast(8)}", 13, p.accent)
+                Action("Назад к выбору", Icons.Outlined.ArrowBack, true, enabled = !busy) { confirmAmbiguous = false }
+            }
             Action(
                 if (alreadyActive) "Готово"
                 else if (ambiguous && confirmAmbiguous) "Всё равно включить"
@@ -588,6 +593,7 @@ fun DevicePane(s: MusicState, engine: MusicEngine, dismiss: () -> Unit) {
                     }
                 }
             }
+          }
         },
     ) {
         Label("Тот же трек с текущей позиции", 14, p.muted)
@@ -636,9 +642,8 @@ fun DevicePane(s: MusicState, engine: MusicEngine, dismiss: () -> Unit) {
             }
         }
         if (s.devicesLoading) Label("Обновляем имена и комнаты…", 13, p.muted)
-        if (ambiguous) {
+        if (ambiguous && !confirmAmbiguous) {
             Label((if (confirmAmbiguous) "Точно на эту Станцию? " else "") + AMBIGUOUS_DEVICE + " Выбрана: ${selectedDevice?.selectionLabel} · ID ${selectedDevice?.id?.takeLast(8)}", 13, p.accent)
-            if (confirmAmbiguous) Action("Назад к выбору", Icons.Outlined.ArrowBack, true) { confirmAmbiguous = false }
         }
         if (s.devices.isEmpty())
             Label(
