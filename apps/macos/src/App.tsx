@@ -1,4 +1,10 @@
-import {deviceTitle, deviceLabel, deviceContext, deviceAmbiguous} from "../../../shared/devices/identity.mjs";
+import {Modal} from "./components/Modal";
+import {
+  deviceTitle,
+  deviceLabel,
+  deviceContext,
+  deviceAmbiguous,
+} from "../../../shared/devices/identity.mjs";
 import { WaveScene } from "./wave/WaveScene";
 // SPDX-License-Identifier: AGPL-3.0-only
 import {
@@ -57,6 +63,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import clsx from "clsx";
+import { CollectionBrowser } from "./components/CollectionBrowser";
 import { UpdateSection } from "./components/UpdateSection";
 import { bridge } from "./bridge";
 import { useGlassPointer } from "./useGlassPointer";
@@ -126,15 +133,12 @@ export default function App() {
   const [detail, setDetail] = useState<Card | null>(null);
   const scope = state.profile
     ? `${state.demo ? "demo" : "account"}:${state.profile.uid}`
-    : null;
+    : "local-device";
   const [library, setLibrary] = useState<{
     scope: string;
     playlists: Card[];
     albums: Card[];
   } | null>(null);
-  const [collectionTab, setCollectionTab] = useState<"playlists" | "albums">(
-    "playlists",
-  );
   const [refreshKey, setRefreshKey] = useState(0);
   const [theme, setTheme] = useState<Theme>(loadTheme);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -175,9 +179,14 @@ export default function App() {
     });
     void bridge
       .rpc<State>("snapshot")
-      .then((snapshot) => { if (active && !receivedState) setState(snapshot); })
+      .then((snapshot) => {
+        if (active && !receivedState) setState(snapshot);
+      })
       .catch(() => {});
-    return () => { active = false; off(); };
+    return () => {
+      active = false;
+      off();
+    };
   }, [notice]);
   useEffect(() => {
     if (toast) {
@@ -241,7 +250,14 @@ export default function App() {
   }, [act, modal]);
   const authenticated = !!state.profile;
   useEffect(() => {
-    if (!authenticated || page === "now" || page === "settings") return;
+    if (
+      page === "collection" ||
+      page === "now" ||
+      page === "settings" ||
+      (!authenticated &&
+        !(page === "detail" && detail?.id.startsWith("local-")))
+    )
+      return;
     if (page === "search" && !query.trim()) {
       setSearchResult(null);
       setLoading(false);
@@ -283,26 +299,6 @@ export default function App() {
                 tracks: data.tracks,
                 total: data.total,
                 title: "Мне нравится",
-              });
-          } else if (page === "collection") {
-            const [data, likes] = await Promise.all([
-              bridge.rpc<{ playlists: Card[]; albums: Card[] }>("library"),
-              bridge
-                .rpc<{ tracks: Track[]; total: number }>("liked", { limit: 8 })
-                .then((value) => ({ ...value, error: "" }))
-                .catch(() => ({
-                  tracks: [],
-                  total: undefined,
-                  error: "Не удалось загрузить любимые треки",
-                })),
-            ]);
-            if (id === requestId.current)
-              setContent({
-                cards: data.playlists,
-                albums: data.albums,
-                tracks: likes.tracks,
-                total: likes.total,
-                likesError: likes.error,
               });
           } else if (page === "detail" && detail && detail.id === "link") {
             setLoading(false);
@@ -361,7 +357,7 @@ export default function App() {
       index,
       source,
       collection:
-        page === "liked" || source === "Мне нравится" ? "liked" : undefined,
+        (page === "liked" || source === "Мне нравится") && tracks.every(t=>!t.id.startsWith("local-")) ? "liked" : undefined,
     });
     setBusy(false);
   };
@@ -450,6 +446,7 @@ export default function App() {
             stateRef.current.profile?.uid === state.profile?.uid &&
             stateRef.current.demo === state.demo
           ) {
+            setRefreshKey((v) => v + 1);
             setLibrary((prev) =>
               prev?.scope === scope
                 ? {
@@ -539,7 +536,7 @@ export default function App() {
                   icon={Heart}
                   label="Мне нравится"
                   active={page === "liked"}
-                  onClick={() => nav("liked")}
+                  onClick={() => state.demo ? nav("liked") : openCard({id:"local-all-liked",type:"playlist",title:"Мне нравится",source:"local"})}
                 />
                 {pins.cards.map((card) => (
                   <PinnedShortcut
@@ -560,7 +557,7 @@ export default function App() {
                 )}
                 {!authenticated && (
                   <p className="sidebar-hint">
-                    Закрепления и любимые треки появятся после входа.
+                    Локальные плейлисты и альбомы можно закрепить через их меню.
                   </p>
                 )}
               </div>
@@ -645,7 +642,9 @@ export default function App() {
                       ? bridge.platform === "darwin"
                         ? "Этот Mac"
                         : "Этот компьютер"
-                      : deviceLabel(state.devices.find((d) => d.id === state.deviceId))}
+                      : deviceLabel(
+                          state.devices.find((d) => d.id === state.deviceId),
+                        )}
                   </span>
                   <span
                     className={clsx(
@@ -665,8 +664,13 @@ export default function App() {
                   page === "now" && "page-lyrics",
                 )}
               >
-                {!authenticated && page !== "settings" ? (
+                {!authenticated &&
+                page !== "settings" &&
+                page !== "collection" &&
+                !(page === "now" && current?.source === "local") &&
+                !(page === "detail" && detail?.id.startsWith("local-")) ? (
                   <Welcome
+                    onLocal={() => setPage("collection")}
                     onLogin={() => setModal("login")}
                     onDemo={() => {
                       void act("demo").then(() => {
@@ -685,6 +689,26 @@ export default function App() {
                     onLogout={() => {
                       void act("logout").then(() => setPage("home"));
                     }}
+                  />
+                ) : page === "collection" ? (
+                  <CollectionBrowser
+                    state={state}
+                    refresh={refreshKey}
+                    open={openCard}
+                    favorite={() => nav("liked")}
+                    notice={notice}
+                    tracksView={(tracks, title, compact, collectionId) => (
+                      <TrackList
+                        compact={compact}
+                        tracks={tracks}
+                        title={title}
+                        source={title}
+                        state={state}
+                        play={async(ts,i,source)=>{if(collectionId?.startsWith("local-")){const all=await act<Collection>("collection",{type:"playlist",id:collectionId});if(all){const index=all.tracks.findIndex(t=>t.id===ts[i].id);if(index>=0)await play(all.tracks,index,source)}}else await play(ts,i,source)}}
+                        add={add}
+                        like={toggleLike}
+                      />
+                    )}
                   />
                 ) : page === "now" ? (
                   <LyricsPage
@@ -766,7 +790,13 @@ export default function App() {
                           cover={current?.cover}
                           playing={state.playback.playing}
                           local={state.output === "local"}
-                          remote={state.output === "station" && state.connection === "connected" && !state.demo ? state.playback : undefined}
+                          remote={
+                            state.output === "station" &&
+                            state.connection === "connected" &&
+                            !state.demo
+                              ? state.playback
+                              : undefined
+                          }
                           intensity={theme.waveIntensity}
                           smoothing={theme.waveSmoothing}
                         />
@@ -839,32 +869,6 @@ export default function App() {
                           </p>
                         </div>
                       </div>
-                    ) : page === "collection" ? (
-                      <>
-                        <div className="page-heading">
-                          <span className="eyebrow">ВСЁ, ЧТО ТЫ СОХРАНИЛ</span>
-                          <h1>Коллекция</h1>
-                        </div>
-                        <div
-                          className="filter-tabs"
-                          role="tablist"
-                          aria-label="Раздел коллекции"
-                        >
-                          {(["playlists", "albums"] as const).map((type) => (
-                            <button
-                              key={type}
-                              role="tab"
-                              aria-selected={collectionTab === type}
-                              className={clsx(
-                                collectionTab === type && "active",
-                              )}
-                              onClick={() => setCollectionTab(type)}
-                            >
-                              {type === "playlists" ? "Плейлисты" : "Альбомы"}
-                            </button>
-                          ))}
-                        </div>
-                      </>
                     ) : (
                       <CollectionHeading card={detail}>
                         {detail && <Art item={detail} size="md" />}
@@ -973,60 +977,6 @@ export default function App() {
                           )
                         )}
                       </>
-                    ) : page === "collection" ? (
-                      <>
-                        {collectionTab === "playlists" && (
-                          <section
-                            className="liked-preview"
-                            aria-label="Любимые треки в коллекции"
-                          >
-                            <button
-                              className="liked-preview-heading"
-                              onClick={() => nav("liked")}
-                            >
-                              <span className="liked-cover">
-                                <Heart size={26} />
-                              </span>
-                              <span>
-                                <strong>Мне нравится</strong>
-                                <small>
-                                  {content.total === undefined
-                                    ? "Открыть любимые треки"
-                                    : `${content.total} треков`}
-                                </small>
-                              </span>
-                              <ChevronRight size={20} />
-                            </button>
-                            {content.likesError ? (
-                              <p className="muted">{content.likesError}</p>
-                            ) : (
-                              <TrackList
-                                compact
-                                tracks={content.tracks}
-                                title="Любимые треки"
-                                state={state}
-                                source="Мне нравится"
-                                play={play}
-                                add={add}
-                                like={toggleLike}
-                              />
-                            )}
-                          </section>
-                        )}
-                        <CardGrid
-                          title={
-                            collectionTab === "playlists"
-                              ? "Твои плейлисты"
-                              : "Любимые альбомы"
-                          }
-                          cards={
-                            collectionTab === "playlists"
-                              ? content.cards
-                              : content.albums || []
-                          }
-                          open={openCard}
-                        />
-                      </>
                     ) : (
                       <>
                         {page === "home" && content.cards.length > 0 && (
@@ -1086,13 +1036,16 @@ export default function App() {
                 )}
               </div>
             </main>
-            {queueOpen && authenticated && (
-              <QueuePanel
-                state={state}
-                act={act}
-                close={() => setQueueOpen(false)}
-              />
-            )}
+            {queueOpen &&
+              (authenticated ||
+                !!current?.source ||
+                state.queue.tracks.some((t) => t.source === "local")) && (
+                <QueuePanel
+                  state={state}
+                  act={act}
+                  close={() => setQueueOpen(false)}
+                />
+              )}
           </div>
           <Player
             state={state}
@@ -1179,9 +1132,11 @@ function NavItem({
   );
 }
 function Welcome({
+  onLocal,
   onLogin,
   onDemo,
 }: {
+  onLocal: () => void;
   onLogin: () => void;
   onDemo: () => void;
 }) {
@@ -1203,6 +1158,7 @@ function Welcome({
           <Button icon={ArrowUpRight} onClick={onLogin}>
             Войти в Яндекс
           </Button>
+          <Button variant="secondary" onClick={onLocal}>Музыка на устройстве</Button>
           <Button icon={Play} variant="secondary" onClick={onDemo}>
             Посмотреть демо
           </Button>
@@ -1954,6 +1910,7 @@ function LyricsPage({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [retry, setRetry] = useState(0);
+  useEffect(()=>{const changed=()=>setRetry(v=>v+1);window.addEventListener("lad:lyrics-changed",changed);return ()=>window.removeEventListener("lad:lyrics-changed",changed)},[]);
   const position = usePosition(state.playback, state.output);
   const active = useRef<HTMLButtonElement | null>(null);
   const manualUntil = useRef(0);
@@ -2138,75 +2095,6 @@ function LyricsPage({
             К текущей строке <ArrowDown size={14} />
           </button>
         )}
-      </div>
-    </div>
-  );
-}
-function Modal({
-  title,
-  subtitle,
-  close,
-  children,
-  footer,
-}: {
-  title: string;
-  subtitle?: string;
-  close: () => void;
-  children: ReactNode;
-  footer?: ReactNode;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const old = document.activeElement as HTMLElement;
-    const target = ref.current;
-    const first = target?.querySelector<HTMLButtonElement>("button");
-    first?.focus();
-    const handle = (e: KeyboardEvent) => {
-      if (e.key !== "Tab") return;
-      const items = [
-        ...target!.querySelectorAll<HTMLElement>(
-          "button:not([disabled]),input:not([disabled]),a,select",
-        ),
-      ];
-      const i = items.indexOf(document.activeElement as HTMLElement);
-      if (e.shiftKey && i <= 0) {
-        e.preventDefault();
-        items.at(-1)?.focus();
-      }
-      if (!e.shiftKey && i === items.length - 1) {
-        e.preventDefault();
-        items[0]?.focus();
-      }
-    };
-    target?.addEventListener("keydown", handle);
-    return () => {
-      target?.removeEventListener("keydown", handle);
-      old?.focus();
-    };
-  }, []);
-  return (
-    <div
-      className="modal-overlay"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) close();
-      }}
-    >
-      <div
-        className={clsx("modal", footer && "modal-with-footer")}
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-        ref={ref}
-      >
-        <div className="modal-header">
-          <div>
-            <h2>{title}</h2>
-            {subtitle && <p>{subtitle}</p>}
-          </div>
-          <IconButton icon={X} label="Закрыть окно" onClick={close} />
-        </div>
-        {footer ? <div className="modal-scroll">{children}</div> : children}
-        {footer && <div className="modal-footer">{footer}</div>}
       </div>
     </div>
   );
@@ -2517,12 +2405,20 @@ function DeviceModal({
     state.output,
   );
   const [error, setError] = useState("");
-  const selectedDevice = devices.find(d => d.id === selected);
+  const selectedDevice = devices.find((d) => d.id === selected);
   const ambiguous = deviceAmbiguous(selectedDevice, devices);
-  const selectionKey = JSON.stringify([selectedOutput, selectedDevice?.id, selectedDevice?.name, selectedDevice?.room, selectedDevice?.household]);
+  const selectionKey = JSON.stringify([
+    selectedOutput,
+    selectedDevice?.id,
+    selectedDevice?.name,
+    selectedDevice?.room,
+    selectedDevice?.household,
+  ]);
   const [warningKey, setWarningKey] = useState("");
   const confirmAmbiguous = warningKey === selectionKey;
-  const devicesKey = JSON.stringify(devices.map(d => [d.id, d.name, d.room, d.household]));
+  const devicesKey = JSON.stringify(
+    devices.map((d) => [d.id, d.name, d.room, d.household]),
+  );
   useEffect(() => setWarningKey(""), [selectionKey, devicesKey]);
   useEffect(() => {
     if (state.devices.length || !state.demo) setDevices(state.devices);
@@ -2546,9 +2442,18 @@ function DeviceModal({
     setBusy(true);
     setError("");
     try {
-      const d = devices.find(item => item.id === id);
+      const d = devices.find((item) => item.id === id);
       if (!d) throw Error("Обнови список Станций");
-      await bridge.rpc("connect", { id, host: host || undefined, identity: {name:d.name,room:d.room || "",household:d.household || ""}, ...(allowAmbiguous ? {allowAmbiguous:true} : {}) });
+      await bridge.rpc("connect", {
+        id,
+        host: host || undefined,
+        identity: {
+          name: d.name,
+          room: d.room || "",
+          household: d.household || "",
+        },
+        ...(allowAmbiguous ? { allowAmbiguous: true } : {}),
+      });
       await bridge.rpc("output", { output: "station", transfer: true });
       close();
     } catch (e) {
@@ -2566,10 +2471,19 @@ function DeviceModal({
       footer={
         (devices.length > 0 || selectedOutput === "local") && (
           <div className="transfer-action">
-            {ambiguous && confirmAmbiguous && <>
-              <div className="error-note" role="alert">Точно на эту Станцию? У нескольких Станций совпадают имя и комната. Лад не может определить, где включится звук. Выбрана: {deviceLabel(selectedDevice)} · ID {selectedDevice?.id.slice(-8)}.</div>
-              <Button variant="secondary" onClick={() => setWarningKey("")}>Назад к выбору</Button>
-            </>}
+            {ambiguous && confirmAmbiguous && (
+              <>
+                <div className="error-note" role="alert">
+                  Точно на эту Станцию? У нескольких Станций совпадают имя и
+                  комната. Лад не может определить, где включится звук. Выбрана:{" "}
+                  {deviceLabel(selectedDevice)} · ID{" "}
+                  {selectedDevice?.id.slice(-8)}.
+                </div>
+                <Button variant="secondary" onClick={() => setWarningKey("")}>
+                  Назад к выбору
+                </Button>
+              </>
+            )}
             {state.playback.track && (
               <p>
                 «{state.playback.track.title}» продолжится с{" "}
@@ -2583,10 +2497,12 @@ function DeviceModal({
               disabled={selectedOutput === "station" && !selectedDevice}
               onClick={async () => {
                 if (selectedOutput === "station") {
-                  if (ambiguous && !confirmAmbiguous) { setWarningKey(selectionKey); return; }
+                  if (ambiguous && !confirmAmbiguous) {
+                    setWarningKey(selectionKey);
+                    return;
+                  }
                   await choose(selected, ambiguous && confirmAmbiguous);
-                }
-                else {
+                } else {
                   const result = await act("output", {
                     output: "local",
                     transfer: true,
@@ -2596,7 +2512,9 @@ function DeviceModal({
               }}
             >
               {selectedOutput === "station"
-                ? (ambiguous && confirmAmbiguous ? "Всё равно включить" : `Продолжить: ${deviceLabel(selectedDevice)}`)
+                ? ambiguous && confirmAmbiguous
+                  ? "Всё равно включить"
+                  : `Продолжить: ${deviceLabel(selectedDevice)}`
                 : bridge.platform === "darwin"
                   ? "Слушать на Mac"
                   : "Слушать на компьютере"}
@@ -2656,7 +2574,9 @@ function DeviceModal({
           <div>
             <strong>{deviceTitle(d)}</strong>
             <small>{deviceContext(d)}</small>
-            {deviceAmbiguous(d, devices) && <small>Нельзя различить устройства · ID {d.id.slice(-8)}</small>}
+            {deviceAmbiguous(d, devices) && (
+              <small>Нельзя различить устройства · ID {d.id.slice(-8)}</small>
+            )}
             <small>
               {state.demo
                 ? "Пример устройства"
@@ -2672,7 +2592,15 @@ function DeviceModal({
           )}
         </button>
       ))}
-      {ambiguous && !confirmAmbiguous && <div className="error-note" role="alert">{confirmAmbiguous ? "Точно на эту Станцию? " : ""}У нескольких Станций совпадают имя и комната. Лад не может определить, где включится звук. Выбрана: {deviceLabel(selectedDevice)} · ID {selectedDevice?.id.slice(-8)}. Укажи разные имена или комнаты в «Доме с Алисой», чтобы различать их.</div>}
+      {ambiguous && !confirmAmbiguous && (
+        <div className="error-note" role="alert">
+          {confirmAmbiguous ? "Точно на эту Станцию? " : ""}У нескольких Станций
+          совпадают имя и комната. Лад не может определить, где включится звук.
+          Выбрана: {deviceLabel(selectedDevice)} · ID{" "}
+          {selectedDevice?.id.slice(-8)}. Укажи разные имена или комнаты в «Доме
+          с Алисой», чтобы различать их.
+        </div>
+      )}
       {!devices.length && !busy && (
         <Empty
           icon={Speaker}
@@ -2833,7 +2761,9 @@ function SettingsPage({
             <p>
               {state.output === "local"
                 ? "Системный аудиовыход компьютера"
-                : deviceLabel(state.devices.find((d) => d.id === state.deviceId))}
+                : deviceLabel(
+                    state.devices.find((d) => d.id === state.deviceId),
+                  )}
             </p>
           </div>
           <Button icon={Speaker} variant="secondary" onClick={onDevices}>
@@ -3029,12 +2959,23 @@ function SettingsPage({
         <div className="setting-row">
           <div>
             <strong>Плавность движения</strong>
-            <p>Меньше — резкая реакция на музыку. Больше — мягкие и спокойные движения.</p>
+            <p>
+              Меньше — резкая реакция на музыку. Больше — мягкие и спокойные
+              движения.
+            </p>
           </div>
           <div className="flex items-center gap-3">
-            <input type="range" min="0" max="100" step="5"
-              value={theme.waveSmoothing} aria-label="Плавность движения"
-              onChange={(e) => update({ waveSmoothing: Number(e.target.value) })} />
+            <input
+              type="range"
+              min="0"
+              max="100"
+              step="5"
+              value={theme.waveSmoothing}
+              aria-label="Плавность движения"
+              onChange={(e) =>
+                update({ waveSmoothing: Number(e.target.value) })
+              }
+            />
             <span>{theme.waveSmoothing}%</span>
           </div>
         </div>

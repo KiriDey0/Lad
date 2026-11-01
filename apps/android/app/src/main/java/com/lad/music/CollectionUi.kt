@@ -26,6 +26,7 @@ fun collectionTitle(section: String?) =
         "playlists" -> "Плейлисты"
         "albums" -> "Альбомы"
         "artists" -> "Исполнители"
+        "folders" -> "Папки"
         else -> "Коллекция"
     }
 

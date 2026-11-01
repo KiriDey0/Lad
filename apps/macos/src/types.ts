@@ -1,5 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 export interface Track {
+  source?: "local";
+  folderId?: string;
+  fileName?: string;
+  format?: string;
+  ratingKnown?: boolean;
   id: string;
   title: string;
   artist: string;
@@ -15,6 +20,7 @@ export interface Track {
   art?: number;
 }
 export interface Card {
+  source?: "local";
   id: string;
   type: "album" | "playlist" | "artist";
   title: string;
@@ -93,8 +99,16 @@ export interface LadEvent {
   data: any;
 }
 export interface Bridge {
-  updates?(action: string): Promise<import("./components/UpdateSection").UpdateState>;
-  onUpdate?(fn: (state: import("./components/UpdateSection").UpdateState) => void): () => void;
+  localFiles?(
+    action: "add" | "restore" | "locate" | "lyrics" | "reveal",
+    id?: string,
+  ): Promise<unknown>;
+  updates?(
+    action: string,
+  ): Promise<import("./components/UpdateSection").UpdateState>;
+  onUpdate?(
+    fn: (state: import("./components/UpdateSection").UpdateState) => void,
+  ): () => void;
   setScale?(scale: number): Promise<number>;
   rpc<T = any>(method: string, params?: Record<string, unknown>): Promise<T>;
   login(): Promise<any>;

@@ -25,6 +25,7 @@ fun LoginView(
     browser: (String) -> Unit,
     clipboard: ClipboardManager,
     bottom: Dp,
+    localMusic: () -> Unit = {},
 ) {
     val p = LocalPalette.current
     var token by remember { mutableStateOf("") }
@@ -93,6 +94,7 @@ fun LoginView(
             }
         if (auth.loading) CircularProgressIndicator()
         if (auth.error.isNotBlank()) ErrorBox(auth.error) { engine.beginLogin() }
+        Action("Музыка на устройстве", Icons.Outlined.Folder, true, modifier = Modifier.fillMaxWidth(), onClick = localMusic)
         Action(
             "Посмотреть интерфейс",
             Icons.Outlined.Headphones,

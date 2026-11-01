@@ -10,6 +10,16 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 
 class MainActivity : ComponentActivity() {
+    private val musicFolder = registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+        if (uri != null) {
+            val engine = (application as LadApplication).engine
+            runCatching {
+                contentResolver.takePersistableUriPermission(uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }.onSuccess { engine.task { engine.addLocalFolder(uri) } }
+                .onFailure { engine.notice("Не удалось сохранить доступ к папке. Выбери её снова.") }
+        }
+    }
+    private val chooseMusic: () -> Unit = { musicFolder.launch(null) }
     private val notificationPermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) {}
 
@@ -48,6 +58,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         volumeControlStream = android.media.AudioManager.STREAM_MUSIC
+        (application as LadApplication).engine.chooseLocalFolder = chooseMusic
         setContent { LadApp((application as LadApplication).engine) }
         if (
             Build.VERSION.SDK_INT >= 33 &&
@@ -55,5 +66,11 @@ class MainActivity : ComponentActivity() {
                     android.content.pm.PackageManager.PERMISSION_GRANTED
         )
             notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+    }
+
+    override fun onDestroy() {
+        val engine = (application as LadApplication).engine
+        if (engine.chooseLocalFolder === chooseMusic) engine.chooseLocalFolder = null
+        super.onDestroy()
     }
 }

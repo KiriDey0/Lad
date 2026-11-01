@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 const { contextBridge, ipcRenderer } = require("electron");
 contextBridge.exposeInMainWorld("lad", {
+  localFiles: (action, id) => ipcRenderer.invoke("lad:local-files", action, id),
   updates: (action = "state") => ipcRenderer.invoke("lad:updates", action),
   onUpdate: (callback) => {
     const listener = (_event, state) => callback(state);

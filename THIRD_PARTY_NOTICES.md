@@ -7,6 +7,9 @@
 | Golos Text | SIL Open Font License 1.1; файлы `Golos-Text-OFL.txt` в Android/TV и лицензия шрифта в desktop `licenses/` |
 | Lucide | ISC; `Lucide-ISC.txt` в TV и уведомления desktop-зависимостей |
 | yandex-music | LGPL-3.0, см. поставляемую копию лицензии в desktop `licenses/python/` и заголовки vendored-кода |
+| Mutagen | GPL-2.0-or-later; поставляемая копия `licenses/python/mutagen-COPYING` в desktop-приложениях |
+| Pillow | MIT-CMU и уведомления встроенных библиотек; `licenses/python/Pillow-LICENSE` |
+| miniaudio, cffi, pycparser | MIT, MIT-0, BSD-3-Clause; полные лицензии поставляются в desktop `licenses/python/` |
 | JmDNS | Apache-2.0; `apps/tv/JmDNS-LICENSE.txt`, `JmDNS-NOTICE.txt` |
 | SLF4J | MIT; `apps/tv/SLF4J-LICENSE.txt` |
 | Gradle Wrapper | Apache-2.0; исходные уведомления в wrapper-скриптах |

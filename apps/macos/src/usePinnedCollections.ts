@@ -55,9 +55,9 @@ export function usePinnedCollections(
           ),
         }));
         setSnapshot({ scope, cards: refreshed, ready: true });
-      } else if (legacy !== null) {
+      } else if (legacy !== null || scope === "local-device") {
         // Preserve the shortcuts already visible before pinning became explicit.
-        const cards = legacy.filter(validCard).slice(0, 12);
+        const cards = (legacy || []).filter(validCard).slice(0, 12);
         localStorage.setItem(storageKey, JSON.stringify(cards));
         setSnapshot({ scope, cards, ready: true });
       } else setSnapshot({ scope, cards: [], ready: false });

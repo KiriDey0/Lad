@@ -22,6 +22,7 @@ from core import Queue, cover_url, track_key
 from music import Music, track
 from device_identity import enrich_devices, device_ambiguous, AMBIGUOUS_DEVICE
 from station import Station, discover, local_host
+from local_library import LocalLibrary, LocalMediaServer, LocalFileUnavailable, local_id
 
 logging.disable(logging.CRITICAL)
 
@@ -105,6 +106,10 @@ class App:
         self.volume_route = None
         self.volume_backup = None
         self.local_volume_backup = None
+        self.local_library = LocalLibrary(os.environ.get('LAD_DATA_DIR'), lambda data: emit('libraryChanged', data))
+        self.local_media = LocalMediaServer(self.local_library)
+        self.station_local_ended = False
+        self.station_pause_until = 0
 
     def require_operation(self, epoch):
         if self.operation_epoch != epoch:
@@ -113,7 +118,7 @@ class App:
     async def check_content(self, t):
         if not self.block_explicit:
             return
-        if not self.demo:
+        if not self.demo and not local_id(t.get('id')):
             values = await self.music.client.tracks(t['id'])
             if not values:
                 raise ContentRestricted('Не удалось проверить маркировку трека. Фильтр 18+ включён.')
@@ -134,6 +139,7 @@ class App:
     async def setup(self):
         self.session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=18),
             connector=aiohttp.TCPConnector(ssl=ssl.create_default_context(cafile=certifi.where())))
+        await self.local_media.start()
         self.spawn(self.tick())
 
     def snapshot(self):
@@ -287,6 +293,12 @@ class App:
                  'duration': p.get('duration') or 0, 'cover': cover_url((p.get('extra') or {}).get('coverURI')),
                  'available': True}
         previous = self.station_playback
+        if (self.output == 'station' and self.queue.owned and id_ == self.expected and local_id(id_)
+                and previous and previous['playing'] and not data.get('playing')
+                and float(p.get('duration') or 0) > 2
+                and float(p.get('progress') or 0) >= float(p['duration']) - 1.5
+                and time.monotonic() > self.station_pause_until):
+            self.station_local_ended = True
         self.station_playback = {'track': t, 'playing': bool(data.get('playing')), 'position': float(p.get('progress') or 0),
             'duration': float(p.get('duration') or 0), 'volume': float(data.get('volume', .4)),
             'positionAt': time.time() * 1000, 'transitioning': False}
@@ -327,6 +339,7 @@ class App:
             raise ValueError('Сначала войди в Яндекс Музыку.')
 
     async def stream(self, id_):
+        if local_id(id_): return await self.local_media.audio(id_)
         self.require_music()
         values = await self.music.client.tracks_download_info(id_)
         candidates = [d for d in values if d.codec == 'mp3'] or [d for d in values if d.codec == 'aac']
@@ -341,7 +354,7 @@ class App:
         return url
 
     async def report_listen(self):
-        if self.demo or self.output != 'local' or not self.music.client or not self.playback['track'] or self.total_played < .5:
+        if self.demo or self.output != 'local' or not self.music.client or not self.playback['track'] or local_id(self.playback['track']['id']) or self.total_played < .5:
             return
         t, play_id, total, end = copy.deepcopy(self.playback['track']), self.play_id, self.total_played, self.current_position()
         try:
@@ -358,6 +371,9 @@ class App:
         await self.report_listen()
         self.require_operation(epoch)
         t = self.queue.tracks[index]
+        if local_id(t.get('id')):
+            t = self.local_library.track(t['id'], self.local_media.cover, require=True)
+            self.queue.tracks[index] = t
         await self.check_content(t)
         self.require_operation(epoch)
         if t.get('available') is False:
@@ -367,11 +383,16 @@ class App:
         url = await self.stream(t['id']) if self.output == 'local' and not self.demo else None
         self.require_operation(epoch)
         self.expected = track_key(t['id'])
+        self.station_local_ended = False
         self.station_continuation = None
         self.starting_until = time.monotonic() + 12
         station_state = None
         if self.output == 'station' and not self.demo:
-            station_state = await self.station.play_track(t['id'], position, paused)
+            if local_id(t['id']):
+                url_ = await self.local_media.audio(t['id'], self.station.device['host'])
+                station_state = await self.station.play_local(t, url_, position, paused)
+            else:
+                station_state = await self.station.play_track(t['id'], position, paused)
             self.require_operation(epoch)
         self.queue.index, self.queue.owned = index, True
         self.generation += 1
@@ -418,6 +439,7 @@ class App:
                     if not self.queue.owned:
                         return
                 checked = set()
+                missing = 0
                 while True:
                     probe = copy.deepcopy(self.queue)
                     next_ = probe.next_index(direction, automatic)
@@ -428,9 +450,12 @@ class App:
                             checked.add(next_)
                             try:
                                 await self.start_track(next_)
+                                if missing: emit('notice', {'message': f'Пропущено недоступных локальных файлов: {missing}. Их можно найти заново в коллекции.'})
                                 return
                             except ContentRestricted:
                                 pass
+                            except LocalFileUnavailable:
+                                missing += 1
                         probe.index = next_
                         next_ = probe.next_index(direction, automatic=False)
                     if self.radio and direction > 0 and refills < 4 and not self.demo:
@@ -446,7 +471,7 @@ class App:
                         emit('notice', {'message': 'Моя волна пока не вернула подходящие треки. Нажми «Следующий», чтобы продолжить поиск.'})
                     elif checked:
                         await self.control('pause')
-                        emit('notice', {'message': 'В очереди нет следующих треков без маркировки 18+.'})
+                        emit('notice', {'message': 'Следующие локальные файлы недоступны. Проверь папки в коллекции.' if missing else 'В очереди нет следующих треков без маркировки 18+.'})
                     elif automatic:
                         await self.control('pause')
                         self.queue.owned = False
@@ -463,6 +488,8 @@ class App:
             action = 'pause' if self.playback['playing'] else 'play'
         if action == 'pause':
             self.operation_epoch += 1
+            self.station_pause_until = time.monotonic() + 3
+            self.station_local_ended = False
         if action == 'play' and self.queue.owned and self.queue.current and track_key((self.playback.get('track') or {}).get('id')) != track_key(self.queue.current['id']):
             return await self.start_track(self.queue.index)
         if action == 'play' and self.playback.get('track'):
@@ -498,6 +525,8 @@ class App:
             else:
                 self.playback['playing'] = action == 'play'
         elif self.output == 'station':
+            if action == 'play' and self.queue.owned and self.queue.current and local_id(self.queue.current['id']):
+                return await self.start_track(self.queue.index, self.current_position())
             payload = {'play': {'command': 'play'}, 'pause': {'command': 'stop'},
                        'seek': {'command': 'rewind', 'position': value},
                        'volume': {'command': 'setVolume', 'volume': round(value or 0, 2)}}.get(action)
@@ -629,11 +658,63 @@ class App:
                 # Require fresh device evidence. Never advance a sleeping/disconnected Station on a wall-clock timer.
                 fresh = time.monotonic() - self.last_station_at < 2.5
                 finished = p['duration'] > 0 and self.current_position() >= p['duration'] - .12
-                if fresh and finished and (p['playing'] or p['position'] >= p['duration']) and not p['transitioning'] and time.monotonic() > self.starting_until:
+                if fresh and (self.station_local_ended or (finished and (p['playing'] or p['position'] >= p['duration']))) and not p['transitioning'] and time.monotonic() > self.starting_until:
+                    self.station_local_ended = False
                     self.spawn(self.advance(automatic=True))
 
     async def rpc(self, method, p):
         epoch = self.operation_epoch
+        if method == 'localSummary': return self.local_library.summary()
+        if method == 'localBrowse':
+            if p.get('kind') == 'playlists': return {'cards': self.local_library.playlists(), 'tracks': []}
+            return self.local_library.browse(kind=p.get('kind', 'albums'), query=str(p.get('query', ''))[:300], id_=p.get('id', ''), offset=p.get('offset', 0), limit=p.get('limit', 100), cover=self.local_media.cover)
+        if method == 'localAddFolder':
+            id_ = self.local_library.add_folder(p['path'])
+            await self.local_library.scan(id_)
+            return self.local_library.summary()
+        if method == 'localRestoreFolder':
+            await self.local_library.restore_folder(p['id'], p['path'])
+            return self.local_library.summary()
+        if method == 'localLocateFile':
+            await asyncio.to_thread(self.local_library.locate_file, p['id'], p['path'])
+            return self.local_library.track(p['id'], self.local_media.cover)
+        if method == 'localAttachLyrics':
+            self.local_library.attach_lyrics(p['id'], p['path'])
+            return True
+        if method == 'localFileInfo':
+            return {**self.local_library.track(p['id'], self.local_media.cover), 'path': str(self.local_library.path(p['id'], require=False))}
+        if method == 'localRescan':
+            for folder in self.local_library.summary()['folders']:
+                if not p.get('id') or folder['id'] == p['id']: await self.local_library.scan(folder['id'])
+            return self.local_library.summary()
+        if method == 'localRemoveFolder':
+            await self.local_library.remove_folder(p['id'])
+            return self.local_library.summary()
+        if method == 'localLiked': return self.local_library.liked(self.local_media.cover)
+        if method == 'localCreatePlaylist': return self.local_library.create_playlist(p['title'])
+        if method == 'localPlaylistAdd':
+            tracks = p.get('tracks') or []
+            if any(not re_valid_track(t) for t in tracks): raise ValueError('Некорректные треки.')
+            data = self.local_library.playlist(p['id'], self.local_media.cover, append=tracks)
+            self.local_library.notify()
+            return data
+        if method == 'collection' and local_id(p.get('id')):
+            if p['id'] == 'local-all-liked':
+                local = self.local_library.liked(self.local_media.cover)
+                remote = await self.music.liked(0, 5000) if self.music.client else {'tracks': [], 'total': 0}
+                return {'title': 'Мне нравится', 'tracks': (remote['tracks'] + local['tracks'])[:5000], 'total': remote['total'] + local['total']}
+            if p['id'] == 'local-liked': return self.local_library.liked(self.local_media.cover)
+            if p['id'].startswith('local-playlist-'): return self.local_library.playlist(p['id'], self.local_media.cover)
+            return self.local_library.browse(id_=p['id'], limit=5000, cover=self.local_media.cover)
+        if method == 'lyrics' and local_id(p.get('id')): return self.local_library.lyrics(p['id'])
+        if method == 'like' and local_id(p.get('id')):
+            if not isinstance(p.get('liked'), bool): raise ValueError('Некорректное значение лайка.')
+            self.local_library.like(p['id'], p['liked'])
+            for t in self.queue.tracks:
+                if t['id'] == p['id']: t['liked'] = p['liked']
+            if self.playback.get('track') and self.playback['track']['id'] == p['id']: self.playback['track']['liked'] = p['liked']
+            self.publish(True)
+            return True
         if method == 'prepareShutdown':
             self.restore_device_volume()
             return True
@@ -664,7 +745,7 @@ class App:
             self.require_operation(epoch)
             if self.connection != 'connected' or self.output != 'station' or not self.playback.get('track') or str(self.playback['track']['id']) != id_:
                 raise ActionSuperseded('Трек Станции изменился.')
-            return {'url': url}
+            return {'url': url, **({'local': True} if local_id(id_) else {})}
         if method == 'snapshot':
             return self.snapshot()
         if method == 'boot':
@@ -932,7 +1013,8 @@ class App:
             if method == 'liked':
                 return {'tracks': [t for t in DEMO_TRACKS if t.get('liked')], 'total': 3}
             if method == 'library':
-                return {'playlists': demo_cards(), 'albums': self.demo_albums}
+                return {'playlists': demo_cards(), 'albums': self.demo_albums, 'ownPlaylists': demo_cards(), 'likedPlaylists': [],
+                        'artists': [{'id': 'demo-artist', 'type': 'artist', 'title': 'Лад Session', 'subtitle': 'Исполнитель'}]}
             if method == 'home':
                 return {'cards': demo_cards(), 'tracks': DEMO_TRACKS, 'tracksTitle': 'Продолжить слушать'}
             if method in ('collection', 'link'):
@@ -1034,6 +1116,8 @@ class App:
         for t in self.tasks:
             t.cancel()
         await asyncio.gather(*self.tasks, return_exceptions=True)
+        await self.local_media.close()
+        await self.local_library.close()
         await self.session.close()
 
 
@@ -1044,7 +1128,7 @@ def demo_cards():
 
 def re_valid_track(t, demo=False):
     import re
-    return isinstance(t, dict) and bool(re.fullmatch(r'\d+(:\d+)?' if not demo else r'demo-\d+', str(t.get('id', '')))) and isinstance(t.get('duration'), (int, float))
+    return isinstance(t, dict) and bool(re.fullmatch(r'(?:\d+(:\d+)?|local-track-[a-f0-9]{32})' if not demo else r'demo-\d+', str(t.get('id', '')))) and isinstance(t.get('duration'), (int, float)) and math.isfinite(t['duration'])
 
 
 async def rpc_lines():

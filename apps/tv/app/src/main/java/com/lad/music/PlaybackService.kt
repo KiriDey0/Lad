@@ -21,6 +21,9 @@ class PlaybackService : Service() {
     private var playbackSignature = ""
     private var remoteVolume: VolumeProvider? = null
     private var volumeOutput = ""
+    private val localCastWake by lazy { getSystemService(android.os.PowerManager::class.java).newWakeLock(android.os.PowerManager.PARTIAL_WAKE_LOCK, "Lad:localCast") }
+    private val localCastWifi by lazy { (applicationContext.getSystemService(android.net.wifi.WifiManager::class.java))?.createWifiLock(android.net.wifi.WifiManager.WIFI_MODE_FULL_HIGH_PERF,"Lad:localCast") }
+
 
     override fun onCreate() {
         super.onCreate()
@@ -223,6 +226,8 @@ class PlaybackService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
+        if(localCastWake.isHeld)localCastWake.release()
+        localCastWifi?.let {if(it.isHeld)it.release()}
         scope.cancel()
         session.release()
         super.onDestroy()

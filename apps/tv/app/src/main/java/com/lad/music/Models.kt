@@ -37,6 +37,8 @@ data class Track(
     val explicit: Boolean = false,
     val liked: Boolean = false,
 ) {
+    val isLocal get() = id.startsWith("local-track-")
+
     val artist
         get() = artists.joinToString(", ") { it.name }
 
@@ -105,6 +107,8 @@ data class Card(
     val ownerLogin: String = "",
     val cover: String? = null,
 ) {
+    val isLocal get() = id.startsWith("local-")
+
     val key
         get() = "$type:$owner:$id"
 
