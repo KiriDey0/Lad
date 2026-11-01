@@ -46,7 +46,10 @@ class LocalPcmCache(private val context:Context) {
                 val track=(0 until extractor.trackCount).firstOrNull {extractor.getTrackFormat(it).getString(MediaFormat.KEY_MIME)?.startsWith("audio/")==true} ?: error("В файле нет аудио")
                 val format=extractor.getTrackFormat(track);extractor.selectTrack(track)
                 val mime=format.getString(MediaFormat.KEY_MIME) ?: error("Неизвестный формат")
-                format.setInteger(MediaFormat.KEY_PCM_ENCODING,AudioFormat.ENCODING_PCM_FLOAT)
+                // Some extractors already decode FLAC and expose audio/raw PCM.
+                // A raw decoder passes bytes through: changing its declared encoding
+                // would reinterpret integer samples as floats instead of converting.
+                if(mime!="audio/raw")format.setInteger(MediaFormat.KEY_PCM_ENCODING,AudioFormat.ENCODING_PCM_FLOAT)
                 val codec=MediaCodec.createDecoderByType(mime);decoder=codec
                 codec.configure(format,null,null,0);codec.start()
                 var rate=format.getInteger(MediaFormat.KEY_SAMPLE_RATE)
@@ -85,7 +88,7 @@ class LocalPcmCache(private val context:Context) {
                                     buffer.position(info.offset);buffer.limit(info.offset+info.size)
                                     val data=if(encoding==AudioFormat.ENCODING_PCM_FLOAT) {
                                         buffer.order(ByteOrder.LITTLE_ENDIAN)
-                                        ByteArray(info.size/4*3).also {pcm->var p=0;while(buffer.remaining()>=4){val value=(buffer.float.coerceIn(-1f,1f)*8388608.0).roundToInt().coerceIn(-8388608,8388607);pcm[p++]=value.toByte();pcm[p++]=(value shr 8).toByte();pcm[p++]=(value shr 16).toByte()}}
+                                        ByteArray(info.size/4*3).also {pcm->var p=0;while(buffer.remaining()>=4){val sample=buffer.float;check(sample.isFinite()){"Декодер вернул некорректный звук"};val value=(sample.coerceIn(-1f,1f)*8388608.0).roundToInt().coerceIn(-8388608,8388607);pcm[p++]=value.toByte();pcm[p++]=(value shr 8).toByte();pcm[p++]=(value shr 16).toByte()}}
                                     } else ByteArray(info.size).also {buffer.get(it)}
                                     written+=data.size
                                     check(written<=512L*1024*1024){"Для передачи файла нужно больше 512 МБ временного места"}
