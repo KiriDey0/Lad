@@ -18,6 +18,7 @@ import uuid
 import wave
 from aiohttp import web
 from core import parse_lrc
+from local_artists import artist_values, normalize_catalog
 
 AUDIO_EXTENSIONS = {'.mp3', '.flac', '.m4a', '.mp4', '.aac', '.ogg', '.opus', '.wav', '.aif', '.aiff'}
 CAST_EXTENSIONS = {'.mp3', '.flac', '.m4a', '.mp4', '.aac', '.wav', '.ogg'}
@@ -64,6 +65,7 @@ class LocalLibrary:
         self.jobs = {}
         self.closed = False
         self.revision = 0
+        self._artist_cache = None
         with self.db:
             self.db.executescript('''
                 PRAGMA journal_mode=WAL;
@@ -78,6 +80,7 @@ class LocalLibrary:
 
     def notify(self):
         if self.closed: return
+        self._artist_cache = None
         self.revision += 1
         self.changed(self.summary())
 
@@ -162,12 +165,19 @@ class LocalLibrary:
             self.db.execute('UPDATE tracks SET override=?,data=?,lyrics=?,available=1 WHERE id=?', (str(path), json.dumps(data, ensure_ascii=False), lyrics, id_))
         self.notify()
 
-    def track(self, id_, cover=lambda _: None, require=False):
+    def track(self, id_, cover=lambda _: None, require=False, normalized=None):
         with self.lock:
             row = self.db.execute('SELECT data,available FROM tracks WHERE id=?', (id_,)).fetchone()
             liked = self.db.execute('SELECT 1 FROM likes WHERE id=?', (id_,)).fetchone() is not None
         if not row: raise LocalFileUnavailable('Файл не найден в библиотеке этого устройства.')
-        t = json.loads(row['data'])
+        t = normalized
+        if t is None:
+            with self.lock:
+                if self._artist_cache is None:
+                    catalogue = [json.loads(r[0]) for r in self.db.execute('SELECT data FROM tracks')]
+                    self._artist_cache = {v['id']: v for v in normalize_catalog(catalogue)}
+                t = self._artist_cache.get(id_) or json.loads(row['data'])
+        t = dict(t)
         try:
             path = self.path(id_)
             t['available'] = True
@@ -215,9 +225,11 @@ class LocalLibrary:
         easy = mutagen.File(path, easy=True)
         tags, raw = (easy.tags if easy else None) or {}, audio.tags or {}
         title = first(tags, 'title', 'TIT2', '\xa9nam', default=path.stem)
-        artist = first(tags, 'artist', 'TPE1', '\xa9ART', default='Неизвестный исполнитель')
+        legacy_artist = first(tags, 'artist', 'TPE1', '\xa9ART', default='Неизвестный исполнитель')
+        credits = artist_values(tags, 'artist', 'TPE1', '\xa9ART') or ['Неизвестный исполнитель']
+        artist = ', '.join(credits)
         album = first(tags, 'album', 'TALB', '\xa9alb', default='Без альбома')
-        album_artist = first(tags, 'albumartist', 'album_artist', 'TPE2', 'aART', default=artist)
+        album_artist = first(tags, 'albumartist', 'album_artist', 'TPE2', 'aART', default=legacy_artist)
         id_ = 'local-track-' + digest(folder + '/' + relative)
         album_id = 'local-album-' + digest(folded(album_artist) + '\n' + folded(album))
         artist_id = 'local-artist-' + digest(folded(artist))
@@ -233,7 +245,7 @@ class LocalLibrary:
         try: number = int(first(tags, 'tracknumber', 'TRCK', default='0').split('/')[0])
         except ValueError: number = 0
         return {'id': id_, 'source': 'local', 'title': title, 'artist': artist, 'artistId': artist_id,
-                'artists': [{'id': artist_id, 'name': artist}], 'album': album, 'albumId': album_id,
+                'artistValues': credits, 'artistAliases': ['local-artist-' + digest(folded(legacy_artist))], 'artists': [{'id': artist_id, 'name': artist}], 'album': album, 'albumId': album_id,
                 'albumArtist': album_artist, 'duration': float(audio.info.length), 'explicit': explicit,
                 'ratingKnown': bool(rating), 'coverKey': self._art(audio, path), 'folderId': folder,
                 'fileName': path.name, 'format': path.suffix[1:].upper(), 'trackNumber': number,
@@ -259,7 +271,7 @@ class LocalLibrary:
                     if path.suffix.lower() not in AUDIO_EXTENSIONS or path.is_symlink(): continue
                     try:
                         relative = str(path.relative_to(root))
-                        stat = path.stat(); stamp = f'{stat.st_size}:{stat.st_mtime_ns}'
+                        stat = path.stat(); stamp = f'artists2:{stat.st_size}:{stat.st_mtime_ns}'
                         track_id = 'local-track-' + digest(id_ + '/' + relative)
                         with self.lock:
                             old = self.db.execute('SELECT stamp FROM tracks WHERE id=?', (track_id,)).fetchone()
@@ -302,22 +314,23 @@ class LocalLibrary:
         with self.lock:
             rows = self.db.execute("SELECT t.id,t.data FROM tracks t JOIN folders f ON f.id=t.folder WHERE f.status!='detached' ORDER BY t.rowid DESC").fetchall()
         tracks = []
-        for row in rows:
-            t = json.loads(row['data'])
+        for t in normalize_catalog([json.loads(row['data']) for row in rows]):
             if query and folded(query) not in folded(t['title'] + ' ' + t['artist'] + ' ' + t['album'] + ' ' + t['fileName']): continue
-            if id_ and id_ not in (t['folderId'], t['albumId'], t['artistId']): continue
+            if id_ and id_ not in (t['folderId'], t['albumId']) and id_ not in t.get('artistAliases', []) and not any(a['id'] == id_ for a in t['artists']): continue
             tracks.append(t)
         if id_ or kind == 'tracks':
             tracks.sort(key=lambda t: (folded(t['album']), t['trackNumber'], folded(t['title'])))
             return {'title': tracks[0]['album'] if tracks and id_.startswith('local-album-') else 'На устройстве',
-                    'tracks': [self.track(t['id'], cover) for t in tracks[offset:offset + limit]], 'total': len(tracks), 'cards': []}
+                    'tracks': [self.track(t['id'], cover, normalized=t) for t in tracks[offset:offset + limit]], 'total': len(tracks), 'cards': []}
         if kind == 'folders':
             return {'folders': self.summary()['folders'], 'tracks': [], 'cards': [], 'total': len(self.summary()['folders'])}
         key = 'artistId' if kind == 'artists' else 'albumId'
         grouped = {}
         for t in tracks:
-            c = grouped.setdefault(t[key], {'id': t[key], 'type': 'artist' if kind == 'artists' else 'album', 'source': 'local', 'title': t['artist'] if kind == 'artists' else t['album'], 'subtitle': t['artist'], 'count': 0, 'cover': cover(t.get('coverKey'))})
-            c['count'] += 1
+            identities = t['artists'] if kind == 'artists' else [{'id': t['albumId'], 'name': t['album']}]
+            for identity in identities:
+                c = grouped.setdefault(identity['id'], {'id': identity['id'], 'type': 'artist' if kind == 'artists' else 'album', 'source': 'local', 'title': identity['name'], 'subtitle': t['artist'], 'count': 0, 'cover': cover(t.get('coverKey'))})
+                c['count'] += 1
         cards = list(grouped.values())
         return {'cards': cards[offset:offset + limit], 'tracks': [], 'total': len(cards)}
 

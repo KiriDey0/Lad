@@ -10,7 +10,7 @@ import org.junit.Test
 class LocalFileTagsTest {
     @Test fun flacVorbisLyricsKeepAllTimestamps() {
         val lyrics="[00:00.000]First\n"+"x".repeat(4000)+"\n[00:42.125]Last"
-        val entries=listOf("LYRICS=$lyrics","EXPLICIT=1")
+        val entries=listOf("LYRICS=$lyrics","EXPLICIT=1","ARTIST=A","ARTIST=B")
         val body=java.io.ByteArrayOutputStream()
         fun word(n:Int)=ByteBuffer.allocate(4).order(ByteOrder.LITTLE_ENDIAN).putInt(n).array()
         body.write(word(0));body.write(word(entries.size))
@@ -18,7 +18,7 @@ class LocalFileTagsTest {
         val b=body.toByteArray()
         val header=byteArrayOf(0x84.toByte(),(b.size ushr 16).toByte(),(b.size ushr 8).toByte(),b.size.toByte())
         val tags=LocalFileTags.read(ByteArrayInputStream("fLaC".toByteArray()+header+b))
-        assertEquals(lyrics,tags.lyrics);assertEquals("1",tags.rating)
+        assertEquals(lyrics,tags.lyrics);assertEquals("1",tags.rating);assertEquals(listOf("A","B"),tags.artists)
     }
     @Test fun id3Utf8EmbeddedLyrics() {
         val text="[00:01.50]Текст\n[00:05.00]Ещё строка"
@@ -27,6 +27,13 @@ class LocalFileTagsTest {
         val n=frame.size
         val header="ID3".toByteArray()+byteArrayOf(3,0,0,(n ushr 21 and 127).toByte(),(n ushr 14 and 127).toByte(),(n ushr 7 and 127).toByte(),(n and 127).toByte())
         assertEquals(text,LocalFileTags.read(ByteArrayInputStream(header+frame)).lyrics)
+    }
+    @Test fun id3MultipleArtistValuesAreReadWithoutFlattening() {
+        val content=byteArrayOf(3)+"A\u0000B".toByteArray()
+        val frame="TPE1".toByteArray()+ByteBuffer.allocate(4).putInt(content.size).array()+byteArrayOf(0,0)+content
+        val n=frame.size
+        val header="ID3".toByteArray()+byteArrayOf(3,0,0,(n ushr 21 and 127).toByte(),(n ushr 14 and 127).toByte(),(n ushr 7 and 127).toByte(),(n and 127).toByte())
+        assertEquals(listOf("A","B"),LocalFileTags.read(ByteArrayInputStream(header+frame)).artists)
     }
     @Test fun invalidOrMultipleRangesCannotEscapeTheFile() {
         assertEquals(LocalByteRange(0,99),LocalByteRange.parse(null,100))

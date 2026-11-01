@@ -9,7 +9,7 @@ import java.util.Locale
 
 /** Read tags, never rewrite files. Bounded independently of the media decoder. */
 object LocalFileTags {
-    data class Tags(val lyrics: String = "", val rating: String = "")
+    data class Tags(val lyrics: String = "", val rating: String = "", val artists: List<String> = emptyList())
     private const val LIMIT = 8 * 1024 * 1024
     private fun read(input: InputStream, length: Int): ByteArray {
         require(length in 0..LIMIT)
@@ -79,17 +79,21 @@ object LocalFileTags {
         val count = b.int
         check(count in 0..100000)
         var lyrics = ""; var rating = ""
+        val artists = mutableListOf<String>()
         repeat(count) {
             val entry = text()
             val key = entry.substringBefore('=').uppercase(Locale.ROOT)
             if (key in setOf("LYRICS", "UNSYNCEDLYRICS", "SYNCEDLYRICS") && lyrics.isBlank()) lyrics = entry.substringAfter('=', "").take(1_000_000)
+            if (key == "ARTIST" && artists.size < 64) artists += entry.substringAfter('=', "").take(2000)
             if (key in setOf("EXPLICIT", "ITUNESADVISORY", "RATING")) rating = entry.substringAfter('=', "")
         }
-        return Tags(lyrics, rating)
+        return Tags(lyrics, rating, artists)
     }
     private fun id3(bytes: ByteArray, version: Int, extended: Boolean): Tags {
         var offset = if (extended && bytes.size >= 4) size(bytes, 0, version == 4).let { if (version == 3) it + 4 else it } else 0
         var lyrics = ""
+        var synced = ""
+        val artists = mutableListOf<String>()
         while (offset >= 0 && offset + 10 <= bytes.size) {
             val name = String(bytes, offset, 4, Charsets.US_ASCII)
             val n = size(bytes, offset+4, version == 4)
@@ -97,9 +101,15 @@ object LocalFileTags {
             val flags = bytes[offset+9].toInt() and 255
             val data = bytes.copyOfRange(offset+10, offset+10+n)
             offset += 10+n
-            if (flags != 0 || name !in setOf("USLT", "SYLT") || data.size < 5) continue
+            if (flags != 0 || name !in setOf("USLT", "SYLT", "TPE1") || data.size < 2) continue
             val encoding = data[0].toInt()
             val charset = when (encoding) { 0 -> Charsets.ISO_8859_1; 1 -> Charsets.UTF_16; 2 -> Charsets.UTF_16BE; 3 -> Charsets.UTF_8; else -> continue }
+            if (name == "TPE1") {
+                artists += String(data, 1, data.size-1, charset).trimEnd('\u0000').split('\u0000')
+                    .map { it.trim().take(2000) }.filter { it.isNotEmpty() }.take((64-artists.size).coerceAtLeast(0))
+                continue
+            }
+            if (data.size < 5) continue
             val unit = if (encoding in 1..2) 2 else 1
             fun end(start: Int): Int {
                 var i = start
@@ -124,9 +134,9 @@ object LocalFileTags {
                     lines += String.format(Locale.ROOT, "[%02d:%06.3f]%s", ms/60000, (ms%60000)/1000.0, words)
                     i = next+4
                 }
-                if (lines.isNotEmpty()) return Tags(lines.joinToString("\n").take(1_000_000))
+                if (lines.isNotEmpty()) synced = lines.joinToString("\n").take(1_000_000)
             }
         }
-        return Tags(lyrics.take(1_000_000))
+        return Tags(synced.ifBlank { lyrics }.take(1_000_000), artists = artists)
     }
 }
