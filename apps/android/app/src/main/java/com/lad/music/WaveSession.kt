@@ -21,10 +21,11 @@ class WaveSession(
         remaining: List<Track>,
         after: String,
         blockExplicit: Boolean,
-        maxBatches: Int = 4,
+        maxBatches: Int = if (blockExplicit) 20 else 4,
         isCurrent: () -> Boolean = { true },
     ): List<Track> {
-        repeat(maxBatches) {
+        repeat(maxBatches.coerceIn(0, 20)) {
+            if (!isCurrent()) return emptyList()
             val (tracks, newBatch) = fetch(cursor.ifBlank { after })
             if (!isCurrent()) return emptyList()
             batch = newBatch
@@ -32,8 +33,15 @@ class WaveSession(
             val existing = remaining.mapTo(mutableSetOf()) { it.id.substringBefore(':') }
             val additions = mutableListOf<Track>()
             for (track in tracks) {
+                if (!isCurrent()) return emptyList()
                 if (blockExplicit && track.explicit) {
-                    runCatching { feedback("skip", track, newBatch, 0) }
+                    try {
+                        feedback("skip", track, newBatch, 0)
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        throw e
+                    } catch (_: Exception) {
+                        // A failed report must not let an explicit track through.
+                    }
                 } else if (track.available && existing.add(track.id.substringBefore(':'))) {
                     additions += track
                 }

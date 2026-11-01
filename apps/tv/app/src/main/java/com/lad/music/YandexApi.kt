@@ -356,6 +356,26 @@ class YandexApi(
         check(response.optString("result") == "ok") { "Яндекс не подтвердил настройки волны" }
     }
 
+    suspend fun waveSeeds(): List<String>? {
+        val info = arr("/rotor/station/user:onyourwave/info").optJSONObject(0) ?: return null
+        val current = info.optJSONObject("settings2") ?: return null
+        val restrictions = info.optJSONObject("station")?.optJSONObject("restrictions2") ?: return null
+        val seeds = mutableListOf("user:onyourwave")
+        for (key in listOf("diversity", "moodEnergy", "language")) {
+            val options = restrictions.optJSONObject(key)?.optJSONArray("possibleValues") ?: return null
+            val choice = (0 until options.length()).mapNotNull { options.optJSONObject(it) }
+                .firstOrNull { it.optString("value") == current.optString(key) } ?: return null
+            val seed = choice.optString("serializedSeed").takeIf { it.isNotBlank() } ?: return null
+            seeds += seed
+        }
+        return seeds
+    }
+
+    fun waveSession(blockExplicit: () -> Boolean): WaveSession {
+        val source = YandexWaveSource(this, blockExplicit)
+        return WaveSession(source::fetch, source::report)
+    }
+
     suspend fun wave(after: String = ""): Pair<List<Track>, String> {
         val j =
             obj(
