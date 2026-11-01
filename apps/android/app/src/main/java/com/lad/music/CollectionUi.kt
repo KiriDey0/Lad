@@ -82,6 +82,8 @@ fun CollectionView(
     menu: (Card) -> Unit,
     retry: () -> Unit,
     modifier: Modifier = Modifier,
+    localFolders: List<LocalFolder>? = null,
+    localTracks: () -> Unit = {},
 ) {
     val p = LocalPalette.current
     val favorites =
@@ -241,6 +243,24 @@ fun CollectionView(
                                 Modifier.weight(1f),
                             ) {
                                 navigate("albums")
+                            }
+                        }
+                        if (localFolders != null) {
+                            Spacer(Modifier.height(12.dp))
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                CollectionTile(
+                                    "Папки",
+                                    quantityLabel(localFolders.size, "папка", "папки", "папок"),
+                                    Icons.Outlined.Folder,
+                                    Modifier.weight(1f),
+                                ) { navigate("folders") }
+                                CollectionTile(
+                                    "Треки",
+                                    quantityLabel(localFolders.sumOf { it.count }, "трек", "трека", "треков"),
+                                    Icons.Outlined.MusicNote,
+                                    Modifier.weight(1f),
+                                    localTracks,
+                                )
                             }
                         }
                     }

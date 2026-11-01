@@ -114,7 +114,7 @@ fun Action(
                 containerColor = if (tonal) p.tonal else p.accent,
                 contentColor = if (tonal) p.text else p.bg,
             ),
-        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp),
+        contentPadding = PaddingValues(start = 8.dp, end = 20.dp, top = 8.dp, bottom = 8.dp),
     ) {
         Box(
             Modifier.size(32.dp)
@@ -1071,7 +1071,7 @@ fun LadApp(engine: MusicEngine) {
                             else if (tab == 3 && detail == null && !likedPage)
                                 SettingsView(s, engine, Modifier.weight(1f), bottom)
                             else if (tab == 2 && detail == null && !likedPage) {
-                                CollectionSources(collectionSource,{collectionSource=it;collectionSection=null},engine,::open,{collectionSection="folders"})
+                                CollectionSources(collectionSource,{collectionSource=it;collectionSection=null},engine)
                                 if(collectionSection=="folders") LocalFoldersView(engine,localFolders,bottom,::open,Modifier.weight(1f))
                                 else CollectionView(
                                     viewLibrary,
@@ -1102,6 +1102,8 @@ fun LadApp(engine: MusicEngine) {
                                     menu = { cardMenu = it },
                                     retry = { refresh++ },
                                     modifier = Modifier.weight(1f),
+                                    localFolders = if(localVisible) localFolders else null,
+                                    localTracks = { open(Card("local-tracks","playlist","На устройстве")) },
                                 )
                             } else {
                                 if (tab == 1 && detail == null && !likedPage) {
