@@ -520,7 +520,7 @@ class MusicEngine(
         val before = state.value
         val current = before.track
         if (radio != null && before.owned && current != null) {
-            val context = WaveSession(api::wave, api::radioFeedback)
+            val context = api.waveSession { state.value.settings.blockExplicit }
             val tracks =
                 context.replenish(
                     listOf(current),
@@ -549,8 +549,9 @@ class MusicEngine(
             start(0)
             return@playbackLock
         }
-        val context = WaveSession(api::wave, api::radioFeedback)
-        val tracks = context.replenish(emptyList(), "", state.value.settings.blockExplicit)
+        val context = api.waveSession { state.value.settings.blockExplicit }
+        val tracks = context.replenish(emptyList(), "", state.value.settings.blockExplicit,
+            isCurrent = { operationEpoch == epoch })
         requireOperation(epoch)
         check(tracks.isNotEmpty()) {
             "Моя волна пока не вернула подходящие треки. Попробуй ещё раз."
@@ -573,6 +574,7 @@ class MusicEngine(
     }
 
     private suspend fun replenishWave(context: WaveSession) {
+        val epoch = operationEpoch
         val s = state.value
         val additions =
             context.replenish(
@@ -580,9 +582,9 @@ class MusicEngine(
                 s.track?.id.orEmpty(),
                 s.settings.blockExplicit,
                 maxBatches = 1,
-                isCurrent = { radio === context && state.value.owned },
+                isCurrent = { radio === context && state.value.owned && operationEpoch == epoch },
             )
-        if (radio !== context || !state.value.owned) return
+        if (radio !== context || !state.value.owned || operationEpoch != epoch) return
         update {
             val trim =
                 (it.queue.size + additions.size - 5000)
@@ -624,8 +626,10 @@ class MusicEngine(
                 }
             requireOperation(epoch)
             var refills = 0
+            val refillLimit = if (s.settings.blockExplicit) 20 else 4
             if (context != null && !s.demo && direction > 0 && s.queue.size - s.index < 3) {
                 replenishWave(context)
+                requireOperation(epoch)
                 refills++
                 if (radio !== context || !state.value.owned) return@playbackLock
             }
@@ -666,8 +670,9 @@ class MusicEngine(
                             current.settings.blockExplicit,
                         )
                 }
-                if (context != null && !s.demo && direction > 0 && refills < 4) {
+                if (context != null && !s.demo && direction > 0 && refills < refillLimit) {
                     replenishWave(context)
+                    requireOperation(epoch)
                     refills++
                     if (radio !== context || !state.value.owned) return@playbackLock
                     continue
@@ -700,9 +705,9 @@ class MusicEngine(
                             state.value.queue.drop(index),
                             state.value.track?.id.orEmpty(),
                             state.value.settings.blockExplicit,
-                            isCurrent = { radio === context && state.value.owned },
+                            isCurrent = { radio === context && state.value.owned && operationEpoch == epoch },
                         )
-                    if (radio === context && state.value.owned) {
+                    if (radio === context && state.value.owned && operationEpoch == epoch) {
                         update { it.copy(queue = it.queue + additions) }
                         persist()
                     }

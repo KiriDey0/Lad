@@ -20,6 +20,7 @@ import aiohttp
 from yandex_music import ClientAsync
 from core import Queue, cover_url, track_key
 from music import Music, track
+from wave_radio import fetch_batch, send_feedback, search_limit
 from device_identity import enrich_devices, device_ambiguous, AMBIGUOUS_DEVICE
 from station import Station, discover, local_host
 from local_library import LocalLibrary, LocalMediaServer, LocalFileUnavailable, local_id
@@ -418,6 +419,7 @@ class App:
             if self.advancing:
                 return
             self.advancing = True
+            epoch = self.operation_epoch
             try:
                 if self.output == 'station' and not self.queue.owned and not self.demo:
                     if self.block_explicit:
@@ -430,11 +432,14 @@ class App:
                 if self.radio and current and direction > 0 and not self.demo:
                     await self.radio_feedback('trackFinished' if automatic else 'skip', current,
                         radio=dict(self.radio), played=self.current_position() if self.output == 'station' else self.total_played)
+                self.require_operation(epoch)
                 # A finite queue ends; a radio queue must ask for more, including when
                 # its entire remaining tail is blocked by the local explicit filter.
                 refills = 0
+                refill_limit = search_limit(self.block_explicit)
                 if self.radio and direction > 0 and self.queue.index >= len(self.queue.tracks) - 2:
                     await self.topup_radio(max_batches=1)
+                    self.require_operation(epoch)
                     refills += 1
                     if not self.queue.owned:
                         return
@@ -449,6 +454,7 @@ class App:
                         if next_ not in checked:
                             checked.add(next_)
                             try:
+                                self.require_operation(epoch)
                                 await self.start_track(next_)
                                 if missing: emit('notice', {'message': f'Пропущено недоступных локальных файлов: {missing}. Их можно найти заново в коллекции.'})
                                 return
@@ -458,8 +464,9 @@ class App:
                                 missing += 1
                         probe.index = next_
                         next_ = probe.next_index(direction, automatic=False)
-                    if self.radio and direction > 0 and refills < 4 and not self.demo:
+                    if self.radio and direction > 0 and refills < refill_limit and not self.demo:
                         await self.topup_radio(max_batches=1)
+                        self.require_operation(epoch)
                         refills += 1
                         if not self.queue.owned:
                             return
@@ -547,19 +554,21 @@ class App:
         if not context:
             return
         try:
-            kwargs = {'track_id': t['id'], 'batch_id': context.get('batch')}
-            if kind in ('trackFinished', 'skip'):
-                kwargs['total_played_seconds'] = self.total_played if played is None else played
-            await self.music.client.rotor_station_feedback(context['id'], kind, **kwargs)
+            seconds = (self.total_played if played is None else played) if kind in ('trackFinished', 'skip') else None
+            await send_feedback(self.music.client, context, kind, t['id'], seconds)
         except Exception:
             self.feedback_error = 'Не удалось отправить обратную связь «Моей волне».'
             self.publish()
 
     async def radio_batch(self, context, cursor=None):
         next_cursor = context.get('cursor') or cursor
-        result = await self.music.client.rotor_station_tracks(context['id'], **({'queue': next_cursor} if next_cursor else {}))
+        epoch = self.operation_epoch
+        result = await fetch_batch(self.music.client, context, next_cursor, self.block_explicit)
+        self.require_operation(epoch)
+        if result is None:
+            return []
         candidates = []
-        for item in result.sequence:
+        for item in result.sequence or []:
             if not item.track:
                 continue
             candidate = track(item.track)
@@ -570,17 +579,20 @@ class App:
                 # Move the recommendation cursor beyond filtered songs instead of
                 # repeatedly requesting the same explicit-only batch.
                 await self.radio_feedback('skip', candidate,
-                    radio={'id': context['id'], 'batch': result.batch_id}, played=0)
+                    radio={**context, 'batch': result.batch_id}, played=0)
                 continue
             candidates.append(candidate)
+        self.require_operation(epoch)
         context['batch'] = result.batch_id
         return candidates
 
-    async def topup_radio(self, max_batches=4):
+    async def topup_radio(self, max_batches=None):
         context = self.radio
         if not context:
             return
-        for _ in range(max_batches):
+        for _ in range(search_limit(self.block_explicit) if max_batches is None else min(20, max_batches)):
+            if self.radio is not context or not self.queue.owned:
+                return
             candidates = await self.radio_batch(context, self.queue.current['id'] if self.queue.current else None)
             if self.radio is not context or not self.queue.owned:
                 return
@@ -1043,7 +1055,8 @@ class App:
                     current = self.queue.current
                     context = {'id': 'user:onyourwave'}
                     additions = []
-                    for _ in range(4):
+                    for _ in range(search_limit(self.block_explicit)):
+                        self.require_operation(epoch)
                         candidates = await self.radio_batch(context, current['id'])
                         additions = [t for t in candidates if track_key(t['id']) != track_key(current['id'])]
                         if additions:
@@ -1089,7 +1102,8 @@ class App:
             async with self.lock:
                 context = {'id': 'user:onyourwave'}
                 tracks = []
-                for _ in range(4):
+                for _ in range(search_limit(self.block_explicit)):
+                    self.require_operation(epoch)
                     tracks = await self.radio_batch(context)
                     if tracks:
                         break

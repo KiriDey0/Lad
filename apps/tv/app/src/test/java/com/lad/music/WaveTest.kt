@@ -39,14 +39,14 @@ class WaveTest {
                 { after ->
                     cursors += after
                     calls++
-                    listOf(t("$calls", calls <= 4)) to "b$calls"
+                    listOf(t("$calls", calls <= 20)) to "b$calls"
                 },
                 { _, _, _, _ -> },
             )
         assertTrue(session.replenish(emptyList(), "", true).isEmpty())
-        assertEquals(4, calls)
-        assertEquals(listOf("5"), session.replenish(emptyList(), "", true).map { it.id })
-        assertEquals("4", cursors.last())
+        assertEquals(20, calls)
+        assertEquals(listOf("21"), session.replenish(emptyList(), "", true).map { it.id })
+        assertEquals("20", cursors.last())
     }
 
     @Test
@@ -97,6 +97,25 @@ class WaveTest {
         session.replenish(emptyList(), "1", false)
         session.report("trackStarted", t("2"))
         assertEquals(listOf("skip:1:b1:90", "trackStarted:2:b2:0"), reports)
+    }
+
+    @Test
+    fun allowedTrackInTwentiethBatchStartsWithoutAnotherClick() = runBlocking {
+        var calls = 0
+        val session = WaveSession({
+            calls++
+            listOf(t("$calls", explicit = calls < 20)) to "b$calls"
+        }, { _, _, _, _ -> })
+        assertEquals("20", session.replenish(emptyList(), "", true).single().id)
+        assertEquals(20, calls)
+    }
+
+    @Test
+    fun cancelledSearchDoesNotMakeAnotherRequest() = runBlocking {
+        var calls = 0
+        val session = WaveSession({ calls++; emptyList<Track>() to "b" }, { _, _, _, _ -> })
+        assertTrue(session.replenish(emptyList(), "", true, isCurrent = { false }).isEmpty())
+        assertEquals(0, calls)
     }
 
     @Test

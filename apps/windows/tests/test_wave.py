@@ -162,14 +162,14 @@ async def test_explicit_radio_search_is_bounded_and_next_retries_from_cursor(wav
     async def batch(*args,**kwargs):
         nonlocal count
         count+=1;calls.append(kwargs.get('queue'))
-        return SimpleNamespace(sequence=[SimpleNamespace(track=model(10+count,explicit=count<=4))],batch_id=str(count))
+        return SimpleNamespace(sequence=[SimpleNamespace(track=model(10+count,explicit=count<=20))],batch_id=str(count))
     wave.music.client.tracks=metadata;wave.music.client.rotor_station_tracks=batch
     await wave.advance(automatic=True)
-    assert count==4 and wave.test.played==[]
+    assert count==20 and wave.test.played==[]
     assert wave.queue.owned and wave.radio is not None
     assert {'command':'stop'} in wave.test.commands
     await wave.advance()
-    assert wave.test.played==['15'] and calls[-1]=='14'
+    assert wave.test.played==['31'] and calls[-1]=='30'
 
 
 @pytest.mark.asyncio
@@ -220,3 +220,41 @@ async def test_wave_preferences_replace_only_upcoming_tracks_without_restarting_
     assert [t['id']for t in wave.queue.tracks]==['1','3','4']
     assert not wave.test.played
     assert wave.queue.owned
+
+
+@pytest.mark.asyncio
+async def test_allowed_track_in_twentieth_batch_starts_without_another_click(wave):
+    wave.block_explicit=True;wave.queue.index=1
+    calls=[]
+    async def metadata(id_):return [model(id_)]
+    async def batch(*args,**kwargs):
+        calls.append(kwargs.get('queue'))
+        n=len(calls)
+        return SimpleNamespace(sequence=[SimpleNamespace(track=model(100+n,explicit=n<20))],batch_id=str(n))
+    wave.music.client.tracks=metadata;wave.music.client.rotor_station_tracks=batch
+    await wave.advance()
+    assert len(calls)==20 and wave.test.played==['120']
+    assert calls[-1]=='119'
+
+
+@pytest.mark.asyncio
+async def test_pause_during_batch_fetch_does_not_start_or_keep_searching(wave):
+    from app import ActionSuperseded
+    wave.block_explicit=True;wave.queue.index=1
+    calls=[]
+    async def batch(*args,**kwargs):
+        calls.append(1)
+        await wave.control('pause')
+        return SimpleNamespace(sequence=[SimpleNamespace(track=model(3))],batch_id='late')
+    wave.music.client.rotor_station_tracks=batch
+    with pytest.raises(ActionSuperseded):await wave.advance()
+    assert len(calls)==1 and not wave.test.played
+
+
+@pytest.mark.asyncio
+async def test_pause_during_feedback_stops_before_requesting_more_tracks(wave):
+    from app import ActionSuperseded
+    async def feedback(*a,**kw):await wave.control('pause')
+    wave.music.client.rotor_station_feedback=feedback
+    with pytest.raises(ActionSuperseded):await wave.advance()
+    assert not wave.test.requests and not wave.test.played
