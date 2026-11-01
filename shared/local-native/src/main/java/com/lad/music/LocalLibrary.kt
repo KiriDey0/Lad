@@ -45,7 +45,8 @@ class LocalLibrary(private val context: Context) {
         override fun onUpgrade(db:SQLiteDatabase,oldVersion:Int,newVersion:Int) { db.execSQL("CREATE TABLE IF NOT EXISTS playlists(id TEXT PRIMARY KEY,title TEXT,items TEXT)") }
     }
     private val db get() = helper.writableDatabase
-    private fun change() { revision.value += 1 }
+    private var cachedTracks: List<Track>? = null
+    private fun change() { synchronized(lock) { cachedTracks = null }; revision.value += 1 }
     private fun hash(value:String)=MessageDigest.getInstance("SHA-256").digest(value.toByteArray()).joinToString("") { "%02x".format(it) }.take(32)
     fun folders():List<LocalFolder> = synchronized(lock) {
         db.rawQuery("SELECT f.id,f.uri,f.name,f.status,COUNT(t.id) FROM folders f LEFT JOIN tracks t ON t.folder=f.id WHERE status!='detached' GROUP BY f.id ORDER BY f.name",null).use { c ->
@@ -99,7 +100,7 @@ class LocalLibrary(private val context: Context) {
                         if(name.substringAfterLast('.',"").lowercase() !in setOf("mp3","flac","m4a","mp4","aac","ogg","opus","wav","aif","aiff"))continue
                         val uri=DocumentsContract.buildDocumentUriUsingTree(tree,documentId)
                         val trackId="local-track-"+hash(id+"/"+relative)
-                        val stamp="${c.getLong(3)}:${c.getLong(4)}"
+                        val stamp="artists2:${c.getLong(3)}:${c.getLong(4)}"
                         val unchanged=synchronized(lock) { db.rawQuery("SELECT stamp FROM tracks WHERE id=?",arrayOf(trackId)).use { it.moveToFirst()&&it.getString(0)==stamp } }
                         if(unchanged) synchronized(lock) { db.execSQL("UPDATE tracks SET seen=?,uri=? WHERE id=?",arrayOf(token,uri.toString(),trackId)) }
                         else try {
@@ -141,7 +142,7 @@ class LocalLibrary(private val context: Context) {
             if(!file.isFile || java.nio.file.Files.isSymbolicLink(file.toPath()) || file.extension.lowercase() !in setOf("mp3","flac","m4a","mp4","aac","ogg","opus","wav","aif","aiff"))continue
             val relative=file.relativeTo(root).path
             val id="local-track-"+hash(folder.id+"/"+relative)
-            val stamp="${file.length()}:${file.lastModified()}"
+            val stamp="artists2:${file.length()}:${file.lastModified()}"
             val old=synchronized(lock) {db.rawQuery("SELECT stamp FROM tracks WHERE id=?",arrayOf(id)).use {it.moveToFirst()&&it.getString(0)==stamp}}
             val uri=Uri.fromFile(file)
             if(old)synchronized(lock) {db.execSQL("UPDATE tracks SET seen=?,uri=? WHERE id=?",arrayOf(token,uri.toString(),id))}
@@ -161,7 +162,6 @@ class LocalLibrary(private val context: Context) {
             val artist=tag(MediaMetadataRetriever.METADATA_KEY_ARTIST).ifBlank { "Неизвестный исполнитель" }
             val album=tag(MediaMetadataRetriever.METADATA_KEY_ALBUM).ifBlank { "Без альбома" }
             val albumArtist=tag(MediaMetadataRetriever.METADATA_KEY_ALBUMARTIST).ifBlank { artist }
-            val artistId="local-artist-"+hash(artist.lowercase())
             var cover:String?=null
             val embedded=reader.embeddedPicture
             if(embedded!=null && embedded.size<=8_000_000) {
@@ -177,7 +177,7 @@ class LocalLibrary(private val context: Context) {
                 }
                 if(file.exists())cover=Uri.fromFile(file).toString()
             }
-            return Track(id,tag(MediaMetadataRetriever.METADATA_KEY_TITLE).ifBlank { name.substringBeforeLast('.') },listOf(ArtistRef(artistId,artist)),"local-album-"+hash(albumArtist.lowercase()+"\n"+album.lowercase()),album,tag(MediaMetadataRetriever.METADATA_KEY_DURATION).toLongOrNull()?:0,cover,explicit=tags.rating.lowercase() in setOf("1","true","explicit","18","18+")) to tags.lyrics
+            return Track(id,tag(MediaMetadataRetriever.METADATA_KEY_TITLE).ifBlank { name.substringBeforeLast('.') },tags.artists.ifEmpty { listOf(artist) }.map { ArtistRef("local-artist-"+hash(it.lowercase()),it) },"local-album-"+hash(albumArtist.lowercase()+"\n"+album.lowercase()),album,tag(MediaMetadataRetriever.METADATA_KEY_DURATION).toLongOrNull()?:0,cover,explicit=tags.rating.lowercase() in setOf("1","true","explicit","18","18+")) to tags.lyrics
         } finally { reader.release() }
     }
     fun format(id:String):String = synchronized(lock) {db.rawQuery("SELECT relative FROM tracks WHERE id=?",arrayOf(id)).use {c->check(c.moveToFirst());c.getString(0).substringAfterLast('.').uppercase()}}
@@ -194,22 +194,31 @@ class LocalLibrary(private val context: Context) {
         }
     }
     fun resolve(id:String):Track = synchronized(lock) {
-        val track=db.rawQuery("SELECT data FROM tracks WHERE id=?",arrayOf(id)).use { c -> if(!c.moveToFirst())throw LocalFileUnavailable("Локальный файл не найден");Track.fromJson(JSONObject(c.getString(0))) }
+        val track=tracks().firstOrNull { it.id==id } ?: throw LocalFileUnavailable("Локальный файл не найден")
         try { resolver.openAssetFileDescriptor(uri(id),"r")?.use {} ?: throw LocalFileUnavailable("Файл перемещён") }
         catch(e:Exception) { throw LocalFileUnavailable("Файл перемещён или папка отключена. Проверь папки в коллекции.") }
         track.copy(liked=isLiked(id),available=true)
     }
     fun tracks(folder:String?=null):List<Track> = synchronized(lock) {
-        db.rawQuery("SELECT t.id,t.data FROM tracks t JOIN folders f ON f.id=t.folder WHERE f.status!='detached'"+(if(folder!=null)" AND f.id=?" else "")+" ORDER BY t.relative COLLATE NOCASE",folder?.let { arrayOf(it) }).use { c ->
-            buildList { while(c.moveToNext())add(Track.fromJson(JSONObject(c.getString(1))).copy(liked=isLiked(c.getString(0)))) }
+        if (folder != null) {
+            val ids = db.rawQuery("SELECT id FROM tracks WHERE folder=?", arrayOf(folder)).use { c ->
+                buildSet { while(c.moveToNext())add(c.getString(0)) }
+            }
+            return@synchronized tracks().filter { it.id in ids }
         }
+        cachedTracks?.let { return@synchronized it }
+        val result = db.rawQuery("SELECT t.id,t.data FROM tracks t JOIN folders f ON f.id=t.folder WHERE f.status!='detached' ORDER BY t.relative COLLATE NOCASE",null).use { c ->
+            LocalArtists.normalize(buildList { while(c.moveToNext())add(Track.fromJson(JSONObject(c.getString(1))).copy(liked=isLiked(c.getString(0)))) })
+        }
+        cachedTracks = result
+        result
     }
     private fun isLiked(id:String)=db.rawQuery("SELECT 1 FROM likes WHERE id=?",arrayOf(id)).use { it.moveToFirst() }
     fun like(id:String,liked:Boolean) { synchronized(lock) { if(liked)db.insertWithOnConflict("likes",null,ContentValues().apply {put("id",id)},SQLiteDatabase.CONFLICT_IGNORE) else db.delete("likes","id=?",arrayOf(id)) };change() }
     fun library():Library {
         val tracks=tracks()
         val playlists=synchronized(lock) { db.rawQuery("SELECT id,title,items FROM playlists ORDER BY rowid DESC",null).use {c->buildList {while(c.moveToNext()){val items=org.json.JSONArray(c.getString(2));add(Card(c.getString(0),"playlist",c.getString(1),"${items.length()} треков",cover=items.optJSONObject(0)?.text("cover")?.takeIf {it.isNotBlank()}))}}} }
-        return Library(playlists=playlists,albums=tracks.groupBy { it.albumId }.map { (_,ts)->ts.first().albumCard() },artists=tracks.groupBy { it.artists.firstOrNull()?.id.orEmpty() }.map { (id,ts)->Card(id,"artist",ts.first().artist,cover=ts.first().cover) })
+        return Library(playlists=playlists,albums=tracks.groupBy { it.albumId }.map { (_,ts)->ts.first().albumCard() },artists=tracks.flatMap { t->t.artists.map { a->a to t } }.groupBy { it.first.id }.map { (id,entries)->Card(id,"artist",entries.first().first.name,cover=entries.first().second.cover) })
     }
     fun createPlaylist(title:String,tracks:List<Track> = emptyList()):Card {
         val name=title.trim().take(160);require(name.isNotBlank()){"Введи название плейлиста"};require(tracks.size<=5000)
@@ -229,10 +238,19 @@ class LocalLibrary(private val context: Context) {
         if(card.id.startsWith("local-playlist-")) {
             val tracks=synchronized(lock) {db.rawQuery("SELECT items FROM playlists WHERE id=?",arrayOf(card.id)).use {c->check(c.moveToFirst());org.json.JSONArray(c.getString(0)).objects().map(Track::fromJson)}}
                 .map {if(it.isLocal)runCatching {resolve(it.id)}.getOrElse {_ -> it.copy(available=false)} else it}
-            return Catalog(card.title,tracks,total=tracks.size)
+            val normalized=LocalArtists.normalize(this.tracks()+tracks).takeLast(tracks.size)
+            return Catalog(card.title,normalized,total=normalized.size)
         }
         val tracks=tracks(if(card.id.startsWith("local-folder-"))card.id else null)
-        val selected=when {card.id=="local-liked"->tracks.filter {it.liked};card.type=="album"&&!card.id.startsWith("local-folder-")->tracks.filter {it.albumId==card.id};card.type=="artist"->tracks.filter {t->t.artists.any {it.id==card.id}};else->tracks}
+        val legacyMatches = if(card.type=="artist") synchronized(lock) {
+            db.rawQuery("SELECT id,data FROM tracks",null).use { c ->
+                buildSet { while(c.moveToNext()) {
+                    val old=Track.fromJson(JSONObject(c.getString(1)))
+                    if(old.artists.any { it.id==card.id }) add(c.getString(0))
+                } }
+            }
+        } else emptySet()
+        val selected=when {card.id=="local-liked"->tracks.filter {it.liked};card.type=="album"&&!card.id.startsWith("local-folder-")->tracks.filter {it.albumId==card.id};card.type=="artist"->tracks.filter {t->t.id in legacyMatches || t.artists.any {it.id==card.id}};else->tracks}
         return Catalog(card.title,selected,total=selected.size)
     }
     fun lyrics(id:String):Lyrics {

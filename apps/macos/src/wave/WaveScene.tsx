@@ -6,10 +6,7 @@ import { sampleWaveAudio } from "./audio";
 import type { Playback } from "../types";
 import { useRemoteWaveAudio } from "./remote";
 import {waveBrightness} from "../../../../shared/wave/appearance.mjs";
-const neutral = [
-  [166, 182, 192],
-  [190, 180, 165],
-];
+import {coverWavePalette, neutralWavePalette as neutral} from "../../../../shared/wave/palette.mjs";
 export function WaveScene({
   cover,
   playing,
@@ -28,11 +25,15 @@ export function WaveScene({
   const canvas = useRef<HTMLCanvasElement>(null);
   useRemoteWaveAudio(remote, canvas, intensity);
   const palette = useRef(neutral.map((c) => c.slice()));
+  const lineGain = useRef(1.25);
   const latest = useRef({ playing, local, intensity, smoothing });
   latest.current = { playing, local, intensity, smoothing };
   useEffect(() => {
-    palette.current = neutral.map((c) => c.slice());
-    if (!cover) return;
+    if (!cover) {
+      palette.current = neutral.map((c) => c.slice());
+      lineGain.current = 1.25;
+      return;
+    }
     let cancelled = false;
     const image = new Image();
     image.crossOrigin = "anonymous";
@@ -55,40 +56,25 @@ export function WaveScene({
           96,
         );
         const data = ctx.getImageData(0, 0, 96, 96).data;
-        const sums = [
-          [0, 0, 0, 0],
-          [0, 0, 0, 0],
-        ];
-        for (let y = 0; y < 96; y += 2)
-          for (let x = 0; x < 96; x += 2) {
-            if (x > 11 && x < 84 && y > 11 && y < 84) continue;
-            const o = (y * 96 + x) * 4,
-              r = data[o],
-              g = data[o + 1],
-              b = data[o + 2],
-              l = (r + g + b) / 765;
-            if (l < 0.09 || l > 0.92) continue;
-            const a = sums[y < 48 ? 0 : 1];
-            a[0] += r;
-            a[1] += g;
-            a[2] += b;
-            a[3]++;
-          }
-        palette.current = sums.map((a, i) =>
-          a[3]
-            ? a
-                .slice(0, 3)
-                .map((v) => Math.max(42, Math.min(210, (v / a[3]) * 1.2)))
-            : neutral[i].slice(),
-        );
+        const extracted = coverWavePalette(data, 96, 96);
+        palette.current = extracted.colors;
+        lineGain.current = extracted.lineGain;
       } catch {
-        /* Some cover servers deny pixel access: keep the neutral C4 palette. */
+        palette.current = neutral.map(c => c.slice());
+        lineGain.current = 1.25;
+      }
+    };
+    image.onerror = () => {
+      if (!cancelled) {
+        palette.current = neutral.map(c => c.slice());
+        lineGain.current = 1.25;
       }
     };
     image.src = cover;
     return () => {
       cancelled = true;
       image.onload = null;
+      image.onerror = null;
     };
   }, [cover]);
   useEffect(() => {
@@ -162,7 +148,7 @@ export function WaveScene({
       ctx.lineWidth = 0.8;
       for (let i = 0; i < sim.lineCount; i += 2) {
         const o = i * 3;
-        ctx.strokeStyle = `rgba(${tint.join(",")},${Math.min(1, sim.lines[o + 2] * strength * 1.65)})`;
+        ctx.strokeStyle = `rgba(${tint.join(",")},${Math.min(1, sim.lines[o + 2] * strength * 1.65 * lineGain.current)})`;
         ctx.beginPath();
         ctx.moveTo(cx + sim.lines[o] * size, cy + sim.lines[o + 1] * size);
         ctx.lineTo(cx + sim.lines[o + 3] * size, cy + sim.lines[o + 4] * size);

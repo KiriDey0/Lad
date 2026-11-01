@@ -102,7 +102,8 @@ class WaveView(context: Context) : View(context), Choreographer.FrameCallback {
     }
 
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val base = arrayOf(floatArrayOf(166f, 182f, 192f), floatArrayOf(190f, 180f, 165f))
+    private val base = WavePalette.neutral
+    private var lineGain = 1.25f
     private var target = base.map { it.copyOf() }
     private val colors = base.map { it.copyOf() }
     private var coverRequest: Disposable? = null
@@ -124,8 +125,10 @@ class WaveView(context: Context) : View(context), Choreographer.FrameCallback {
 
     private fun loadCover(url: String?) {
         coverRequest?.dispose()
-        target = base.map { it.copyOf() }
-        if (url.isNullOrBlank()) return
+        if (url.isNullOrBlank()) {
+            target = base.map { it.copyOf() }; lineGain = 1.25f
+            return
+        }
         coverRequest =
             coil.Coil.imageLoader(context)
                 .enqueue(
@@ -134,43 +137,26 @@ class WaveView(context: Context) : View(context), Choreographer.FrameCallback {
                         .size(96)
                         .allowHardware(false)
                         .target(
+                            onError = {
+                                if (cover == url) {
+                                    target = base.map { it.copyOf() }; lineGain = 1.25f
+                                    schedule()
+                                }
+                            },
                             onSuccess = { drawable ->
                                 if (cover == url) {
                                     val bitmap = (drawable as? BitmapDrawable)?.bitmap
                                     if (bitmap != null) {
-                                        val sums = Array(2) { LongArray(4) }
-                                        for (y in 0 until bitmap.height step 2) for (x in
-                                            0 until bitmap.width step 2) {
-                                            if (
-                                                x > bitmap.width * .12 &&
-                                                    x < bitmap.width * .88 &&
-                                                    y > bitmap.height * .12 &&
-                                                    y < bitmap.height * .88
-                                            )
-                                                continue
-                                            val pixel = bitmap.getPixel(x, y)
-                                            val r = Color.red(pixel)
-                                            val g = Color.green(pixel)
-                                            val b = Color.blue(pixel)
-                                            val light = (r + g + b) / 765f
-                                            if (light < .09 || light > .92) continue
-                                            val a = sums[if (y < bitmap.height / 2) 0 else 1]
-                                            a[0] += r.toLong()
-                                            a[1] += g.toLong()
-                                            a[2] += b.toLong()
-                                            a[3]++
-                                        }
-                                        target =
-                                            sums.mapIndexed { i, a ->
-                                                if (a[3] > 0)
-                                                    FloatArray(3) { j ->
-                                                        (a[j].toFloat() / a[3] * 1.2f).coerceIn(
-                                                            42f,
-                                                            210f,
-                                                        )
-                                                    }
-                                                else base[i].copyOf()
-                                            }
+                                        val side = min(bitmap.width, bitmap.height)
+                                        val crop = Bitmap.createBitmap(bitmap, (bitmap.width-side)/2, (bitmap.height-side)/2, side, side)
+                                        val sample = Bitmap.createScaledBitmap(crop, 96, 96, true)
+                                        val pixels = IntArray(96*96)
+                                        sample.getPixels(pixels, 0, 96, 0, 0, 96, 96)
+                                        val extracted = WavePalette.extract(pixels, 96, 96)
+                                        target = extracted.colors
+                                        lineGain = extracted.lineGain
+                                        if(sample !== bitmap && sample !== crop) sample.recycle()
+                                        if(crop !== bitmap) crop.recycle()
                                         schedule()
                                     }
                                 }
@@ -306,7 +292,7 @@ class WaveView(context: Context) : View(context), Choreographer.FrameCallback {
         pointSizes.fill(0)
         for (i in 0 until frame.lineCount step 2) {
             val o = i * 3
-            val bucket = (frame.lines[o + 2] * (1 - pause * .82f) * 1.65f * 40).toInt().coerceIn(0, 11)
+            val bucket = (frame.lines[o + 2] * (1 - pause * .82f) * 1.65f * lineGain * 40).toInt().coerceIn(0, 11)
             if (bucket == 0) continue
             val b = lineBuckets[bucket]
             val n = lineSizes[bucket]
