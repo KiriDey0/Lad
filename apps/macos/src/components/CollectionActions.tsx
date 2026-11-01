@@ -51,7 +51,7 @@ export function CollectionControls({ card }: { card: Card }) {
   const pinned = actions.pinned(card);
   return (
     <div className="collection-controls">
-      {card.type === "album" && (
+      {card.type === "album" && !card.id.startsWith("local-") && (
         <IconButton
           icon={Heart}
           active={actions.albumSaved(card)}
@@ -205,7 +205,7 @@ export function CollectionActionsProvider({
         disabled: busy,
         run: () => enqueue(card, "end"),
       },
-      ...(card.type === "album"
+      ...(card.type === "album" && !card.id.startsWith("local-")
         ? [
             {
               label: albumSaved(card)
@@ -244,6 +244,14 @@ export function CollectionActionsProvider({
         run: () => bridge.open(url),
       },
     );
+    if (card.id.startsWith("local-")) {
+      const hidden = new Set([
+        "Поделиться · скопировать ссылку",
+        "Открыть в Яндекс Музыке",
+      ]);
+      for (let i = rows.length - 1; i >= 0; i--)
+        if (hidden.has(rows[i].label)) rows.splice(i, 1);
+    }
   }
   return (
     <CollectionActions.Provider

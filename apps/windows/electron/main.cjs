@@ -12,6 +12,7 @@ const {
   net,
   Tray,
   nativeImage,
+  dialog,
 } = require("electron");
 const { spawn } = require("node:child_process");
 const fs = require("node:fs");
@@ -99,6 +100,7 @@ const allowed = new Set([
   "wave",
   "waveSettings",
   "waveStream",
+  "localSummary", "localBrowse", "localRescan", "localRemoveFolder", "localLiked", "localCreatePlaylist", "localPlaylistAdd", "localFileInfo",
 ]);
 const dataPath = () => app.getPath("userData");
 const secretPath = () => path.join(dataPath(), "session.enc");
@@ -196,6 +198,7 @@ function startBackend() {
         PYTHONUNBUFFERED: "1",
         PYTHONIOENCODING: "utf-8",
         PYTHONUTF8: "1",
+        LAD_DATA_DIR: dataPath(),
         ...(app.isPackaged
           ? {
               LAD_MUSIC_SOURCE: path.join(
@@ -255,7 +258,7 @@ function startBackend() {
     if (msg.event === "state") {
       lastState = msg.data;
     }
-    if(msg.event === "local" && msg.data.action === "load") {
+    if(msg.event === "local" && msg.data.action === "load" && msg.data.track?.source !== "local") {
       msg.data.url = waveStreams.add(msg.data.url);
     }
     send(msg.event, msg.data);
@@ -539,7 +542,27 @@ if (primaryInstance) app.whenReady().then(() => {
       throw new Error("Недоступное действие.");
     await backendReady;
     const result = await rpc(method, params);
-    return method === "waveStream" ? {url: waveStreams.add(result.url)} : result;
+    return method === "waveStream" && !result.local ? {url: waveStreams.add(result.url)} : result;
+  });
+  ipcMain.handle("lad:local-files", async (event, action, id) => {
+    if (event.sender !== window.webContents) throw new Error("Недоступно");
+    await backendReady;
+    if (action === "reveal") {
+      const info = await rpc("localFileInfo", {id});
+      if (fs.existsSync(info.path)) shell.showItemInFolder(info.path);
+      else throw new Error("Файл перемещён. Выбери «Найти файл».");
+      return true;
+    }
+    const methods = {add:"localAddFolder", restore:"localRestoreFolder", locate:"localLocateFile", lyrics:"localAttachLyrics"};
+    if (!Object.hasOwn(methods, action)) throw new Error("Недоступное действие.");
+    const folder = action === "add" || action === "restore";
+    const result = await dialog.showOpenDialog(window, {
+      title: folder ? "Выбери папку с музыкой" : action === "lyrics" ? "Выбери текст песни" : "Найди музыкальный файл",
+      properties: [folder ? "openDirectory" : "openFile"],
+      ...(action === "lyrics" ? {filters:[{name:"Текст песни",extensions:["lrc","txt"]}]} : {}),
+    });
+    if (result.canceled || !result.filePaths[0]) return null;
+    return rpc(methods[action], {id,path:result.filePaths[0]});
   });
   ipcMain.handle("orbit:login", async (event) => {
     if (event.sender !== window.webContents) throw new Error("Недоступно");

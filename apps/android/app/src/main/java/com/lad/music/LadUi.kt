@@ -679,16 +679,33 @@ fun LadApp(engine: MusicEngine) {
         overlayParent = null
     }
     var trackMenu by remember { mutableStateOf<Track?>(null) }
+    var localPlaylistTrack by remember { mutableStateOf<Track?>(null) }
+    var localPlaylistTitle by remember { mutableStateOf("") }
+
     var cardMenu by remember { mutableStateOf<Card?>(null) }
     var explicitInfo by remember { mutableStateOf<Track?>(null) }
     var query by rememberSaveable { mutableStateOf("") }
     var searchType by rememberSaveable { mutableStateOf("all") }
     var catalog by remember { mutableStateOf(Catalog()) }
     var library by remember { mutableStateOf(Library()) }
+    val localRevision by engine.localLibrary.revision.collectAsState()
+    var collectionSource by rememberSaveable { mutableStateOf("all") }
+    var localLibrary by remember { mutableStateOf(Library()) }
+    var localLikes by remember { mutableStateOf(Catalog()) }
+    var localFolders by remember { mutableStateOf(emptyList<LocalFolder>()) }
     var liked by remember { mutableStateOf(Catalog()) }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf("") }
     var refresh by remember { mutableIntStateOf(0) }
+    LaunchedEffect(localRevision, refresh) {
+        withContext(Dispatchers.IO) {
+            val l=engine.localLibrary.library()
+            val likes=engine.localLibrary.catalog(Card("local-liked","playlist","Мне нравится"))
+            val folders=engine.localLibrary.folders()
+            withContext(Dispatchers.Main) {localLibrary=l;localLikes=likes;localFolders=folders}
+        }
+    }
+
     var page by remember { mutableIntStateOf(0) }
     var likedPage by remember { mutableStateOf(false) }
     var collectionSection by rememberSaveable { mutableStateOf<String?>(null) }
@@ -703,6 +720,16 @@ fun LadApp(engine: MusicEngine) {
     var lyricRetry by remember { mutableIntStateOf(0) }
     var lyricsLoading by remember { mutableStateOf(false) }
     var lyricsError by remember { mutableStateOf("") }
+    val remoteVisible=collectionSource!="local"
+    val localVisible=collectionSource!="yandex"
+    val viewLibrary=Library(
+        playlists=(if(remoteVisible)library.playlists else emptyList())+(if(localVisible)localLibrary.playlists else emptyList()),
+        albums=(if(remoteVisible)library.albums else emptyList())+(if(localVisible)localLibrary.albums else emptyList()),
+        ownPlaylists=(if(remoteVisible)library.ownPlaylists else emptyList())+(if(localVisible)localLibrary.ownPlaylists else emptyList()),
+        likedPlaylists=if(remoteVisible)library.likedPlaylists else emptyList(),
+        artists=(if(remoteVisible)library.artists else emptyList())+(if(localVisible)localLibrary.artists else emptyList()),
+        artistsError=if(remoteVisible)library.artistsError else "")
+    val viewLiked=Catalog("Мне нравится",(if(remoteVisible)liked.tracks else emptyList())+(if(localVisible)localLikes.tracks else emptyList()),total=(if(remoteVisible)liked.total else 0)+(if(localVisible)localLikes.total else 0))
     val ui = rememberCoroutineScope()
     val uid = s.profile?.uid
     fun open(card: Card) {
@@ -733,7 +760,7 @@ fun LadApp(engine: MusicEngine) {
                 .onFailure { engine.notice("Не найден браузер") }
     }
     suspend fun collection(card: Card) =
-        if (s.demo) Catalog(card.title, MusicEngine.demoTracks) else engine.api.collection(card)
+        if (s.demo) Catalog(card.title, MusicEngine.demoTracks) else engine.collection(card)
     fun batch(card: Card, next: Boolean?, start: Boolean = false) {
         run {
             val data = collection(card)
@@ -781,7 +808,7 @@ fun LadApp(engine: MusicEngine) {
         }
     }
     LaunchedEffect(uid, s.demo, tab, detail, likedPage, query, searchType, page, refresh) {
-        if (uid == null || tab == 3) return@LaunchedEffect
+        if ((uid == null && detail?.isLocal != true) || tab == 3) return@LaunchedEffect
         loading = true
         error = ""
         try {
@@ -814,8 +841,8 @@ fun LadApp(engine: MusicEngine) {
                                 MusicEngine.demoTracks,
                                 MusicEngine.demoCards,
                             )
-                    likedPage -> engine.api.liked(uid, page * 100)
-                    detail != null -> engine.api.collection(detail!!, page)
+                    likedPage -> engine.api.liked(uid ?: error("Войди в аккаунт"), page * 100)
+                    detail != null -> engine.collection(detail!!, page)
                     tab == 1 -> engine.api.search(query, searchType, page)
                     tab == 0 -> engine.api.home()
                     else -> Catalog()
@@ -854,7 +881,7 @@ fun LadApp(engine: MusicEngine) {
                             .mapIndexed { i, text -> LyricLine(i * 30000L, text) },
                         true,
                     )
-                else engine.api.lyrics(t.id)
+                else engine.lyrics(t)
         } catch (e: Exception) {
             if (e is CancellationException) throw e
             lyricsError = e.message ?: "Не удалось загрузить текст"
@@ -882,6 +909,7 @@ fun LadApp(engine: MusicEngine) {
     val goBack: () -> Unit = {
         when {
             explicitInfo != null -> explicitInfo = null
+            localPlaylistTrack != null -> localPlaylistTrack = null
             trackMenu != null -> trackMenu = null
             cardMenu != null -> cardMenu = null
             overlay == "lyrics" -> closeLyrics()
@@ -900,6 +928,7 @@ fun LadApp(engine: MusicEngine) {
     }
     BackHandler(
         explicitInfo != null ||
+            localPlaylistTrack != null ||
             trackMenu != null ||
             cardMenu != null ||
             overlay != null ||
@@ -1037,14 +1066,16 @@ fun LadApp(engine: MusicEngine) {
                                     },
                                 )
                             }
-                            if (s.profile == null)
-                                LoginView(engine, auth, ::browser, clipboard, bottom)
+                            if (s.profile == null && tab != 2 && tab != 3 && detail?.isLocal != true)
+                                LoginView(engine, auth, ::browser, clipboard, bottom) { tab = 2; collectionSource = "local" }
                             else if (tab == 3 && detail == null && !likedPage)
                                 SettingsView(s, engine, Modifier.weight(1f), bottom)
                             else if (tab == 2 && detail == null && !likedPage) {
-                                CollectionView(
-                                    library,
-                                    liked,
+                                CollectionSources(collectionSource,{collectionSource=it;collectionSection=null},engine,::open,{collectionSection="folders"})
+                                if(collectionSection=="folders") LocalFoldersView(engine,localFolders,bottom,::open,Modifier.weight(1f))
+                                else CollectionView(
+                                    viewLibrary,
+                                    viewLiked,
                                     collectionSection,
                                     likedPlaylistGroup,
                                     libraryLoading,
@@ -1064,8 +1095,8 @@ fun LadApp(engine: MusicEngine) {
                                     },
                                     group = { likedPlaylistGroup = it },
                                     favorite = {
-                                        likedPage = true
-                                        page = 0
+                                        if(s.demo || collectionSource=="yandex") {likedPage=true;page=0}
+                                        else open(Card(if(collectionSource=="local")"local-liked" else "local-all-liked","playlist","Мне нравится"))
                                     },
                                     open = ::open,
                                     menu = { cardMenu = it },
@@ -1336,7 +1367,7 @@ fun LadApp(engine: MusicEngine) {
                             }
                         }
                     }
-                    if (!ime && s.profile != null) {
+                    if (!ime) {
                         if (landscape)
                             Glass(
                                 Modifier.align(Alignment.CenterStart)
@@ -1488,9 +1519,19 @@ fun LadApp(engine: MusicEngine) {
                             )
                         }
                     }
+                    AnimatedPane(localPlaylistTrack) {track->
+                        Pane("Добавить в плейлист",s.settings,{localPlaylistTrack=null}) {
+                            MenuSummary(track.cover,track.title,track.artist)
+                            Label("На этом устройстве",13,p.muted)
+                            for(card in localLibrary.playlists)MenuItem(card.title,Icons.Outlined.PlaylistPlay) {engine.localLibrary.addPlaylist(card.id,listOf(track));localPlaylistTrack=null;engine.notice("Добавлено в «${card.title}»")}
+                            OutlinedTextField(localPlaylistTitle,{localPlaylistTitle=it.take(160)},label={Text("Новый плейлист")},singleLine=true,modifier=Modifier.fillMaxWidth())
+                            Action("Создать и добавить",Icons.Outlined.Add,enabled=localPlaylistTitle.isNotBlank(),modifier=Modifier.fillMaxWidth()) {engine.localLibrary.createPlaylist(localPlaylistTitle,listOf(track));localPlaylistTrack=null;engine.notice("Плейлист создан")}
+                        }
+                    }
                     AnimatedPane(trackMenu) { t ->
                         Pane("Действия с треком", s.settings, { trackMenu = null }) {
                             MenuSummary(t.cover, t.title, t.artist)
+                            MenuItem("Добавить в плейлист на устройстве",Icons.Outlined.PlaylistAdd) {trackMenu=null;localPlaylistTitle="";localPlaylistTrack=t}
                             val blocked = !t.available || (s.settings.blockExplicit && t.explicit)
                             MenuPlaybackActions(
                                 !blocked,
@@ -1536,11 +1577,11 @@ fun LadApp(engine: MusicEngine) {
                                         open(Card(a.id, "artist", a.name))
                                     }
                                 }
-                            MenuItem("Поделиться", Icons.Outlined.Share, !s.demo) {
+                            MenuItem("Поделиться", Icons.Outlined.Share, !s.demo && !t.isLocal) {
                                 trackMenu = null
                                 share(t.url)
                             }
-                            MenuItem("Скопировать ссылку", Icons.Outlined.Link, !s.demo) {
+                            MenuItem("Скопировать ссылку", Icons.Outlined.Link, !s.demo && !t.isLocal) {
                                 clipboard.setText(AnnotatedString(t.url))
                                 trackMenu = null
                                 engine.notice("Ссылка скопирована")
@@ -1596,7 +1637,7 @@ fun LadApp(engine: MusicEngine) {
                             }
                             MenuItem("Открыть", Icons.Outlined.ArrowOutward) { open(c) }
                             if (c.type != "artist") {
-                                if (c.type == "album")
+                                if (c.type == "album" && !c.isLocal)
                                     MenuItem(
                                         if (library.albums.any { it.id == c.id })
                                             "Убрать альбом из коллекции"
@@ -1616,11 +1657,11 @@ fun LadApp(engine: MusicEngine) {
                                         }
                                     }
                             }
-                            MenuItem("Поделиться", Icons.Outlined.Share, !s.demo) {
+                            MenuItem("Поделиться", Icons.Outlined.Share, !s.demo && !c.isLocal) {
                                 cardMenu = null
                                 share(c.url)
                             }
-                            MenuItem("Скопировать ссылку", Icons.Outlined.Link, !s.demo) {
+                            MenuItem("Скопировать ссылку", Icons.Outlined.Link, !s.demo && !c.isLocal) {
                                 cardMenu = null
                                 clipboard.setText(AnnotatedString(c.url))
                                 engine.notice("Ссылка скопирована")

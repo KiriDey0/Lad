@@ -210,7 +210,7 @@ test("catalog search, collection, add next and no layout overflow", async () => 
     .click();
   await expect(page.locator(".queue-row")).toHaveCount(7);
   await page.getByRole("button", { name: "Коллекция", exact: true }).click();
-  await expect(page.locator(".music-card")).toHaveCount(4);
+  await expect(page.getByRole("heading", {name:"Любимые исполнители"})).toBeVisible();
   const favorites = page.getByRole("region", {
     name: "Любимые треки в коллекции",
   });
@@ -222,7 +222,7 @@ test("catalog search, collection, add next and no layout overflow", async () => 
   await favorites.locator(".liked-preview-heading").click();
   await expect(page.locator(".header-location")).toHaveText("Мне нравится");
   await page.getByRole("button", { name: "Коллекция", exact: true }).click();
-  await page.getByRole("tab", { name: "Альбомы", exact: true }).click();
+  await page.locator(".collection-group").filter({hasText:"Альбомы"}).click();
   await expect(
     page.getByRole("heading", { name: "Здесь пока пусто" }),
   ).toBeVisible();
@@ -305,7 +305,7 @@ test("track links and contextual actions preserve playback and fit the viewport"
 test("collection pinning, album likes and batch queue actions", async () => {
   await page.evaluate(() => window.lad!.rpc("control", { action: "pause" }));
   await page.getByRole("button", { name: "Коллекция", exact: true }).click();
-  await page.getByRole("tab", { name: "Плейлисты", exact: true }).click();
+  await page.locator(".collection-group").filter({hasText:"Плейлисты"}).click();
   await expect(page.locator(".music-card")).toHaveCount(4);
   let shortcuts = page.locator(".sidebar-playlists .playlist-shortcut");
   const original = await shortcuts.count();
@@ -372,7 +372,7 @@ test("collection pinning, album likes and batch queue actions", async () => {
   await expect(shortcuts).toHaveCount(original + 1);
   await expect(shortcuts.filter({ hasText: "Альбом" })).toHaveCount(1);
   await page.getByRole("button", { name: "Коллекция", exact: true }).click();
-  await page.getByRole("tab", { name: "Альбомы", exact: true }).click();
+  await page.locator(".collection-group").filter({hasText:"Альбомы"}).click();
   await expect(page.locator(".music-card")).toHaveCount(1);
   await page.locator(".music-card").click({ button: "right" });
   await page

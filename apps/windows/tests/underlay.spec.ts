@@ -10,8 +10,9 @@ test('content scrolls behind glass while the final card stays reachable',async()
   await page.getByRole('button',{name:'Посмотреть демо'}).click();
   await page.evaluate(()=>window.lad!.rpc('control',{action:'pause'}));
   await page.getByRole('button',{name:'Коллекция',exact:true}).click();
+  await page.locator('.collection-group').filter({hasText:'Плейлисты'}).click();
   await expect(page.locator('.music-card').first()).toBeVisible();
-  await page.locator('.card-grid').first().evaluate(el=>{const seed=el.firstElementChild!;for(let i=0;i<28;i++)el.append(seed.cloneNode(true));(el.lastElementChild as HTMLElement).dataset.lastFixture='true'});
+  await page.locator('.collection-card-grid').first().evaluate(el=>{const seed=el.firstElementChild!;for(let i=0;i<28;i++)el.append(seed.cloneNode(true));(el.lastElementChild as HTMLElement).dataset.lastFixture='true'});
   const geometry=await page.evaluate(()=>{
    const r=(s:string)=>document.querySelector(s)!.getBoundingClientRect();
    return{scrollBottom:r('.page-content').bottom,shellBottom:r('.app-shell').bottom,playerTop:r('.player').top,sidebarBottom:r('.sidebar').bottom,queueBottom:r('.queue-panel').bottom};

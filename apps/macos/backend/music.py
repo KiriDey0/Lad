@@ -98,18 +98,30 @@ class Music:
                 'total': len(short), 'offset': offset}
 
     async def library(self):
-        own, liked, saved = await asyncio.gather(self.client.users_playlists_list(),
-            self.client.users_likes_albums(), self.client.users_likes_playlists(), return_exceptions=True)
+        async def artists(): return await self.client.users_likes_artists()
+        own, liked, saved, artist_data = await asyncio.gather(self.client.users_playlists_list(),
+            self.client.users_likes_albums(), self.client.users_likes_playlists(), artists(), return_exceptions=True)
         if all(isinstance(x, Exception) for x in (own, liked, saved)):
             raise own
         albums = [album(x.album) for x in (liked if not isinstance(liked, Exception) else []) if getattr(x, 'album', None)]
-        playlists = [playlist(p) for p in (own if not isinstance(own, Exception) else [])]
+        own_playlists = [playlist(p) for p in (own if not isinstance(own, Exception) else [])]
+        playlists, liked_playlists = own_playlists.copy(), []
         for item in (saved if not isinstance(saved, Exception) else []):
             if getattr(item, 'playlist', None):
                 candidate = playlist(item.playlist)
+                liked_playlists.append(candidate)
                 if not any(p['id'] == candidate['id'] and p['owner'] == candidate['owner'] for p in playlists):
                     playlists.append(candidate)
-        return {'playlists': playlists, 'albums': albums}
+        artist_cards = []
+        if not isinstance(artist_data, Exception):
+            for item in artist_data or []:
+                a = getattr(item, 'artist', None) or item
+                if getattr(a, 'id', None) is not None and getattr(a, 'name', None):
+                    artist_cards.append({'id': str(a.id), 'type': 'artist', 'title': a.name,
+                        'subtitle': 'Исполнитель', 'cover': cover_url(getattr(getattr(a, 'cover', None), 'uri', None))})
+        return {'playlists': playlists, 'albums': albums, 'ownPlaylists': own_playlists,
+                'likedPlaylists': liked_playlists, 'artists': artist_cards,
+                'artistsError': 'Не удалось загрузить исполнителей' if isinstance(artist_data, Exception) else ''}
 
     async def home(self):
         result, history = await asyncio.gather(self.client.landing(['personalplaylists', 'new-releases']),

@@ -211,6 +211,20 @@ class StationClient(
             received.filterNotNull().first { it.revision > revision && test(it.json) }.json
         }
 
+    suspend fun playLocal(track:Track,url:String,position:Long,paused:Boolean,format:String):JSONObject {
+        fun varint(value:Int):ByteArray {var v=value;val out=java.io.ByteArrayOutputStream();while(v>127){out.write((v and 127) or 128);v=v ushr 7};out.write(v);return out.toByteArray()}
+        val body=JSONObject().put("stream",JSONObject().put("url",url).put("format","MP3").put("type","Track").put("id",track.id).put("offset_ms",position))
+            .put("metadata",JSONObject().put("title",track.title).put("subtitle",track.artist))
+        val out=java.io.ByteArrayOutputStream()
+        for((tag,text) in listOf(1 to "audio_play",2 to body.toString())){val bytes=text.toByteArray(Charsets.UTF_8);out.write(varint((tag shl 3) or 2));out.write(varint(bytes.size));out.write(bytes)}
+        var revision=received.value?.revision ?: 0
+        command(JSONObject().put("command","externalCommandBypass").put("data",android.util.Base64.encodeToString(out.toByteArray(),android.util.Base64.NO_WRAP)))
+        fun matches(s:JSONObject):Boolean {val p=s.optJSONObject("playerState") ?: return false;return p.text("id")==track.id && p.optDouble("duration")>0}
+        var confirmed=waitAfter(revision,12000){matches(it)&&it.optBoolean("playing")&&kotlin.math.abs((it.optJSONObject("playerState")?.optDouble("progress")?:0.0)-position/1000.0)<4}
+        if(paused){revision=received.value?.revision ?: 0;command(JSONObject().put("command","stop"));confirmed=waitAfter(revision,4000){matches(it)&&!it.optBoolean("playing")}}
+        return confirmed
+    }
+
     suspend fun play(track: Track, position: Long, paused: Boolean): JSONObject {
         var revision = received.value?.revision ?: 0
         command(JSONObject().put("command", "playMusic").put("id", track.id).put("type", "track"))

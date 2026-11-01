@@ -2,6 +2,7 @@
 """Authenticated Glagol transport. TLS pinned to the owner's device certificate."""
 from __future__ import annotations
 import asyncio
+import base64
 import hashlib
 import ipaddress
 import json
@@ -105,6 +106,35 @@ class Station:
             return state
         except asyncio.TimeoutError:
             raise ValueError('Станция не подтвердила продолжение с нужной позиции. Музыка на компьютере сохранена.') from None
+
+    async def play_local(self, track, url, position=0, paused=False):
+        def varint(value):
+            result = bytearray()
+            while value > 127:
+                result.append((value & 127) | 128)
+                value >>= 7
+            return bytes(result + bytes([value]))
+        payload = {'stream': {'url': url, 'format': 'MP3', 'type': 'Track', 'id': track['id'],
+                              'offset_ms': round(position * 1000)},
+                   'metadata': {'title': track['title'], 'subtitle': track.get('artist', '')}}
+        encoded = b''
+        for field, text in ((1, 'audio_play'), (2, json.dumps(payload, ensure_ascii=False, separators=(',', ':')))):
+            data = text.encode('utf-8')
+            encoded += varint((field << 3) | 2) + varint(len(data)) + data
+        revision = self.state_revision
+        await self.command({'command': 'externalCommandBypass', 'data': base64.b64encode(encoded).decode('ascii')})
+        def matches(state):
+            player = state.get('playerState') or {}
+            return str(player.get('id')) == track['id'] and float(player.get('duration') or 0) > 0
+        try:
+            state = await self.wait_state(lambda s: matches(s) and s.get('playing') and abs(float(s['playerState'].get('progress') or 0) - position) < 4, revision, timeout=12)
+            if paused:
+                revision = self.state_revision
+                await self.command({'command': 'stop'})
+                state = await self.wait_state(lambda s: matches(s) and not s.get('playing'), revision, timeout=4)
+            return state
+        except asyncio.TimeoutError:
+            raise ValueError('Станция не подтвердила локальный файл. Проверь, что устройства в одной сети и папка доступна.') from None
 
     async def connect(self):
         self.task = asyncio.create_task(self._run())

@@ -17,7 +17,12 @@ import {
   Copy,
   ExternalLink,
   Trash2,
+  Folder,
+  FileText,
+  Info,
+  ListPlus,
 } from "lucide-react";
+import { LocalPlaylistDialog } from "./LocalPlaylistDialog";
 import type { Card, State, Track } from "../types";
 import { bridge } from "../bridge";
 import {
@@ -143,6 +148,13 @@ export function TrackActionsProvider({
   children: ReactNode;
 }) {
   const [target, setTarget] = useState<MenuTarget | null>(null);
+  const [playlistTracks, setPlaylistTracks] = useState<Track[] | null>(null);
+  useEffect(() => {
+    const open = (event: Event) =>
+      setPlaylistTracks((event as CustomEvent<Track[]>).detail || []);
+    window.addEventListener("lad:local-playlist", open);
+    return () => window.removeEventListener("lad:local-playlist", open);
+  }, []);
   const menu: Actions["menu"] = (event, track, run, queueIndex) => {
     setTarget({ ...menuAnchor(event), track, play: run, queueIndex });
   };
@@ -182,6 +194,50 @@ export function TrackActionsProvider({
         run: () => like({ ...t, liked: !!isLiked }),
       },
     );
+    rows.push({
+      label: "Добавить в плейлист на устройстве",
+      icon: ListPlus,
+      separator: true,
+      run: () => setPlaylistTracks([t]),
+    });
+    if (t.id.startsWith("local-")) {
+      rows.push(
+        {
+          label: "Показать в папке",
+          icon: Folder,
+          separator: true,
+          run: () => bridge.localFiles?.("reveal", t.id),
+        },
+        {
+          label: "Найти файл заново",
+          icon: Folder,
+          run: () => bridge.localFiles?.("locate", t.id),
+        },
+        {
+          label: "Подключить текст LRC или TXT",
+          icon: FileText,
+          run: async () => {
+            const result = await bridge.localFiles?.("lyrics", t.id);
+            if (result) {
+              window.dispatchEvent(new Event("lad:lyrics-changed"));
+              notice("Текст песни подключён");
+            }
+          },
+        },
+        {
+          label: "О файле",
+          icon: Info,
+          run: async () => {
+            const info = await bridge.rpc<
+              Track & { sampleRate: number; channels: number }
+            >("localFileInfo", { id: t.id });
+            notice(
+              `${info.fileName} · ${info.format} · ${info.sampleRate} Гц · ${info.channels} кан.`,
+            );
+          },
+        },
+      );
+    }
     if (t.albumId)
       rows.push({
         label: "Перейти к альбому",
@@ -204,24 +260,25 @@ export function TrackActionsProvider({
         run: () => open({ id: artist.id, type: "artist", title: artist.name }),
       });
     const url = `https://music.yandex.ru/${t.albumId ? `album/${encodeURIComponent(t.albumId)}/` : ""}track/${encodeURIComponent(t.id)}`;
-    rows.push(
-      {
-        label: "Скопировать ссылку",
-        icon: Copy,
-        separator: true,
-        disabled: state.demo,
-        run: async () => {
-          await bridge.copy(url);
-          notice("Ссылка на трек скопирована");
+    if (!t.id.startsWith("local-"))
+      rows.push(
+        {
+          label: "Скопировать ссылку",
+          icon: Copy,
+          separator: true,
+          disabled: state.demo,
+          run: async () => {
+            await bridge.copy(url);
+            notice("Ссылка на трек скопирована");
+          },
         },
-      },
-      {
-        label: "Открыть в Яндекс Музыке",
-        icon: ExternalLink,
-        disabled: state.demo,
-        run: () => bridge.open(url),
-      },
-    );
+        {
+          label: "Открыть в Яндекс Музыке",
+          icon: ExternalLink,
+          disabled: state.demo,
+          run: () => bridge.open(url),
+        },
+      );
     const i = target.queueIndex;
     if (i !== undefined && state.queue.tracks[i]?.id === t.id)
       rows.push({
@@ -235,6 +292,13 @@ export function TrackActionsProvider({
   return (
     <TrackActions.Provider value={{ open, menu }}>
       {children}
+      {playlistTracks && (
+        <LocalPlaylistDialog
+          tracks={playlistTracks}
+          close={() => setPlaylistTracks(null)}
+          notice={notice}
+        />
+      )}
       {target && (
         <ContextMenu
           anchor={target}

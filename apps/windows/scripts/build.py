@@ -22,7 +22,9 @@ run(NPM, 'run', 'build')
 run(PYTHON, '-m', 'PyInstaller', '--noconfirm', '--clean', '--name', 'lad-backend',
     '--distpath', ROOT / 'build/backend', '--workpath', ROOT / 'build/pyinstaller',
     '--specpath', ROOT / 'build', '--paths', ROOT / 'backend', '--collect-all', 'yandex_music',
-    '--collect-all', 'zeroconf', '--collect-all', 'certifi', ROOT / 'backend/app.py')
+    '--collect-all', 'zeroconf', '--collect-all', 'certifi',
+    '--collect-all', 'mutagen', '--collect-all', 'PIL', '--collect-all', 'miniaudio',
+    '--hidden-import', '_miniaudio', '--hidden-import', '_cffi_backend', ROOT / 'backend/app.py')
 run(NPM, 'exec', 'electron-builder', '--', *(['--mac', 'dir'] if sys.platform == 'darwin' else ['--win', 'nsis', '--x64', '--publish', 'never']))
 
 if sys.platform == 'win32':

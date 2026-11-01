@@ -41,6 +41,27 @@ class MusicEngine(
     private val storage = Storage(context)
     private var accessToken = ""
     val api = YandexApi({ accessToken })
+    val localLibrary = LocalLibrary(context)
+    private val localMedia = LocalMediaServer(context, localLibrary)
+    private val localPcm = LocalPcmCache(context)
+    private suspend fun stationStream(t:Track,host:String):String {
+        val pcm=if(localLibrary.format(t.id) in setOf("FLAC","OGG","OPUS"))localPcm.prepare(localLibrary.uri(t.id),t.id) else null
+        return localMedia.url(t.id,host,pcm)
+    }
+    var chooseLocalFolder: (() -> Unit)? = null
+    private suspend fun stream(id:String):String = if(id.startsWith("local-track-")) withContext(Dispatchers.IO) {localLibrary.uri(id).toString()} else streamLoader?.invoke(id) ?: api.stream(id)
+    suspend fun collection(card:Card,page:Int=0):Catalog {
+        if(card.id=="local-all-liked") {
+            val local=withContext(Dispatchers.IO) {localLibrary.catalog(Card("local-liked","playlist","Мне нравится"))}
+            val remote=state.value.profile?.uid?.let {api.liked(it,limit=5000)} ?: Catalog()
+            return Catalog("Мне нравится",(remote.tracks+local.tracks).take(5000),total=remote.total+local.total)
+        }
+        return if(card.isLocal) withContext(Dispatchers.IO) {localLibrary.catalog(card)} else api.collection(card,page)
+    }
+    suspend fun lyrics(track:Track):Lyrics = if(track.isLocal) withContext(Dispatchers.IO) {localLibrary.lyrics(track.id)} else api.lyrics(track.id)
+    suspend fun addLocalFolder(uri:android.net.Uri) { localLibrary.add(uri) }
+    fun requestLocalFolder() { chooseLocalFolder?.invoke() ?: notice("Выбор папки пока недоступен") }
+
     val waveAudio = com.lad.music.wave.WaveAudio()
     val player =
         ExoPlayer.Builder(context, waveAudio.renderers(context)).build().apply {
@@ -66,10 +87,10 @@ class MusicEngine(
             .distinctUntilChanged()
             .stateIn(scope, SharingStarted.WhileSubscribed(5000), state.value.positionMs)
     val remoteWave by lazy {
-        com.lad.music.wave.RemoteWaveAudio(context, scope, { id -> api.stream(id) }) {
+        com.lad.music.wave.RemoteWaveAudio(context, scope, { id -> stream(id) }) {
             val s = state.value
             com.lad.music.wave.RemoteWavePlayback(s.track?.id, s.positionMs, s.playing,
-                s.output == "station" && s.connection == "connected" && !s.demo && s.profile != null)
+                s.output == "station" && s.connection == "connected" && !s.demo && (s.profile != null || s.track?.isLocal == true))
         }
     }
     private val mutableAuth = MutableStateFlow(AuthState())
@@ -81,6 +102,8 @@ class MusicEngine(
     private var stationAt = 0L
     private var stationPlaying = false
     private var stationDuration = 0L
+    private var stationFileEnded = false
+    private var stationPauseUntil = 0L
     private var demoAt = 0L
     private var radio: WaveSession? = null
     private val stationContinuity = StationContinuity()
@@ -170,6 +193,8 @@ class MusicEngine(
                 }
             }
         )
+        val localQueue = storage.queue("local-device")
+        if (localQueue.first.isNotEmpty()) update { it.copy(queue = localQueue.first, index = localQueue.second, owned = false) }
         task {
             accessToken =
                 runCatching { storage.token() }
@@ -229,12 +254,10 @@ class MusicEngine(
                         age < 2500 &&
                             s.owned &&
                             !s.loading &&
-                            s.playing &&
-                            s.durationMs > 0 &&
-                            position >= s.durationMs - 100 &&
+                            (stationFileEnded || (s.playing && s.durationMs > 0 && position >= s.durationMs - 100)) &&
                             !advancing
                     )
-                        task { advance(1, true) }
+                        { stationFileEnded=false; task { advance(1, true) } }
                 }
             }
         }
@@ -322,6 +345,7 @@ class MusicEngine(
         station?.close()
         station = null
         player.stop()
+        localMedia.close()
         accessToken = ""
         storage.token("")
         radio = null
@@ -366,7 +390,7 @@ class MusicEngine(
 
     fun persist() {
         state.value.let {
-            if (!it.demo && it.profile != null) storage.queue(it.profile.uid, it.queue, it.index)
+            if (!it.demo) {storage.queue(it.profile?.uid ?: "local-device", it.queue, it.index); if(it.queue.any {t->t.isLocal})storage.queue("local-device",it.queue.filter {t->t.isLocal},it.queue.take(it.index+1).count {t->t.isLocal}-1)}
         }
     }
 
@@ -381,7 +405,8 @@ class MusicEngine(
     private suspend fun checked(track: Track): Track {
         val s = state.value
         val fresh =
-            if (!s.demo && s.settings.blockExplicit)
+            if (track.isLocal) withContext(Dispatchers.IO) {localLibrary.resolve(track.id)}
+            else if (!s.demo && s.settings.blockExplicit)
                 api.tracks(listOf(track.id)).firstOrNull()?.copy(liked = track.liked)
                     ?: throw IllegalStateException("Не удалось проверить маркировку 18+")
             else track
@@ -402,6 +427,7 @@ class MusicEngine(
         metadata[t.id] = t
         foreground()
         expected = t.id.substringBefore(':')
+        stationFileEnded = false
         stationContinuity.reset()
         update {
             it.copy(
@@ -427,7 +453,7 @@ class MusicEngine(
                     }
                 }
                 old.output == "phone" -> {
-                    val url = streamLoader?.invoke(t.id) ?: api.stream(t.id)
+                    val url = stream(t.id)
                     requireOperation(epoch)
                     player.setMediaItem(
                         MediaItem.Builder()
@@ -451,7 +477,7 @@ class MusicEngine(
                 }
                 else -> {
                     val connected = station ?: throw IllegalStateException("Подключи Станцию")
-                    val confirmed = connected.play(t, position, paused)
+                    val confirmed = if(t.isLocal) connected.playLocal(t,stationStream(t,connected.device.host),position,paused,localLibrary.format(t.id)) else connected.play(t, position, paused)
                     requireOperation(epoch)
                     stationState(confirmed)
                     update { it.copy(loading = false) }
@@ -625,8 +651,8 @@ class MusicEngine(
                             return@playbackLock
                         } catch (e: Exception) {
                             if (
-                                !state.value.settings.blockExplicit ||
-                                    !e.message.orEmpty().contains("18+")
+                                e !is LocalFileUnavailable && (!state.value.settings.blockExplicit ||
+                                    !e.message.orEmpty().contains("18+"))
                             )
                                 throw e
                         }
@@ -695,6 +721,8 @@ class MusicEngine(
 
     suspend fun pause() {
         operationEpoch++
+        stationPauseUntil = SystemClock.elapsedRealtime()+3000
+        stationFileEnded = false
         update { it.copy(loading = false) }
         val s = state.value
         if (s.output == "station" && !s.demo) station?.command(JSONObject().put("command", "stop"))
@@ -714,7 +742,7 @@ class MusicEngine(
             demoAt = SystemClock.elapsedRealtime()
             update { it.copy(playing = true) }
         } else if (s.output == "station") {
-            if (stationContinuity.pending != null) {
+            if (t.isLocal) { playbackLock { start(s.index, s.positionMs) } } else if (stationContinuity.pending != null) {
                 if (radio != null) advance(1) else playbackLock { start(s.index, s.positionMs) }
             } else station?.command(JSONObject().put("command", "play"))
         } else if (player.currentMediaItem?.mediaId != t.id) {
@@ -818,7 +846,7 @@ class MusicEngine(
     suspend fun like(track: Track) {
         val s = state.value
         val liked = !track.liked
-        if (!s.demo) api.like(s.profile?.uid ?: error("Войди в аккаунт"), track.id, "track", liked)
+        if (track.isLocal) localLibrary.like(track.id,liked) else if (!s.demo) api.like(s.profile?.uid ?: error("Войди в аккаунт"), track.id, "track", liked)
         update {
             it.copy(
                 queue = it.queue.map { t -> if (t.id == track.id) t.copy(liked = liked) else t },
@@ -956,7 +984,7 @@ class MusicEngine(
             if (t != null) {
                 expected = t.id.substringBefore(':')
                 stationContinuity.reset()
-                val confirmed = candidate.play(t, position, !wasPlaying)
+                val confirmed = if(t.isLocal) candidate.playLocal(t,stationStream(t,selected.host),position,!wasPlaying,localLibrary.format(t.id)) else candidate.play(t, position, !wasPlaying)
                 requireOperation(epoch)
                 stationState(confirmed)
             }
@@ -979,6 +1007,7 @@ class MusicEngine(
         val id = p.text("id").substringBefore(':')
         val old = state.value
         if (old.output != "station") return
+        if(old.owned && old.track?.isLocal==true && id==expected && old.playing && !json.optBoolean("playing") && p.optDouble("duration")>2 && p.optDouble("progress")>=p.optDouble("duration")-1.5 && SystemClock.elapsedRealtime()>stationPauseUntil)stationFileEnded=true
         val incomingVolume =
             json.optDouble("volume", old.volume.toDouble()).toFloat().coerceIn(0f, 1f)
         val nearEnd =
@@ -1046,7 +1075,7 @@ class MusicEngine(
             stationContinuity.reset()
             notice("Музыку переключили вне Лада. Прежняя очередь сохранена.")
         }
-        if (t != null && cached == null && lastHydrated != id) {
+        if (t != null && !t.isLocal && cached == null && lastHydrated != id) {
             lastHydrated = id
             task {
                 val full = api.tracks(listOf(id)).firstOrNull() ?: return@task

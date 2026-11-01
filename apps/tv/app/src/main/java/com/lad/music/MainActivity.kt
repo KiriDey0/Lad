@@ -46,6 +46,10 @@ class MainActivity : Activity() {
     private var opened: Card? = null
     private val catalogCache = mutableMapOf<String, Catalog>()
     private var library = Library()
+    private var collectionSource = "all"
+    private var localPickerCurrent: java.io.File? = null
+    private var localPickerRoot: java.io.File? = null
+
     private var home = Catalog()
     private var libraryBody: FrameLayout? = null
     private var lyrics = Lyrics()
@@ -427,6 +431,9 @@ class MainActivity : Activity() {
                 View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
         volumeControlStream = android.media.AudioManager.STREAM_MUSIC
         engine = (application as LadApplication).engine
+        engine.chooseLocalFolder = { chooseLocalFolder() }
+        scope.launch { engine.localLibrary.revision.debounce(350).collect { if(page=="library")loadLibrary() } }
+
         font = ResourcesCompat.getFont(this, R.font.golos) ?: Typeface.SANS_SERIF
         lastInput = SystemClock.elapsedRealtime()
         build()
@@ -531,6 +538,11 @@ class MainActivity : Activity() {
             build(returnFocus)
             return
         }
+        if (modal == "local-folder" && localPickerCurrent != null) {
+            localPickerCurrent = if(localPickerCurrent==localPickerRoot)null else localPickerCurrent?.parentFile
+            build("local-folder-parent")
+            return
+        }
         if (modal != null) {
             modal = null
             build(returnFocus)
@@ -621,7 +633,7 @@ class MainActivity : Activity() {
             else -> homePage()
         }
         if (page !in listOf("login", "player", "lyrics")) navRail()
-        if (s.profile != null && page !in listOf("login", "player", "lyrics", "search", "settings"))
+        if ((s.profile != null || s.track?.isLocal==true) && page !in listOf("login", "player", "lyrics", "search", "settings"))
             miniPlayer()
         if (s.profile != null && page != "login" && !ambient) outputPickerButton()
         if (menu) drawMenu()
@@ -779,7 +791,7 @@ class MainActivity : Activity() {
     }
 
     private fun loadLibrary() {
-        if (libraryLoading || s.profile == null) return
+        if (libraryLoading) return
         libraryLoading = true
         fetch {
             try {
@@ -791,7 +803,12 @@ class MainActivity : Activity() {
                                 listOf(Card("demo-album", "album", "Тихий город", "Лад Session")),
                             artists = listOf(Card("demo-artist", "artist", "Лад Session")),
                         )
-                    else engine.api.library(s.profile!!.uid)
+                    else if(s.profile!=null && collectionSource!="local")engine.api.library(s.profile!!.uid) else Library()
+                if(collectionSource!="yandex") {
+                    val local=withContext(Dispatchers.IO) {engine.localLibrary.library()}
+                    library=library.copy(playlists=library.playlists+local.playlists,albums=library.albums+local.albums,artists=library.artists+local.artists)
+                }
+                catalogCache.keys.filter {it.contains("local-")}.forEach {catalogCache.remove(it)}
             } finally {
                 libraryLoading = false
             }
@@ -813,7 +830,7 @@ class MainActivity : Activity() {
                 val value =
                     if (s.demo) Catalog(card.title, MusicEngine.demoTracks)
                     else if (card.type == "liked") engine.api.liked(s.profile!!.uid)
-                    else engine.api.collection(card)
+                    else engine.collection(card)
                 catalogCache[card.key] = value
                 if (opened?.key == card.key) {
                     catalog = value
@@ -965,7 +982,13 @@ class MainActivity : Activity() {
     }
 
     private fun libraryPage() {
-        label(pageLayer, "Коллекция", 260, 152, 1500, 58, 48, ink, true)
+        label(pageLayer, "Коллекция", 260, 152, 650, 58, 48, ink, true)
+        for((i,pair) in listOf("all" to "Всё","yandex" to "Яндекс Музыка","local" to "На устройстве").withIndex()) {
+            val v=button(pageLayer,"collection-source-$i",pair.second,970+i*284,152,264,52) {collectionSource=pair.first;tab="Плейлисты";loadLibrary()}
+            if(collectionSource==pair.first)v.background=round(raised,16)
+        }
+        button(pageLayer,"local-add","Добавить папку",1450,368,374,56) {chooseLocalFolder()}
+
         val fav = frame(pageLayer, 248, 216, 1576, 120, surface)
         val heart = frame(fav, 20, 20, 80, 80, raised)
         symbol(heart, "heart", 16, 16, 48)
@@ -975,7 +998,7 @@ class MainActivity : Activity() {
             fetch {
                 val c =
                     if (s.demo) Catalog("Мне нравится", MusicEngine.demoTracks)
-                    else engine.api.liked(s.profile!!.uid)
+                    else engine.collection(Card(if(collectionSource=="local")"local-liked" else "local-all-liked","playlist","Мне нравится"))
                 val first =
                     c.tracks.indexOfFirst {
                         it.available && (!s.settings.blockExplicit || !it.explicit)
@@ -986,7 +1009,7 @@ class MainActivity : Activity() {
         }
         val open =
             button(fav, "liked-open", "Открыть", 1389, 28, 167) {
-                openCollection(Card("liked", "liked", "Мне нравится"))
+                openCollection(if(s.demo)Card("liked","liked","Мне нравится") else Card(if(collectionSource=="local")"local-liked" else "local-all-liked","playlist","Мне нравится"))
             }
         open.background = round(Color.TRANSPARENT)
         val tabs =
@@ -994,6 +1017,8 @@ class MainActivity : Activity() {
                 Triple("Плейлисты", 248, 158),
                 Triple("Альбомы", 422, 135),
                 Triple("Исполнители", 573, 181),
+                Triple("Папки", 775, 140),
+                Triple("Треки", 935, 140),
             )
         for ((i, t) in tabs.withIndex()) {
             val v =
@@ -1010,9 +1035,9 @@ class MainActivity : Activity() {
 
     private fun selectLibraryTab(index: Int, value: String) {
         if (tab == value) return
-        val previous = listOf("Плейлисты", "Альбомы", "Исполнители").indexOf(tab)
+        val previous = listOf("Плейлисты", "Альбомы", "Исполнители", "Папки", "Треки").indexOf(tab)
         tab = value
-        for (i in 0..2) buttons["tab-$i"]?.let {
+        for (i in 0..4) buttons["tab-$i"]?.let {
             it.isActivated = i == index
             it.background =
                 round(
@@ -1048,6 +1073,21 @@ class MainActivity : Activity() {
             actions.remove(it)
         }
         body.removeAllViews()
+        if(tab=="Папки") {
+            val folders=engine.localLibrary.folders()
+            body.layoutParams=body.layoutParams.apply {height=px((folders.size*116+100).coerceAtLeast(624))}
+            for((i,f) in folders.withIndex()) {
+                button(body,"lib-folder-$i",f.name+" · ${f.count} треков",0,i*116,880,84) {openCollection(Card(f.id,"album",f.name))}
+                button(body,"lib-folder-refresh-$i","Обновить",900,i*116,280,84) {engine.task {engine.localLibrary.scan(f.id)}}
+                button(body,"lib-folder-remove-$i","Убрать из Лада",1200,i*116,350,84) {engine.localLibrary.remove(f.id);loadLibrary()}
+            }
+            if(folders.isEmpty())paragraph(body,"Добавь папку с музыкой. Файлы останутся на накопителе.",12,30,1480,120,30)
+            return
+        }
+        if(tab=="Треки") {
+            button(body,"lib-local-tracks","Открыть все локальные треки",0,0,900,80) {openCollection(Card("local-tracks","playlist","На устройстве"))}
+            return
+        }
         val items =
             when (tab) {
                 "Альбомы" -> library.albums
@@ -1194,7 +1234,7 @@ class MainActivity : Activity() {
                     build("load-more")
                 } else
                     fetch {
-                        val next = engine.api.collection(c, catalog.tracks.size / 100)
+                        val next = engine.collection(c, catalog.tracks.size / 100)
                         catalog =
                             catalog.copy(
                                 tracks = catalog.tracks + next.tracks,
@@ -1467,7 +1507,7 @@ class MainActivity : Activity() {
                                     .mapIndexed { i, line -> LyricLine(i * 9000L, line) },
                                 true,
                             )
-                        else engine.api.lyrics(t.id)
+                        else engine.lyrics(t)
                     if (s.track?.id == t.id) lyrics = value
                 } catch (e: CancellationException) {
                     throw e
@@ -1999,12 +2039,53 @@ class MainActivity : Activity() {
         }
     }
 
+    private fun chooseLocalFolder() {
+        if(Build.VERSION.SDK_INT>=29) {
+            val intent=android.content.Intent(android.content.Intent.ACTION_OPEN_DOCUMENT_TREE).addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or android.content.Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
+            if(intent.resolveActivity(packageManager)!=null){startActivityForResult(intent,705);return}
+        }
+        if(Build.VERSION.SDK_INT>=33) {engine.notice("На этом телевизоре нет системного выбора папок. Установи совместимый файловый провайдер.");return}
+        if(checkSelfPermission(android.Manifest.permission.READ_EXTERNAL_STORAGE)!=android.content.pm.PackageManager.PERMISSION_GRANTED) {requestPermissions(arrayOf(android.Manifest.permission.READ_EXTERNAL_STORAGE),704);return}
+        localPickerCurrent=null;localPickerRoot=null;showModal("local-folder")
+    }
+    override fun onRequestPermissionsResult(requestCode:Int,permissions:Array<out String>,grantResults:IntArray) {
+        super.onRequestPermissionsResult(requestCode,permissions,grantResults)
+        if(requestCode==704)if(grantResults.firstOrNull()==android.content.pm.PackageManager.PERMISSION_GRANTED)chooseLocalFolder() else engine.notice("Для выбора папки нужен доступ к файлам")
+    }
+    override fun onActivityResult(requestCode:Int,resultCode:Int,data:android.content.Intent?) {
+        super.onActivityResult(requestCode,resultCode,data)
+        if(requestCode==705 && resultCode==RESULT_OK)data?.data?.let {uri->
+            runCatching {contentResolver.takePersistableUriPermission(uri,android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)}.onSuccess {engine.task {engine.addLocalFolder(uri)}}.onFailure {engine.notice("Не удалось сохранить доступ к папке")}
+        }
+    }
+    private fun drawLocalFolderPicker(dim:FrameLayout) {
+        val panel=glass(dim,300,92,1420,896)
+        label(panel,"Папка с музыкой",40,32,1210,56,40,ink,true)
+        val current=localPickerCurrent
+        label(panel,current?.path ?: "Выбери накопитель",40,100,1310,48,24,muted)
+        button(panel,"local-folder-parent",if(current==null)"Закрыть" else "← Назад",40,160,300,56) {
+            if(current==null){modal=null;build(returnFocus)}else{localPickerCurrent=if(current==localPickerRoot)null else current.parentFile;build("local-folder-parent")}
+        }
+        val entries=if(current==null) {
+            listOf(android.os.Environment.getExternalStorageDirectory())+java.io.File("/storage").listFiles().orEmpty().filter {it.isDirectory&&Regex("[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}").matches(it.name)}
+        } else current.listFiles().orEmpty().filter {it.isDirectory&&!it.name.startsWith('.')&&!java.nio.file.Files.isSymbolicLink(it.toPath())}.sortedBy {it.name.lowercase()}
+        val scroll=ScrollView(this).apply {isVerticalScrollBarEnabled=false;clipToPadding=false}
+        val content=FrameLayout(this)
+        scroll.addView(content,FrameLayout.LayoutParams(-1,px((entries.size*68).coerceAtLeast(450))))
+        place(panel,scroll,40,238,1340,490);scrolls["local-picker"]=scroll
+        entries.forEachIndexed {i,file->button(content,"local-folder-entry-$i",file.name.ifBlank {file.path},0,i*68,1310,56) {if(current==null)localPickerRoot=file;localPickerCurrent=file;build("local-folder-parent")}}
+        if(entries.isEmpty())label(content,"Вложенных папок нет",12,24,1200,48,26,muted)
+        if(current!=null)button(panel,"local-folder-select","Выбрать эту папку",40,780,820,64) {modal=null;build(returnFocus);engine.task {engine.addLocalFolder(android.net.Uri.fromFile(current));loadLibrary()}}
+        button(panel,"local-folder-cancel","Отмена",890,780,490,64) {modal=null;build(returnFocus)}
+    }
+
     private fun drawModal(type: String) {
         if (type == "move") return
         buttons.values.forEach { it.isFocusable = false }
         buttons.clear()
         actions.clear()
         val dim = frame(overlay, 0, 0, 1920, 1080, Color.argb(128, 0, 0, 0))
+        if (type == "local-folder") {drawLocalFolderPicker(dim);return}
         if (type == "updates") {
             drawUpdates(dim)
             return
@@ -2140,7 +2221,7 @@ class MainActivity : Activity() {
                 y = 172
                 suspend fun tracks() =
                     if (catalogCache.containsKey(c.key)) catalogCache[c.key]!!.tracks
-                    else if (s.demo) MusicEngine.demoTracks else engine.api.collection(c).tracks
+                    else if (s.demo) MusicEngine.demoTracks else engine.collection(c).tracks
                 choice("action-play", "Слушать") {
                     modal = null
                     fetch {
