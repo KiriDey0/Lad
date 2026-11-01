@@ -15,16 +15,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
-@Composable fun CollectionSources(source:String,select:(String)->Unit,engine:MusicEngine,open:(Card)->Unit,folders:()->Unit) {
+@Composable fun CollectionSources(source:String,select:(String)->Unit,engine:MusicEngine) {
     LazyRow(horizontalArrangement=Arrangement.spacedBy(8.dp),contentPadding=PaddingValues(vertical=4.dp)) {
         items(listOf("all" to "Всё","yandex" to "Яндекс Музыка","local" to "На устройстве")) { (id,title)->
             FilterChip(source==id,{select(id)},label={Label(title,12,maxLines=1)})
         }
         item {Tool(Icons.Outlined.CreateNewFolder,"Добавить папку",onClick={engine.requestLocalFolder()})}
-    }
-    if(source!="yandex")Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(12.dp)) {
-        Action("Папки",Icons.Outlined.Folder,onClick=folders)
-        Action("Треки",Icons.Outlined.MusicNote,onClick={open(Card("local-tracks","playlist","На устройстве"))})
     }
 }
 
