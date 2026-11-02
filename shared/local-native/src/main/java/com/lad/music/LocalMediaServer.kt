@@ -36,6 +36,7 @@ class LocalMediaServer(private val context:Context,private val library:LocalLibr
     private var host=""
     private var token=""
     private val prepared=ConcurrentHashMap<String,java.io.File>()
+    private val reads=ConcurrentHashMap<String,LocalTransferRead>()
     private val connections=ConcurrentHashMap.newKeySet<Socket>()
     private val workers=Executors.newFixedThreadPool(3) { r->Thread(r,"lad-local-transfer").apply {isDaemon=true} }
     @Synchronized fun url(id:String,address:String,pcm:java.io.File?=null):String {
@@ -56,9 +57,12 @@ class LocalMediaServer(private val context:Context,private val library:LocalLibr
             },"lad-local-listener").apply {isDaemon=true;start()}
         }
         if(pcm!=null)prepared[id]=pcm else prepared.remove(id)
+        reads[id]=LocalTransferRead()
         return "http://$host:${server!!.localPort}/$token/$id"
     }
     private fun serve(socket:Socket) {
+        var read:LocalTransferRead?=null
+        try {
         val input=BufferedInputStream(socket.getInputStream())
         var headerBytes=0
         fun line():String {
@@ -69,14 +73,14 @@ class LocalMediaServer(private val context:Context,private val library:LocalLibr
         val request=line().split(' ')
         val out=socket.getOutputStream()
         fun header(status:String,fields:Map<String,String> = emptyMap()) {
+            read?.status=status.substringBefore(' ').toInt()
             val text="HTTP/1.1 $status\r\nConnection: close\r\nCache-Control: no-store\r\n"+fields.entries.joinToString(""){"${it.key}: ${it.value}\r\n"}+"\r\n"
             out.write(text.toByteArray(Charsets.US_ASCII))
         }
         if(request.size!=3 || request[0] !in setOf("GET","HEAD")){header("405 Method Not Allowed");return}
-        val prefix="/$token/"
-        if(!request[1].startsWith(prefix)){header("404 Not Found");return}
-        val id=request[1].removePrefix(prefix)
-        if(!Regex("local-track-[a-f0-9]{32}").matches(id)){header("404 Not Found");return}
+        val id=localAudioRequestId(request[1],token) ?: run {header("404 Not Found");return}
+        read=reads[id]
+        read?.requested=true
         var rangeHeader:String?=null
         while(true){val h=line();if(h.isEmpty())break;if(h.substringBefore(':').equals("Range",true))rangeHeader=h.substringAfter(':').trim()}
         val uri=try{library.uri(id)}catch(e:Exception){header("404 Not Found");return}
@@ -93,13 +97,19 @@ class LocalMediaServer(private val context:Context,private val library:LocalLibr
             if(request[0]=="HEAD")return
             file.channel.position(range.start)
             val buffer=ByteArray(64*1024);var left=length
-            while(left>0){val n=file.read(buffer,0,minOf(left,buffer.size.toLong()).toInt());if(n<0)break;out.write(buffer,0,n);left-=n}
+            while(left>0){val n=file.read(buffer,0,minOf(left,buffer.size.toLong()).toInt());if(n<0)break;out.write(buffer,0,n);read?.bytes?.addAndGet(n.toLong());left-=n}
         }
         out.flush()
+        } catch(error:Exception) {
+            read?.failure=error.javaClass.simpleName
+            throw error
+        }
     }
+    internal fun diagnostics(id:String):String = reads[id]?.describe() ?: "Нет данных о запросе аудиофайла."
     @Synchronized fun close() {
         runCatching {server?.close()};server=null
         connections.forEach {runCatching {it.close()}};connections.clear()
         prepared.clear()
+        reads.clear()
     }
 }
