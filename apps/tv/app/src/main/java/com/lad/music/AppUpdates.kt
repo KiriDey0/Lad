@@ -42,13 +42,27 @@ class AppUpdates(private val context:Context) {
     private var file:File?=null
     private var awaitingPermission=false
     private var installerLaunched=false
-    private val platform=if(BuildConfig.APPLICATION_ID.contains(".tv")) "android-tv-armv7" else "android"
+    private val platform=if(context.packageName.contains(".tv")) "android-tv-armv7" else "android"
     init {
         task=scope.launch { runCatching {
-            val text=File(dir,"ready.json").readText();val r=UpdateProtocol.verify(text,platform,BuildConfig.VERSION_NAME,BuildConfig.VERSION_CODE.toLong(),BuildConfig.APPLICATION_ID)
+            val text=File(dir,"ready.json").readText();val r=verifyRelease(text)
             if(r.newer) { val f=File(dir,r.name);if(f.length()==r.size){envelope=text;release=r;file=f;mutable.value=UpdateState("ready",r.version,100,notes=r.notes,size=r.size)} }
             else { File(dir,r.name).delete();File(dir,"ready.json").delete() }
         } }
+    }
+    private fun verifyRelease(text:String):UpdateRelease {
+        val current=installedAppVersion(context)
+        return UpdateProtocol.verify(text,platform,current.name,current.build,context.packageName)
+    }
+    private fun reconcileInstalled():Boolean {
+        val target=release ?: return false
+        val installed=installedAppVersion(context)
+        if(!updateAlreadyInstalled(target,installed))return false
+        val old=file
+        release=null;file=null;envelope="";awaitingPermission=false;installerLaunched=false
+        mutable.value=UpdateState("current",installed.name,message="Обновление установлено")
+        scope.launch { old?.delete();File(dir,"ready.json").delete() }
+        return true
     }
     private fun fetch(url:String,manifest:Boolean=false):Response {
         var next=url
@@ -74,7 +88,7 @@ class AppUpdates(private val context:Context) {
             mutable.value=mutable.value.copy(phase="checking",message="",progress=0)
             try {
                 val text=fetch(UpdateProtocol.FEED,true).use { r -> val out=java.io.ByteArrayOutputStream();r.body!!.byteStream().use { input -> val buffer=ByteArray(8192);while(true){val n=input.read(buffer);if(n<0)break;require(out.size()+n<=262144){"Описание обновления слишком большое"};out.write(buffer,0,n)} };String(out.toByteArray(),Charsets.UTF_8) }
-                val r=UpdateProtocol.verify(text,platform,BuildConfig.VERSION_NAME,BuildConfig.VERSION_CODE.toLong(),BuildConfig.APPLICATION_ID)
+                val r=verifyRelease(text)
                 ensureActive();release=if(r.newer)r else null;envelope=text;file=null
                 File(dir,"ready.json").delete()
                 mutable.value=UpdateState(if(r.newer)"available" else "current",r.version,notes=r.notes,size=r.size)
@@ -122,6 +136,7 @@ class AppUpdates(private val context:Context) {
         mutable.value=mutable.value.copy(phase=if(release!=null)"available" else "idle",progress=0,message="")
     }
     fun install(activity:Activity) {
+        if(reconcileInstalled())return
         val f=file ?: return;val r=release ?: return
         if(task?.isActive==true)return
         task=scope.launch {
@@ -144,7 +159,8 @@ class AppUpdates(private val context:Context) {
         activity.startActivity(intent)
     }
     fun onResume(activity:Activity) {
+        if(reconcileInstalled())return
         if(awaitingPermission){awaitingPermission=false;if(context.packageManager.canRequestPackageInstalls())file?.let { runCatching { launchInstaller(activity,it) }.onFailure {mutable.value=mutable.value.copy(phase="ready",message="Нажми «Установить обновление» ещё раз")} }}
-        else if(installerLaunched){installerLaunched=false;mutable.value=mutable.value.copy(phase="ready",message="Можно повторить установку")}
+        else if(installerLaunched){installerLaunched=false;mutable.value=mutable.value.copy(phase="ready",message="Установка не завершена. Можно повторить")}
     }
 }

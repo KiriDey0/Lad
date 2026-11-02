@@ -287,7 +287,7 @@ fun SettingsView(s: MusicState, engine: MusicEngine, modifier: Modifier, bottom:
         }
         UpdatesCard()
         Label(
-            "Лад · Android ${BuildConfig.VERSION_NAME}\nНеофициальный клиент Яндекс Музыки",
+            "Лад · Android ${installedAppVersion(androidx.compose.ui.platform.LocalContext.current).name}\nНеофициальный клиент Яндекс Музыки",
             12,
             p.muted,
         )
