@@ -52,9 +52,16 @@ class WaveMotion(val count: Int = 300, seed: Long = 7193) {
 
     private var time = 0.0
 
-    private class Edge(val i: Int, val j: Int, var reach: Double, var alpha: Double = 0.0)
+    private class Edge(val i: Int, val j: Int, var reach: Double, var alpha: Double = 0.0, var selected: Boolean = false)
 
-    private data class Candidate(val i: Int, val j: Int, val distance: Double, val reach: Double)
+    private class Candidate(var i: Int = 0, var j: Int = 0, var distance: Double = 0.0, var reach: Double = 0.0)
+    private val grid = HashMap<Int, MutableList<Int>>()
+    private val candidatePool = ArrayList<Candidate>()
+    private val candidates = ArrayList<Candidate>()
+    private val degree = IntArray(count)
+    private var topologyAge = Double.POSITIVE_INFINITY
+    internal var topologyBuilds = 0
+        private set
 
     private val edges = HashMap<Int, Edge>()
 
@@ -121,42 +128,16 @@ class WaveMotion(val count: Int = 300, seed: Long = 7193) {
             n.y = smooth(n.y, y * excursion, dt * n.follow / tune.response)
         }
         updatePoints()
-        val grid = HashMap<Int, MutableList<Int>>()
-        fun key(x: Int, y: Int) = (x + 128) * 256 + y + 128
-        for (i in 0 until count) {
-            val x = floor(points[i * 4] / .082).toInt()
-            val y = floor(points[i * 4 + 1] / .082).toInt()
-            grid.getOrPut(key(x, y)) { ArrayList() }.add(i)
-        }
-        val candidates = ArrayList<Candidate>()
-        for (i in 0 until count) {
-            val x = points[i * 4]
-            val y = points[i * 4 + 1]
-            val cx = floor(x / .082).toInt()
-            val cy = floor(y / .082).toInt()
-            for (dy in -1..1) for (dx in -1..1) for (j in grid[key(cx + dx, cy + dy)].orEmpty()) {
-                if (j <= i) continue
-                val d = hypot((x - points[j * 4]).toDouble(), (y - points[j * 4 + 1]).toDouble())
-                val reach = .066 + .014 * (nodes[i].energy + nodes[j].energy) * .5
-                if (d < reach) candidates.add(Candidate(i, j, d, reach))
-            }
-        }
-        candidates.sortBy { it.distance }
-        val degree = IntArray(count)
-        val chosen = HashSet<Int>()
-        for (c in candidates) {
-            if (degree[c.i] >= 4 || degree[c.j] >= 4) continue
-            degree[c.i]++
-            degree[c.j]++
-            val k = c.i * count + c.j
-            chosen.add(k)
-            edges.getOrPut(k) { Edge(c.i, c.j, c.reach) }.reach = c.reach
+        topologyAge += dt
+        if (topologyAge >= 1.0 / 15 - 1e-9) {
+            selectNeighbours()
+            topologyAge = 0.0
         }
         lineCount = 0
         val iterator = edges.iterator()
         while (iterator.hasNext()) {
             val (k, e) = iterator.next()
-            val on = chosen.contains(k)
+            val on = e.selected
             e.alpha = smooth(e.alpha, if (on) 1.0 else 0.0, dt / ((if (on) .16 else .32) * sqrt(tune.response)))
             if (!on && e.alpha < .008) {
                 iterator.remove()
@@ -179,6 +160,50 @@ class WaveMotion(val count: Int = 300, seed: Long = 7193) {
             lineCount += 2
         }
     }
+    private fun selectNeighbours() {
+        topologyBuilds++
+        for (bucket in grid.values) bucket.clear()
+        fun key(x: Int, y: Int) = (x + 128) * 256 + y + 128
+        for (i in 0 until count) {
+            val x = floor(points[i * 4] / .082).toInt()
+            val y = floor(points[i * 4 + 1] / .082).toInt()
+            grid.getOrPut(key(x, y)) { ArrayList() }.add(i)
+        }
+        candidates.clear()
+        for (i in 0 until count) {
+            val x = points[i * 4]
+            val y = points[i * 4 + 1]
+            val cx = floor(x / .082).toInt()
+            val cy = floor(y / .082).toInt()
+            for (dy in -1..1) for (dx in -1..1) for (j in grid[key(cx + dx, cy + dy)].orEmpty()) {
+                if (j <= i) continue
+                val ax = (x - points[j * 4]).toDouble()
+                val ay = (y - points[j * 4 + 1]).toDouble()
+                val d = ax * ax + ay * ay
+                val reach = .066 + .014 * (nodes[i].energy + nodes[j].energy) * .5
+                if (d < reach * reach) {
+                    val index = candidates.size
+                    if (index == candidatePool.size) candidatePool.add(Candidate())
+                    val c = candidatePool[index]
+                    c.i = i; c.j = j; c.distance = d; c.reach = reach
+                    candidates.add(c)
+                }
+            }
+        }
+        candidates.sortBy { it.distance }
+        degree.fill(0)
+        for (e in edges.values) e.selected = false
+        for (c in candidates) {
+            if (degree[c.i] >= 4 || degree[c.j] >= 4) continue
+            degree[c.i]++
+            degree[c.j]++
+            val k = c.i * count + c.j
+            val edge = edges.getOrPut(k) { Edge(c.i, c.j, c.reach) }
+            edge.selected = true
+            edge.reach = c.reach
+        }
+    }
+
 }
 
 /** Log compression and independent band envelopes. Silence stays silent. */

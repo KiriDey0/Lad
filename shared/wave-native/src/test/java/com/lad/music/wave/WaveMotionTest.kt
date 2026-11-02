@@ -6,6 +6,16 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class WaveMotionTest {
+    @Test fun neighbourSelectionHasAnIndependent15HzBudget() {
+        for (fps in listOf(20, 30, 60, 120, 144)) {
+            val sim = WaveMotion(90)
+            repeat(fps * 3) { sim.step(1.0 / fps, floatArrayOf(.5f,.3f,0f,0f,0f,0f,0f,0f)) }
+            assertTrue("fps=$fps builds=${sim.topologyBuilds}", sim.topologyBuilds in 29..46)
+            assertTrue(sim.lineCount > 0)
+            assertTrue(sim.points.all { it.isFinite() })
+        }
+    }
+
     @Test fun smoothingChangesReactionWithoutFreezingOrChangingTheDefault() {
         fun trace(smoothing: Float): Pair<Double, Int> {
             val music = WaveMotion(90)

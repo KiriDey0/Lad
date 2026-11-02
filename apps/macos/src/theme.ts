@@ -9,6 +9,7 @@ export type Theme = {
   scale: number;
   waveIntensity: number;
   waveSmoothing: number;
+  waveQuality: "auto" | "eco" | "smooth";
 };
 export const defaultTheme: Theme = {
   base: "dark",
@@ -19,6 +20,7 @@ export const defaultTheme: Theme = {
   scale: 85,
   waveIntensity: 100,
   waveSmoothing: 50,
+  waveQuality: "auto",
 };
 export function loadTheme(): Theme {
   try {
@@ -32,6 +34,7 @@ export function loadTheme(): Theme {
         : defaultTheme.scale;
     theme.waveIntensity = Number.isFinite(theme.waveIntensity) ? Math.max(0, Math.min(100, theme.waveIntensity)) : 100;
     theme.waveSmoothing = Number.isFinite(theme.waveSmoothing) ? Math.max(0, Math.min(100, theme.waveSmoothing)) : 50;
+    if (!["auto", "eco", "smooth"].includes(theme.waveQuality)) theme.waveQuality = "auto";
     return theme;
   } catch {
     return defaultTheme;

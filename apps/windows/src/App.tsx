@@ -799,6 +799,7 @@ export default function App() {
                           }
                           intensity={theme.waveIntensity}
                           smoothing={theme.waveSmoothing}
+                          quality={theme.waveQuality}
                         />
                         <div className="wave-heading">
                           <span className="eyebrow">ТВОЙ РИТМ</span>
@@ -2954,6 +2955,18 @@ function SettingsPage({
               }
             />
             <span>{theme.waveIntensity}%</span>
+          </div>
+        </div>
+        <div className="setting-row">
+          <div>
+            <strong>Режим волны</strong>
+            <p>{theme.waveQuality === "eco" ? "20 FPS для минимальной нагрузки." : theme.waveQuality === "smooth" ? "До 60 FPS с приоритетом плавности." : "До 60 FPS, меньше при высокой нагрузке."} Экономия энергии и перегрев всегда в приоритете.</p>
+          </div>
+          <div className="segmented" role="group" aria-label="Режим волны">
+            {([["auto", "Авто"], ["eco", "Экономный"], ["smooth", "Плавный"]] as const).map(([value, label]) => (
+              <button key={value} className={clsx(theme.waveQuality === value && "active")}
+                aria-pressed={theme.waveQuality === value} onClick={() => update({ waveQuality: value })}>{label}</button>
+            ))}
           </div>
         </div>
         <div className="setting-row">

@@ -6,6 +6,12 @@ export class WebSimulation {
     this.count = count;
     this.time = 0;
     this.edges = new Map();
+    this.grid = new Map();
+    this.candidatePool = [];
+    this.candidates = [];
+    this.degree = new Uint8Array(count);
+    this.topologyAge = Infinity;
+    this.topologyBuilds = 0;
     this.points = new Float32Array(count * 4);
     const random = () => {
       seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
@@ -107,53 +113,15 @@ export class WebSimulation {
       n.wanderY = smooth(n.wanderY, y * excursion, dt * n.follow / tune.response);
     }
     this.updatePoints();
-    const reach = 0.08,
-      cellSize = 0.082,
-      grid = new Map();
-    const key = (x, y) => x + "," + y;
-    for (let i = 0; i < this.count; i++) {
-      const x = Math.floor(this.points[i * 4] / cellSize),
-        y = Math.floor(this.points[i * 4 + 1] / cellSize),
-        k = key(x, y);
-      if (!grid.has(k)) grid.set(k, []);
-      grid.get(k).push(i);
-    }
-    const candidates = [];
-    for (let i = 0; i < this.count; i++) {
-      const x = this.points[i * 4],
-        y = this.points[i * 4 + 1],
-        cx = Math.floor(x / cellSize),
-        cy = Math.floor(y / cellSize);
-      for (let dy = -1; dy <= 1; dy++)
-        for (let dx = -1; dx <= 1; dx++)
-          for (const j of grid.get(key(cx + dx, cy + dy)) || []) {
-            if (j <= i) continue;
-            const d = Math.hypot(
-              x - this.points[j * 4],
-              y - this.points[j * 4 + 1],
-            );
-            const localReach =
-              0.066 +
-              0.014 * (this.nodes[i].energy + this.nodes[j].energy) * 0.5;
-            if (d < localReach) candidates.push({ i, j, d, reach: localReach });
-          }
-    }
-    candidates.sort((a, b) => a.d - b.d);
-    const degree = new Uint8Array(this.count),
-      chosen = new Set();
-    for (const c of candidates) {
-      if (degree[c.i] >= 4 || degree[c.j] >= 4) continue;
-      degree[c.i]++;
-      degree[c.j]++;
-      const k = c.i * this.count + c.j;
-      chosen.add(k);
-      if (!this.edges.has(k))
-        this.edges.set(k, { i: c.i, j: c.j, alpha: 0, reach: c.reach });
-      this.edges.get(k).reach = c.reach;
+    // Motion and fading remain per-frame; neighbour selection has a 15 Hz budget.
+    this.topologyAge += dt;
+    if (this.topologyAge >= 1 / 15 - 1e-9) {
+      this.selectNeighbours();
+      this.topologyAge = 0;
     }
     this.lineCount = 0;
     for (const [k, e] of this.edges) {
-      const on = chosen.has(k);
+      const on = e.selected;
       e.alpha = smooth(e.alpha, on ? 1 : 0, dt / ((on ? 0.16 : 0.32) * Math.sqrt(tune.response)));
       if (!on && e.alpha < 0.008) {
         this.edges.delete(k);
@@ -164,7 +132,7 @@ export class WebSimulation {
         bx = this.points[e.j * 4],
         by = this.points[e.j * 4 + 1],
         d = Math.hypot(ax - bx, ay - by);
-      const near = Math.max(0, 1 - d / (e.reach || reach)),
+      const near = Math.max(0, 1 - d / e.reach),
         visibility =
           e.alpha *
           (0.085 + 0.16 * near * near) *
@@ -181,4 +149,52 @@ export class WebSimulation {
     }
     return this;
   }
+  selectNeighbours() {
+    this.topologyBuilds++;
+    const grid = this.grid, cellSize = 0.082;
+    const key = (x, y) => x * 65536 + y;
+    for (const bucket of grid.values()) bucket.length = 0;
+    for (let i = 0; i < this.count; i++) {
+      const k = key(Math.floor(this.points[i * 4] / cellSize), Math.floor(this.points[i * 4 + 1] / cellSize));
+      let bucket = grid.get(k);
+      if (!bucket) grid.set(k, bucket = []);
+      bucket.push(i);
+    }
+    let used = 0;
+    const candidates = this.candidates, pool = this.candidatePool;
+    for (let i = 0; i < this.count; i++) {
+      const x = this.points[i * 4], y = this.points[i * 4 + 1];
+      const cx = Math.floor(x / cellSize), cy = Math.floor(y / cellSize);
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        const bucket = grid.get(key(cx + dx, cy + dy));
+        if (!bucket) continue;
+        for (const j of bucket) {
+          if (j <= i) continue;
+          const ax = x - this.points[j * 4], ay = y - this.points[j * 4 + 1];
+          const d = ax * ax + ay * ay;
+          const reach = 0.066 + 0.007 * (this.nodes[i].energy + this.nodes[j].energy);
+          if (d >= reach * reach) continue;
+          let c = pool[used];
+          if (!c) pool[used] = c = { i: 0, j: 0, d: 0, reach: 0 };
+          c.i = i; c.j = j; c.d = d; c.reach = reach;
+          candidates[used++] = c;
+        }
+      }
+    }
+    candidates.length = used;
+    candidates.sort((a, b) => a.d - b.d);
+    const degree = this.degree;
+    degree.fill(0);
+    for (const e of this.edges.values()) e.selected = false;
+    for (const c of candidates) {
+      if (degree[c.i] >= 4 || degree[c.j] >= 4) continue;
+      degree[c.i]++; degree[c.j]++;
+      const k = c.i * this.count + c.j;
+      let e = this.edges.get(k);
+      if (!e) this.edges.set(k, e = { i: c.i, j: c.j, alpha: 0, reach: c.reach, selected: true });
+      e.selected = true;
+      e.reach = c.reach;
+    }
+  }
+
 }

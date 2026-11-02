@@ -2,12 +2,15 @@
 import { WaveFeatures } from "../../../../shared/wave/audio-features.mjs";
 const features = new WaveFeatures();
 let active: HTMLAudioElement | null = null;
+let analysisEnabled = true;
 const volumes = new WeakMap<HTMLAudioElement, number>();
 const graphs = new WeakMap<
   HTMLAudioElement,
   {
     context: AudioContext;
     analyser: AnalyserNode;
+    source: MediaElementAudioSourceNode;
+    analysing: boolean;
     output: GainNode;
     data: Float32Array<ArrayBuffer>;
   }
@@ -36,24 +39,48 @@ export async function attachWaveAudio(audio: HTMLAudioElement) {
       const analyser = context.createAnalyser();
       analyser.fftSize = 2048;
       analyser.smoothingTimeConstant = 0;
-      context.createMediaElementSource(audio).connect(analyser);
+      const source = context.createMediaElementSource(audio);
       // Analyse decoded PCM before listening gain. A quiet output must not make
       // the visualiser quiet, and zero volume must still retain the beat.
       const output = context.createGain();
       output.gain.value = volumes.get(audio) ?? audio.volume;
-      analyser.connect(output).connect(context.destination);
+      if (analysisEnabled) source.connect(analyser).connect(output);
+      else source.connect(output);
+      output.connect(context.destination);
       audio.volume = 1;
       graph = {
         context,
         analyser,
+        source,
+        analysing: analysisEnabled,
         output,
         data: new Float32Array(analyser.frequencyBinCount),
       };
       graphs.set(audio, graph);
     }
   }
+  if (graph.analysing !== analysisEnabled) {
+    graph.source.disconnect();
+    graph.analyser.disconnect();
+    if (analysisEnabled)
+      graph.source.connect(graph.analyser).connect(graph.output);
+    else graph.source.connect(graph.output);
+    graph.analysing = analysisEnabled;
+  }
   if (graph.context.state === "suspended")
     await graph.context.resume().catch(() => {});
+}
+/** Bypass FFT work without pausing, suspending or changing audible playback/gain. */
+export function setWaveAnalysisEnabled(value: boolean) {
+  if (analysisEnabled === value) return;
+  analysisEnabled = value;
+  const graph = active && graphs.get(active);
+  if (!graph) return;
+  graph.source.disconnect();
+  graph.analyser.disconnect();
+  graph.analysing = value;
+  if (value) graph.source.connect(graph.analyser).connect(graph.output);
+  else graph.source.connect(graph.output);
 }
 export function setWaveVolume(audio: HTMLAudioElement, volume: number) {
   const value = Math.max(0, Math.min(1, volume));
@@ -67,12 +94,17 @@ export function setWaveVolume(audio: HTMLAudioElement, volume: number) {
 export function suspendWaveAudio(audio: HTMLAudioElement) {
   const graph = graphs.get(audio);
   if (active === audio) active = null;
-  if (graph?.context.state === "running") void graph.context.suspend().catch(() => {});
+  if (graph?.context.state === "running")
+    void graph.context.suspend().catch(() => {});
 }
 export function detachWaveAudio(audio: HTMLAudioElement) {
   const graph = graphs.get(audio);
   if (active === audio) active = null;
-  if (graph) { graph.output.disconnect(); void graph.context.close(); graphs.delete(audio); }
+  if (graph) {
+    graph.output.disconnect();
+    void graph.context.close();
+    graphs.delete(audio);
+  }
 }
 export function resetWaveAudio() {
   features.reset();
@@ -81,6 +113,7 @@ export function sampleWaveAudio(dt: number) {
   const graph = active && graphs.get(active);
   const bands = new Float32Array(8);
   if (
+    analysisEnabled &&
     graph &&
     active &&
     !active.paused &&
