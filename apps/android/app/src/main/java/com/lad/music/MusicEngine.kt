@@ -45,9 +45,18 @@ class MusicEngine(
     val localLibrary = LocalLibrary(context)
     private val localMedia = LocalMediaServer(context, localLibrary)
     private val localPcm = LocalPcmCache(context)
-    private suspend fun stationStream(t:Track,host:String):String {
-        val pcm=if(localLibrary.format(t.id) in setOf("FLAC","OGG","OPUS"))localPcm.prepare(localLibrary.uri(t.id),t.id) else null
-        return localMedia.url(t.id,host,pcm)
+    private suspend fun stationStream(t: Track, host: String): String = withContext(Dispatchers.IO) {
+        var stage = "чтение локального файла"
+        try {
+            val format = localLibrary.format(t.id)
+            val uri = localLibrary.uri(t.id)
+            stage = "подготовка аудиофайла ($format)"
+            val pcm = if (format in setOf("FLAC", "OGG", "OPUS")) localPcm.prepare(uri, t.id) else null
+            stage = "открытие локального потока"
+            localMedia.url(t.id, host, pcm)
+        } catch (error: Exception) {
+            throw stationTransferError(stage, error)
+        }
     }
     var chooseLocalFolder: (() -> Unit)? = null
     private suspend fun stream(id:String):String = if(id.startsWith("local-track-")) withContext(Dispatchers.IO) {localLibrary.uri(id).toString()} else streamLoader?.invoke(id) ?: api.stream(id)
@@ -496,7 +505,7 @@ class MusicEngine(
                 }
                 else -> {
                     val connected = station ?: throw IllegalStateException("Подключи Станцию")
-                    val confirmed = if(t.isLocal) connected.playLocal(t,stationStream(t,connected.device.host),position,paused,localLibrary.format(t.id)) else connected.play(t, position, paused)
+                    val confirmed = if(t.isLocal) connected.playLocal(t,stationStream(t,connected.device.host),position,paused) else connected.play(t, position, paused)
                     requireOperation(epoch)
                     stationState(confirmed)
                     update { it.copy(loading = false) }
@@ -1017,6 +1026,7 @@ class MusicEngine(
                 },
             )
         update { it.copy(loading = true, playing = false) }
+        var stage = "подключение к Станции"
         try {
             candidate.connect()
             requireOperation(epoch)
@@ -1033,7 +1043,9 @@ class MusicEngine(
             if (t != null) {
                 expected = t.id.substringBefore(':')
                 stationContinuity.reset()
-                val confirmed = if(t.isLocal) candidate.playLocal(t,stationStream(t,selected.host),position,!wasPlaying,localLibrary.format(t.id)) else candidate.play(t, position, !wasPlaying)
+                val localUrl = if (t.isLocal) stationStream(t, selected.host) else null
+                stage = "запуск трека на Станции"
+                val confirmed = if (localUrl != null) candidate.playLocal(t, localUrl, position, !wasPlaying) else candidate.play(t, position, !wasPlaying)
                 requireOperation(epoch)
                 stationState(confirmed)
             }
@@ -1047,7 +1059,11 @@ class MusicEngine(
             station = oldStation
             restorePlayback(s, epoch)
             if (s.output == "phone" && wasPlaying) player.play()
-            throw IllegalStateException("Не удалось передать музыку: ${e.message}")
+            val error = stationTransferError(stage, e)
+            if (t?.isLocal == true && stage == "запуск трека на Станции") {
+                throw IllegalStateException("${error.message} ${localMedia.diagnostics(t.id)}", error)
+            }
+            throw error
         }
     }
 
