@@ -18,6 +18,7 @@ if os.environ.get("LAD_MUSIC_SOURCE"):
     sys.path.insert(0, os.environ["LAD_MUSIC_SOURCE"])
 import aiohttp
 from yandex_music import ClientAsync
+from power_status import saving_status
 from core import Queue, cover_url, track_key
 from music import Music, track
 from wave_radio import fetch_batch, send_feedback, search_limit
@@ -675,6 +676,8 @@ class App:
                     self.spawn(self.advance(automatic=True))
 
     async def rpc(self, method, p):
+        if method == "powerStatus":
+            return {"saving": await asyncio.to_thread(saving_status)}
         epoch = self.operation_epoch
         if method == 'localSummary': return self.local_library.summary()
         if method == 'localBrowse':

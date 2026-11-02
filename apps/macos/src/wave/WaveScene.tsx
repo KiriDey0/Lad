@@ -18,6 +18,7 @@ export function WaveScene({
   local,
   intensity = 100,
   smoothing = 50,
+  quality = "auto",
   remote,
 }: {
   cover?: string | null;
@@ -25,6 +26,7 @@ export function WaveScene({
   local: boolean;
   intensity?: number;
   smoothing?: number;
+  quality?: "auto" | "eco" | "smooth";
   remote?: Playback;
 }) {
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -32,12 +34,12 @@ export function WaveScene({
   const fps = useRef(30);
   useEffect(() => {
     wake.current();
-  }, [playing, intensity, smoothing]);
+  }, [playing, intensity, smoothing, quality]);
   useRemoteWaveAudio(remote, canvas, intensity);
   const palette = useRef(neutral.map((c) => c.slice()));
   const lineGain = useRef(1.25);
-  const latest = useRef({ playing, local, intensity, smoothing });
-  latest.current = { playing, local, intensity, smoothing };
+  const latest = useRef({ playing, local, intensity, smoothing, quality });
+  latest.current = { playing, local, intensity, smoothing, quality };
   useEffect(() => {
     if (!cover) {
       palette.current = neutral.map((c) => c.slice());
@@ -115,7 +117,7 @@ export function WaveScene({
     wake.current = resume;
     const renderer = new WaveRenderer(el, resume);
     const power = (value: { fps: number }) => {
-      fps.current = value.fps === 20 ? 20 : 30;
+      fps.current = [20, 30, 60].includes(value.fps) ? value.fps : 30;
       resume();
     };
     let disposed = false;
@@ -125,6 +127,24 @@ export function WaveScene({
         if (!disposed) power(value);
       })
       .catch(() => {});
+    let activityKey = "";
+    let frames = 0,
+      work = 0,
+      late = 0,
+      sampledAt = 0,
+      framePressure = 0;
+    const activity = (active: boolean, force = false) => {
+      const mode = latest.current.quality,
+        key = mode + ":" + active + ":" + framePressure;
+      if (!force && key === activityKey) return;
+      activityKey = key;
+      void bridge
+        .wavePower?.({ mode, active, pressure: active ? framePressure : 0 })
+        .then((value) => {
+          if (!disposed && fps.current !== value.fps) power(value);
+        })
+        .catch(() => {});
+    };
     const unsubscribe = bridge.onEvent?.((event) => {
       if (event.event === "wavePower") power(event.data);
     });
@@ -146,11 +166,13 @@ export function WaveScene({
     const tick = (now: number) => {
       frame = 0;
       if (!visible || document.hidden || !renderer.available()) {
+        activity(false);
         setWaveAnalysisEnabled(false);
         last = 0;
         return;
       }
       const p = latest.current;
+      activity(p.playing && p.intensity > 0 && !reduced.matches);
       setWaveAnalysisEnabled(p.playing && p.intensity > 0 && !reduced.matches);
       if (p.intensity <= 0) {
         renderer.clear();
@@ -161,7 +183,9 @@ export function WaveScene({
         schedule();
         return;
       }
+      const started = performance.now();
       const interval = 1000 / fps.current;
+      if (last && now - last > interval * 1.75) late++;
       next = now + interval - (next ? Math.max(0, now - next) % interval : 0);
       const dt = last ? Math.min(0.05, (now - last) / 1000) : 0.016;
       last = now;
@@ -186,6 +210,22 @@ export function WaveScene({
         ),
       );
       renderer.draw(sim, colors, strength, lineGain.current);
+      if (p.playing && !reduced.matches) {
+        frames++;
+        work += performance.now() - started;
+        if (!sampledAt) sampledAt = now;
+        if (now - sampledAt >= 2000 && frames >= 8) {
+          const mean = work / frames,
+            misses = late / frames;
+          framePressure =
+            mean > 12 || misses > 0.55 ? 2 : mean > 5 || misses > 0.2 ? 1 : 0;
+          activity(true, true);
+          sampledAt = now;
+          frames = work = late = 0;
+        }
+      } else {
+        frames = work = late = sampledAt = framePressure = 0;
+      }
       const settling =
         Math.abs(Number(!p.playing) - pause) > 0.001 ||
         colors.some((c, i) =>
@@ -198,6 +238,7 @@ export function WaveScene({
     reduced.addEventListener("change", resume);
     schedule();
     return () => {
+      activity(false);
       disposed = true;
       setWaveAnalysisEnabled(false);
       wake.current = () => {};

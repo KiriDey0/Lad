@@ -99,7 +99,7 @@ export interface LadEvent {
   data: any;
 }
 export interface Bridge {
-  wavePower?: () => Promise<{ fps: number }>;
+  wavePower?: (request?: {mode: "auto" | "eco" | "smooth"; active: boolean; pressure?: number}) => Promise<{ fps: number }>;
   localFiles?(
     action: "add" | "restore" | "locate" | "lyrics" | "reveal",
     id?: string,

@@ -383,7 +383,7 @@ function buildWindow() {
   else window.loadFile(path.join(root, "dist/index.html"));
 }
 app.whenReady().then(() => {
-  readWavePower = require("./wave-power.cjs").installWavePower({powerMonitor, ipcMain, getWindow: () => window});
+  readWavePower = require("./wave-power.cjs").installWavePower({powerMonitor, ipcMain, getWindow: () => window, readSaving: async () => (await rpc("powerStatus")).saving});
   app.setName("Лад");
   if (process.env.LAD_USER_DATA)
     app.setPath("userData", process.env.LAD_USER_DATA);

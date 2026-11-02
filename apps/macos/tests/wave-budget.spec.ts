@@ -8,7 +8,7 @@ import path from "node:path";
 for (const renderer of ["webgl", "canvas", "driver-failure"])
   test(
     renderer +
-      ": wave sleeps at rest, wakes on changes and respects 30/20 FPS on a 144 Hz clock",
+      ": wave sleeps at rest, wakes on changes and respects 60/30/20 FPS on a 144 Hz clock",
     async () => {
       const dir = fs.mkdtempSync(path.join(os.tmpdir(), "lad-budget-")),
         main = path.join(dir, "main.cjs"),
@@ -72,9 +72,12 @@ for (const renderer of ["webgl", "canvas", "driver-failure"])
             return glClear.call(this, mask);
           };
           w.lad = {
-            wavePower: async () => ({ fps: 30 }),
+            wavePower: async () => ({ fps: w.powerFPS || 30 }),
             onEvent: (fn: any) => {
-              w.powerEvent = fn;
+              w.powerEvent = (event: any) => {
+                w.powerFPS = event.data.fps;
+                fn(event);
+              };
               return () => {};
             },
           };
@@ -199,6 +202,15 @@ for (const renderer of ["webgl", "canvas", "driver-failure"])
             ),
           ).toBe(0);
         }
+        const start60 = await page.evaluate(() => {
+          (window as any).powerEvent({ event: "wavePower", data: { fps: 60 } });
+          return (window as any).draws;
+        });
+        const smooth60 = await page.evaluate(() =>
+          (window as any).advance(144, 3),
+        );
+        expect(smooth60.draws - start60).toBeGreaterThan(174);
+        expect(smooth60.draws - start60).toBeLessThanOrEqual(182);
       } finally {
         await app.close();
         fs.rmSync(dir, { recursive: true, force: true });
