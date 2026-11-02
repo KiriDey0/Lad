@@ -5,7 +5,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-for (const renderer of ["webgl", "canvas"])
+for (const renderer of ["webgl", "canvas", "driver-failure"])
   test(
     renderer +
       ": wave sleeps at rest, wakes on changes and respects 30/20 FPS on a 144 Hz clock",
@@ -35,7 +35,7 @@ for (const renderer of ["webgl", "canvas"])
       const app = await _electron.launch({ args: [main] });
       try {
         const page = await app.firstWindow();
-        page.on("pageerror", (e) => console.log("WAVE ERROR", e.message));
+
         await page.setContent(
           '<style>canvas{width:600px;height:600px}</style><div id="root"></div>',
         );
@@ -94,6 +94,10 @@ for (const renderer of ["webgl", "canvas"])
                 ? null
                 : (native as any).call(this, kind, ...args);
             } as any;
+          });
+        if (renderer === "driver-failure")
+          await page.evaluate(() => {
+            WebGLRenderingContext.prototype.compileShader = () => {};
           });
         await page.addScriptTag({ content: bundle.outputFiles[0].text });
         await expect
@@ -158,12 +162,42 @@ for (const renderer of ["webgl", "canvas"])
             (window as any).lostContext = gl.getExtension("WEBGL_lose_context");
             (window as any).lostContext.loseContext();
           });
-          await expect.poll(() => page.evaluate(() => document.querySelector("canvas")!.getContext("webgl")!.isContextLost())).toBe(true);
-          expect((await page.evaluate(() => (window as any).advance(144, 1))).pending).toBe(0);
-          await page.evaluate(() => (window as any).lostContext.restoreContext());
-          await expect.poll(() => page.evaluate(() => document.querySelector("canvas")!.getContext("webgl")!.isContextLost())).toBe(false);
-          expect((await page.evaluate(() => (window as any).advance(144, 1))).pending).toBe(1);
-          expect(await page.evaluate(() => document.querySelector("canvas")!.getContext("webgl")!.getError())).toBe(0);
+          await expect
+            .poll(() =>
+              page.evaluate(() =>
+                document
+                  .querySelector("canvas")!
+                  .getContext("webgl")!
+                  .isContextLost(),
+              ),
+            )
+            .toBe(true);
+          expect(
+            (await page.evaluate(() => (window as any).advance(144, 1)))
+              .pending,
+          ).toBe(0);
+          await page.evaluate(() =>
+            (window as any).lostContext.restoreContext(),
+          );
+          await expect
+            .poll(() =>
+              page.evaluate(() =>
+                document
+                  .querySelector("canvas")!
+                  .getContext("webgl")!
+                  .isContextLost(),
+              ),
+            )
+            .toBe(false);
+          expect(
+            (await page.evaluate(() => (window as any).advance(144, 1)))
+              .pending,
+          ).toBe(1);
+          expect(
+            await page.evaluate(() =>
+              document.querySelector("canvas")!.getContext("webgl")!.getError(),
+            ),
+          ).toBe(0);
         }
       } finally {
         await app.close();
