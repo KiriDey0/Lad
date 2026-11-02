@@ -1806,7 +1806,7 @@ class MainActivity : Activity() {
         button(
             pageLayer,
             "settings-updates",
-            "Лад ${BuildConfig.VERSION_NAME} · Обновления",
+            "Лад ${installedAppVersion(this).name} · Обновления",
             1336,
             164,
             488,
@@ -1908,7 +1908,7 @@ class MainActivity : Activity() {
         updatePhase = u.phase
         val p = glass(dim, 960, 96, 864, 888)
         label(p, "Обновления Лада", 40, 40, 784, 68, 44, ink, true)
-        label(p, "Лад ${BuildConfig.VERSION_NAME} · стабильный выпуск", 40, 120, 784, 48, 28, muted)
+        label(p, "Лад ${installedAppVersion(this).name} · стабильный выпуск", 40, 120, 784, 48, 28, muted)
         val title =
             when (u.phase) {
                 "checking" -> "Проверяем GitHub…"

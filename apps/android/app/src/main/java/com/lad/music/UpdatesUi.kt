@@ -26,7 +26,7 @@ fun UpdatesCard() {
     val activity=generateSequence(context){(it as? ContextWrapper)?.baseContext}.filterIsInstance<Activity>().firstOrNull()
     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(palette.surface).padding(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
         Label(when(s.phase){"checking"->"Проверяем GitHub…";"available"->"Доступен Лад ${s.version}";"downloading"->"Скачивание · ${s.progress}%";"ready"->"Обновление загружено";"current"->"Установлена последняя версия";"error"->"Не удалось обновить Лад";"installing"->"Установка обновления";else->"Обновления"},20,weight=FontWeight.SemiBold)
-        Label("Лад ${BuildConfig.VERSION_NAME} · стабильный выпуск",13,palette.muted)
+        Label("Лад ${installedAppVersion(androidx.compose.ui.platform.LocalContext.current).name} · стабильный выпуск",13,palette.muted)
         if(s.phase=="downloading") {
             LinearProgressIndicator(progress={s.progress/100f},modifier=Modifier.fillMaxWidth().semantics{contentDescription="Загрузка обновления"},color=palette.accent,trackColor=palette.muted.copy(alpha=.2f))
             Label("Можно продолжать слушать музыку",13,palette.muted)
