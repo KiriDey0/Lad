@@ -2,11 +2,16 @@
 import { useEffect, useRef } from "react";
 import { WebSimulation } from "../../../../shared/wave/web-simulation.mjs";
 import { WaveMotion } from "../../../../shared/wave/audio-features.mjs";
-import { sampleWaveAudio } from "./audio";
+import { sampleWaveAudio, setWaveAnalysisEnabled } from "./audio";
 import type { Playback } from "../types";
+import { bridge } from "../bridge";
+import { WaveRenderer } from "./renderer";
 import { useRemoteWaveAudio } from "./remote";
-import {waveBrightness} from "../../../../shared/wave/appearance.mjs";
-import {coverWavePalette, neutralWavePalette as neutral} from "../../../../shared/wave/palette.mjs";
+import { waveBrightness } from "../../../../shared/wave/appearance.mjs";
+import {
+  coverWavePalette,
+  neutralWavePalette as neutral,
+} from "../../../../shared/wave/palette.mjs";
 export function WaveScene({
   cover,
   playing,
@@ -23,6 +28,11 @@ export function WaveScene({
   remote?: Playback;
 }) {
   const canvas = useRef<HTMLCanvasElement>(null);
+  const wake = useRef<() => void>(() => {});
+  const fps = useRef(30);
+  useEffect(() => {
+    wake.current();
+  }, [playing, intensity, smoothing]);
   useRemoteWaveAudio(remote, canvas, intensity);
   const palette = useRef(neutral.map((c) => c.slice()));
   const lineGain = useRef(1.25);
@@ -32,6 +42,7 @@ export function WaveScene({
     if (!cover) {
       palette.current = neutral.map((c) => c.slice());
       lineGain.current = 1.25;
+      wake.current();
       return;
     }
     let cancelled = false;
@@ -59,15 +70,18 @@ export function WaveScene({
         const extracted = coverWavePalette(data, 96, 96);
         palette.current = extracted.colors;
         lineGain.current = extracted.lineGain;
+        wake.current();
       } catch {
-        palette.current = neutral.map(c => c.slice());
+        palette.current = neutral.map((c) => c.slice());
         lineGain.current = 1.25;
+        wake.current();
       }
     };
     image.onerror = () => {
       if (!cancelled) {
-        palette.current = neutral.map(c => c.slice());
+        palette.current = neutral.map((c) => c.slice());
         lineGain.current = 1.25;
+        wake.current();
       }
     };
     image.src = cover;
@@ -78,9 +92,7 @@ export function WaveScene({
     };
   }, [cover]);
   useEffect(() => {
-    const el = canvas.current!,
-      ctx = el.getContext("2d");
-    if (!ctx) return;
+    const el = canvas.current!;
     const sim = new WebSimulation(),
       motion = new WaveMotion();
     const colors = neutral.map((c) => c.slice());
@@ -90,93 +102,110 @@ export function WaveScene({
       visible = true,
       pause = 1,
       w = 0,
-      h = 0;
+      h = 0,
+      next = 0;
+    const schedule = () => {
+      if (!frame) frame = requestAnimationFrame(tick);
+    };
+    const resume = () => {
+      last = 0;
+      next = 0;
+      schedule();
+    };
+    wake.current = resume;
+    const renderer = new WaveRenderer(el, resume);
+    const power = (value: { fps: number }) => {
+      fps.current = value.fps === 20 ? 20 : 30;
+      resume();
+    };
+    let disposed = false;
+    void bridge
+      .wavePower?.()
+      .then((value) => {
+        if (!disposed) power(value);
+      })
+      .catch(() => {});
+    const unsubscribe = bridge.onEvent?.((event) => {
+      if (event.event === "wavePower") power(event.data);
+    });
     const resize = new ResizeObserver(() => {
       const box = el.getBoundingClientRect();
       w = box.width;
       h = box.height;
       const dpr = Math.min(2, devicePixelRatio);
-      el.width = Math.round(w * dpr);
-      el.height = Math.round(h * dpr);
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      renderer.resize(w, h, dpr);
+      resume();
     });
     resize.observe(el);
     const intersection = new IntersectionObserver((e) => {
       visible = e[0].isIntersecting;
-      last = 0;
+      resume();
     });
     intersection.observe(el);
     sim.step(0.016);
     const tick = (now: number) => {
-      frame = requestAnimationFrame(tick);
-      if (!visible || document.hidden) {
+      frame = 0;
+      if (!visible || document.hidden || !renderer.available()) {
+        setWaveAnalysisEnabled(false);
         last = 0;
         return;
       }
+      const p = latest.current;
+      setWaveAnalysisEnabled(p.playing && p.intensity > 0 && !reduced.matches);
+      if (p.intensity <= 0) {
+        renderer.clear();
+        last = 0;
+        return;
+      }
+      if (now < next - 0.25) {
+        schedule();
+        return;
+      }
+      const interval = 1000 / fps.current;
+      next = now + interval - (next ? Math.max(0, now - next) % interval : 0);
       const dt = last ? Math.min(0.05, (now - last) / 1000) : 0.016;
       last = now;
-      const p = latest.current;
       pause += (Number(!p.playing) - pause) * (1 - Math.exp(-dt * 4));
-      const f =
-        p.playing
-          ? sampleWaveAudio(dt)
-          : {
-              bass: 0,
-              mid: 0,
-              high: 0,
-              level: 0,
-              spectrum: new Float32Array(8),
-            };
+      const f = p.playing
+        ? sampleWaveAudio(dt)
+        : {
+            bass: 0,
+            mid: 0,
+            high: 0,
+            level: 0,
+            spectrum: new Float32Array(8),
+          };
       const audio = motion.update(f, dt, 0.75, p.smoothing);
-      if (!reduced.matches && pause < 0.999) sim.step(dt * (1 - pause), audio, p.smoothing);
-      ctx.clearRect(0, 0, w, h);
-      const size = Math.min(w, h) * 1.08,
-        cx = w * 0.5,
-        cy = h * 0.42;
-      const strength =
-        waveBrightness(p.intensity) * (1 - pause * 0.82);
+      if (!reduced.matches && pause < 0.999)
+        sim.step(dt * (1 - pause), audio, p.smoothing);
+      const strength = waveBrightness(p.intensity) * (1 - pause * 0.82);
       colors.forEach((c, i) =>
         c.forEach(
           (v, j) =>
             (c[j] = v + (palette.current[i][j] - v) * (1 - Math.exp(-dt * 2))),
         ),
       );
-      const tint = colors[0].map((v, i) =>
-        Math.round(v * 0.55 + colors[1][i] * 0.45),
-      );
-      ctx.globalCompositeOperation = "lighter";
-      ctx.lineWidth = 0.8;
-      for (let i = 0; i < sim.lineCount; i += 2) {
-        const o = i * 3;
-        ctx.strokeStyle = `rgba(${tint.join(",")},${Math.min(1, sim.lines[o + 2] * strength * 1.65 * lineGain.current)})`;
-        ctx.beginPath();
-        ctx.moveTo(cx + sim.lines[o] * size, cy + sim.lines[o + 1] * size);
-        ctx.lineTo(cx + sim.lines[o + 3] * size, cy + sim.lines[o + 4] * size);
-        ctx.stroke();
-      }
-      for (let i = 0; i < sim.count; i++) {
-        const o = i * 4,
-          x = cx + sim.points[o] * size,
-          y = cy + sim.points[o + 1] * size,
-          r = sim.points[o + 2] * size * 0.5,
-          depth = sim.points[o + 3];
-        const color = colors[1].map((v, j) =>
-          Math.round(v + (colors[0][j] - v) * depth),
+      renderer.draw(sim, colors, strength, lineGain.current);
+      const settling =
+        Math.abs(Number(!p.playing) - pause) > 0.001 ||
+        colors.some((c, i) =>
+          c.some((v, j) => Math.abs(v - palette.current[i][j]) > 0.1),
         );
-        ctx.fillStyle = `rgba(${color.join(",")},${Math.min(1, Math.min(1, (0.2 + depth * 0.48) * 2) * strength)})`;
-        ctx.beginPath();
-        ctx.arc(x, y, Math.max(0.5, r * 0.42), 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = `rgba(${color.join(",")},${0.07 * strength})`;
-        ctx.beginPath();
-        ctx.arc(x, y, r * 1.4, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      ctx.globalCompositeOperation = "source-over";
+      if ((p.playing && !reduced.matches) || settling) schedule();
+      else last = 0;
     };
-    frame = requestAnimationFrame(tick);
+    document.addEventListener("visibilitychange", resume);
+    reduced.addEventListener("change", resume);
+    schedule();
     return () => {
+      disposed = true;
+      setWaveAnalysisEnabled(false);
+      wake.current = () => {};
+      unsubscribe?.();
+      document.removeEventListener("visibilitychange", resume);
+      reduced.removeEventListener("change", resume);
       cancelAnimationFrame(frame);
+      renderer.dispose();
       resize.disconnect();
       intersection.disconnect();
     };

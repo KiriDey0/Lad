@@ -1,8 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 package com.lad.music.wave
 
+import android.content.BroadcastReceiver
+import android.content.Intent
+import android.content.IntentFilter
+import android.os.BatteryManager
+import android.os.PowerManager
+import android.database.ContentObserver
+import android.os.Handler
+import android.os.Looper
+import androidx.core.content.ContextCompat
 import android.content.Context
-import android.content.res.Configuration
 import android.graphics.*
 import android.graphics.drawable.BitmapDrawable
 import android.provider.Settings
@@ -72,6 +80,7 @@ class WaveView(context: Context) : View(context), Choreographer.FrameCallback {
 
     private val simulation = WaveMotion()
     private val envelope = WaveEnvelope()
+    private val silence = FloatArray(8)
 
     private class Frame(count: Int) {
         val points = FloatArray(count * 4)
@@ -86,13 +95,28 @@ class WaveView(context: Context) : View(context), Choreographer.FrameCallback {
     private val lineSizes = IntArray(12)
     private val pointBuckets = Array(8) { FloatArray(simulation.count * 2) }
     private val pointSizes = IntArray(8)
-    private val frameInterval =
-        if (
-            (resources.configuration.uiMode and Configuration.UI_MODE_TYPE_MASK) ==
-                Configuration.UI_MODE_TYPE_TELEVISION
-        )
-            30_000_000L
-        else 15_000_000L
+    private var frameInterval = 33_333_333L
+    private var onBattery = false
+    private var nextFrame = 0L
+    private var reduceMotion = false
+    private val powerEvents = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (intent.action == Intent.ACTION_BATTERY_CHANGED) {
+                onBattery = intent.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0) == 0
+            }
+            val saving = (context.getSystemService(Context.POWER_SERVICE) as PowerManager).isPowerSaveMode
+            frameInterval = if (onBattery || saving) 50_000_000L else 33_333_333L
+            nextFrame = 0
+            schedule()
+        }
+    }
+    private val motionChanges = object : ContentObserver(Handler(Looper.getMainLooper())) {
+        override fun onChange(selfChange: Boolean) {
+            reduceMotion = readReduced()
+            refreshAudio()
+            schedule()
+        }
+    }
 
     companion object {
         private val worker =
@@ -166,7 +190,7 @@ class WaveView(context: Context) : View(context), Choreographer.FrameCallback {
                 )
     }
 
-    private fun reduced() =
+    private fun readReduced() =
         Settings.Global.getFloat(
             context.contentResolver,
             Settings.Global.ANIMATOR_DURATION_SCALE,
@@ -176,7 +200,7 @@ class WaveView(context: Context) : View(context), Choreographer.FrameCallback {
     private fun refreshAudio() {
         val active = playing &&
                 intensity > 0 &&
-                !reduced() &&
+                !reduceMotion &&
                 isAttachedToWindow &&
                 windowVisibility == VISIBLE &&
                 isShown && getGlobalVisibleRect(visibleRect)
@@ -193,6 +217,11 @@ class WaveView(context: Context) : View(context), Choreographer.FrameCallback {
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
+        reduceMotion = readReduced()
+        context.contentResolver.registerContentObserver(
+            Settings.Global.getUriFor(Settings.Global.ANIMATOR_DURATION_SCALE), false, motionChanges)
+        val filter = IntentFilter(Intent.ACTION_BATTERY_CHANGED).apply { addAction(PowerManager.ACTION_POWER_SAVE_MODE_CHANGED) }
+        ContextCompat.registerReceiver(context, powerEvents, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
         viewTreeObserver.addOnScrollChangedListener(scrollVisibility)
         viewTreeObserver.addOnGlobalLayoutListener(layoutVisibility)
         last = 0
@@ -202,6 +231,8 @@ class WaveView(context: Context) : View(context), Choreographer.FrameCallback {
     }
 
     override fun onDetachedFromWindow() {
+        context.contentResolver.unregisterContentObserver(motionChanges)
+        context.unregisterReceiver(powerEvents)
         viewTreeObserver.removeOnScrollChangedListener(scrollVisibility)
         viewTreeObserver.removeOnGlobalLayoutListener(layoutVisibility)
         Choreographer.getInstance().removeFrameCallback(this)
@@ -231,21 +262,25 @@ class WaveView(context: Context) : View(context), Choreographer.FrameCallback {
         if (windowVisibility != VISIBLE || !isShown || !getGlobalVisibleRect(visibleRect)) {
             refreshAudio()
             last = 0
+            nextFrame = 0
             return
         }
-        // Keep TV at 30 fps; touch devices use 60 fps without blocking input.
-        if (last != 0L && frameTimeNanos - last < frameInterval) {
+        if (intensity <= 0) { invalidate(); last = 0; nextFrame = 0; return }
+        // Decorative background: 30 fps, or 20 fps on battery/power saver.
+        if (nextFrame != 0L && frameTimeNanos + 250_000L < nextFrame) {
             schedule()
             return
         }
+        nextFrame = frameTimeNanos + frameInterval -
+            (if (nextFrame == 0L) 0L else (frameTimeNanos - nextFrame).coerceAtLeast(0L) % frameInterval)
         val dt = if (last == 0L) .016 else ((frameTimeNanos - last) / 1e9).coerceAtMost(.05)
         last = frameTimeNanos
         val targetPause = if (playing) 0f else 1f
         pause += ((targetPause - pause) * (1 - exp(-dt * 4))).toFloat()
         if (!computing) {
             computing = true
-            val raw = if (playing) (if (local) audio else remote?.audio)?.sample() ?: FloatArray(8) else FloatArray(8)
-            val movement = if (reduced()) 0.0 else dt * (1 - pause)
+            val raw = if (playing) (if (local) audio else remote?.audio)?.sample() ?: silence else silence
+            val movement = if (reduceMotion || pause >= .999f) 0.0 else dt * (1 - pause)
             val destination = back
             val smooth = smoothing
             worker.execute {
@@ -264,11 +299,11 @@ class WaveView(context: Context) : View(context), Choreographer.FrameCallback {
         }
         for (i in 0..1) for (j in 0..2) colors[i][j] +=
             ((target[i][j] - colors[i][j]) * (1 - exp(-dt * 2))).toFloat()
-        invalidate()
+        if (computing.not()) invalidate()
         val paletteMoving =
             colors.indices.any { i -> (0..2).any { j -> abs(target[i][j] - colors[i][j]) > .1f } }
         if (
-            (playing && !reduced() && intensity > 0) ||
+            (playing && !reduceMotion && intensity > 0) ||
                 abs(targetPause - pause) > .001f ||
                 paletteMoving
         )
@@ -277,6 +312,7 @@ class WaveView(context: Context) : View(context), Choreographer.FrameCallback {
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
+        if (intensity <= 0) return
         val size = min(width.toFloat(), height.toFloat()) * 1.08f
         val cx = width * .5f
         val cy = height * .42f

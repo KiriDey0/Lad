@@ -22,6 +22,6 @@ test('stale streams are bounded and network failures do not expose their address
 });
 test('shared web model keeps independent motion and proximity regression tests',async()=>{
  const path=require('node:path');
- const result=require('node:child_process').spawnSync(process.execPath,['--test',path.resolve(__dirname,'../../../shared/wave/tests/web-simulation.test.mjs'),path.resolve(__dirname,'../../../shared/wave/tests/audio-features.test.mjs')],{encoding:'utf8'});
+ const result=require('node:child_process').spawnSync(process.execPath,['--test',path.resolve(__dirname,'../../../shared/wave/tests/web-simulation.test.mjs'),path.resolve(__dirname,'../../../shared/wave/tests/audio-features.test.mjs'),path.resolve(__dirname,'../../../shared/wave/tests/performance-budget.test.mjs')],{encoding:'utf8'});
  assert.equal(result.status,0,result.stdout+result.stderr);
 });

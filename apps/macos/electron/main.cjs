@@ -3,6 +3,7 @@ const {
   app,
   BrowserWindow,
   ipcMain,
+  powerMonitor,
   safeStorage,
   shell,
   session,
@@ -70,6 +71,7 @@ const statePath = () => path.join(dataPath(), "window.json");
 let secrets = {},
   queueState = {};
 let lastState;
+let readWavePower = () => ({fps: 30});
 function loadSession() {
   try {
     if (fs.existsSync(secretPath()) && safeStorage.isEncryptionAvailable())
@@ -361,6 +363,7 @@ function buildWindow() {
   window.once("ready-to-show", () => window.show());
   window.webContents.once("did-finish-load", () => {
     if (lastState) send("state", lastState);
+    send("wavePower", readWavePower());
   });
   window.on("close", (event) => {
     if (
@@ -380,6 +383,7 @@ function buildWindow() {
   else window.loadFile(path.join(root, "dist/index.html"));
 }
 app.whenReady().then(() => {
+  readWavePower = require("./wave-power.cjs").installWavePower({powerMonitor, ipcMain, getWindow: () => window});
   app.setName("Лад");
   if (process.env.LAD_USER_DATA)
     app.setPath("userData", process.env.LAD_USER_DATA);
