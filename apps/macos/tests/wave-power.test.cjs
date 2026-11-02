@@ -27,9 +27,14 @@ test("power budget follows AC/battery and thermal speed limits; renderer access 
   battery = false;
   monitor.emit("on-ac");
   assert.deepEqual(read(), { fps: 30 });
-  monitor.emit("speed-limit-change", {}, { limit: 60 });
+  // Electron emits one details event; there is no separate event argument.
+  monitor.emit("speed-limit-change", { limit: 60 });
   assert.deepEqual(read(), { fps: 20 });
-  monitor.emit("speed-limit-change", {}, { limit: 100 });
+  for (const details of [undefined, null, {}, { limit: NaN }, { limit: "100" }]) {
+    assert.doesNotThrow(() => monitor.emit("speed-limit-change", details));
+    assert.deepEqual(read(), { fps: 20 });
+  }
+  monitor.emit("speed-limit-change", { limit: 100 });
   assert.deepEqual(handler({ sender: contents }), { fps: 30 });
   assert.throws(() => handler({ sender: {} }), /Недоступно/);
   assert.equal(events.length, 4);

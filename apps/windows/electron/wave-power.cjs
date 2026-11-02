@@ -14,7 +14,8 @@ function installWavePower({ powerMonitor, ipcMain, getWindow }) {
   };
   powerMonitor.on("on-ac", publish);
   powerMonitor.on("on-battery", publish);
-  powerMonitor.on("speed-limit-change", (_event, details) => {
+  powerMonitor.on("speed-limit-change", (details) => {
+    if (!Number.isFinite(details?.limit)) return;
     limited = details.limit < 80;
     publish();
   });
