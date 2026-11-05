@@ -14,6 +14,12 @@ NPM = 'npm.cmd' if os.name == 'nt' else 'npm'
 def run(*args):
     subprocess.run([str(a) for a in args], cwd=ROOT, check=True)
 
+if sys.platform == 'darwin':
+    native = ROOT / 'native'
+    native.mkdir(exist_ok=True)
+    run('swiftc', '-O', '-framework', 'AppKit', '-framework', 'MediaPlayer',
+        native / 'lad-nowplaying.swift', '-o', native / 'lad-nowplaying')
+
 if not PYTHON.exists():
     venv.create(ENV, with_pip=True)
 run(PYTHON, '-m', 'pip', 'install', '-r', ROOT / 'backend/requirements.txt', 'pyinstaller==6.22.3')

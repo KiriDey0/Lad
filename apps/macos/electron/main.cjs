@@ -18,6 +18,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const readline = require("node:readline");
 const { isYandexUrl } = require("./auth-policy.cjs");
+const { NowPlayingBridge } = require("./now-playing.cjs");
 app.commandLine.appendSwitch("autoplay-policy", "no-user-gesture-required");
 protocol.registerSchemesAsPrivileged([{scheme:"lad-audio",privileges:{standard:true,secure:true,supportFetchAPI:true,corsEnabled:true,stream:true}}]);
 const waveStreams=new (require("./wave-stream.cjs").WaveStreams)();
@@ -25,6 +26,7 @@ let window,
   child,
   authWindow,
   quitting = false;
+let nowPlaying;
 let counter = 0;
 let resolveBackendReady;
 const backendReady = new Promise((resolve) => {
@@ -217,6 +219,7 @@ function startBackend() {
     }
     if (msg.event === "state") {
       lastState = msg.data;
+      nowPlaying?.update(lastState);
     }
     if(msg.event === "local" && msg.data.action === "load" && msg.data.track?.source !== "local") {
       msg.data.url = waveStreams.add(msg.data.url);
@@ -383,6 +386,16 @@ function buildWindow() {
   else window.loadFile(path.join(root, "dist/index.html"));
 }
 app.whenReady().then(() => {
+  nowPlaying = new NowPlayingBridge({
+    executable: app.isPackaged
+      ? path.join(process.resourcesPath, "native", "lad-nowplaying")
+      : path.join(root, "native", "lad-nowplaying"),
+    onCommand: (event) => {
+      const params = event.action === "seek" ? { action: "seek", value: event.value } : { action: event.action };
+      backendReady.then(() => rpc("control", params).catch(() => {}));
+    },
+  });
+  nowPlaying.start();
   readWavePower = require("./wave-power.cjs").installWavePower({powerMonitor, ipcMain, getWindow: () => window, readSaving: async () => (await rpc("powerStatus")).saving});
   app.setName("Лад");
   if (process.env.LAD_USER_DATA)
@@ -554,6 +567,7 @@ app.on("before-quit", (event) => {
   });
 });
 app.on("will-quit", () => {
+  nowPlaying?.close();
   if (child) child.kill();
 });
 app.on("window-all-closed", () => {

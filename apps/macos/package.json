@@ -66,6 +66,10 @@
       {
         "from": "public/icon.png",
         "to": "icon.png"
+      },
+      {
+        "from": "native/lad-nowplaying",
+        "to": "native/lad-nowplaying"
       }
     ],
     "mac": {

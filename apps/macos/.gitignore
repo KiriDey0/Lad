@@ -6,6 +6,7 @@ dist/
 __pycache__/
 .pytest_cache/
 *.tsbuildinfo
+native/lad-nowplaying
 
 # User sessions and local diagnostics
 *.enc
