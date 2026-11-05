@@ -121,9 +121,11 @@ internal fun LockScreenScene(
                 else Artwork(null,v.track?.title.orEmpty(),modifier=Modifier.fillMaxSize())
             }
             Spacer(Modifier.weight(if(music) .9f else .35f))
-            Column(Modifier.fillMaxWidth().padding(horizontal=20.dp)
-                .clip(RoundedCornerShape(24.dp)).then(if(atmosphere)Modifier.background(Color(0xFF17191D).copy(alpha=.63f)) else Modifier)
-                .padding(horizontal=12.dp,vertical=if(atmosphere)12.dp else 0.dp)) {
+            LockGlassPanel(
+                art = art,
+                atmosphere = atmosphere,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+            ) {
                 Row(Modifier.fillMaxWidth().heightIn(min=64.dp),verticalAlignment=Alignment.CenterVertically) {
                     AnimatedContent(t?.id, transitionSpec={ fadeIn(tween(if(motion==LockMotion.OFF)0 else 160)).togetherWith(fadeOut(tween(if(motion==LockMotion.OFF)0 else 100))) },
                         modifier=Modifier.weight(1f),label="lock metadata") { id ->
@@ -154,6 +156,42 @@ internal fun LockScreenScene(
                 LockText(if(preview)"Смахни вверх, чтобы разблокировать" else "Смахни вверх или нажми, чтобы разблокировать",10,p.text.copy(alpha=.5f),maxLines=1)
             }
         }
+    }
+}
+
+/**
+ * The lock-screen player sits on top of the artwork. A plain alpha fill reads as a
+ * solid rectangle on Android, so use the already pre-blurred artwork as the glass
+ * source instead of invoking a live blur on every frame.
+ */
+@Composable
+private fun LockGlassPanel(
+    art: LockArtwork?,
+    atmosphere: Boolean,
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    val shape = RoundedCornerShape(24.dp)
+    val tint = Color(0xFF17191D).copy(alpha = if (atmosphere) .47f else .34f)
+    Box(modifier.clip(shape).border(1.dp, Color.White.copy(alpha = .22f), shape)) {
+        if (art != null) {
+            Image(
+                bitmap = art.backdrop.asImageBitmap(),
+                contentDescription = null,
+                modifier = Modifier.matchParentSize(),
+                contentScale = ContentScale.Crop,
+                alpha = .86f,
+                filterQuality = FilterQuality.Low,
+            )
+        }
+        Box(Modifier.matchParentSize().background(tint))
+        Column(
+            Modifier.fillMaxWidth().padding(
+                horizontal = 12.dp,
+                vertical = if (atmosphere) 12.dp else 8.dp,
+            ),
+            content = content,
+        )
     }
 }
 

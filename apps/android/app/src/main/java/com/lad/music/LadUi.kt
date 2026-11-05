@@ -509,6 +509,10 @@ private fun HomeLyric(engine: MusicEngine, lyrics: Lyrics, offset: Long, onClick
 @Composable
 fun MiniPlayer(s: MusicState, engine: MusicEngine, openNow: () -> Unit, menu: (Track) -> Unit) {
     val t = s.track ?: return
+    val app = LocalContext.current.applicationContext as LadApplication
+    val artwork by produceState<LockArtwork?>(null, t.cover) {
+        value = app.lockArtwork.load(t.cover)
+    }
     val swipe = rememberTrackSwipe(s, engine)
     Glass(
         Modifier.fillMaxWidth()
@@ -526,6 +530,20 @@ fun MiniPlayer(s: MusicState, engine: MusicEngine, openNow: () -> Unit, menu: (T
         s.settings.glass,
         shape = RoundedCornerShape(20.dp),
     ) {
+        // Reuse the small pre-blurred artwork prepared for the lock screen. This keeps
+        // the mini-player visibly translucent even when the page behind it is dark,
+        // without adding a live blur pass to the hot UI path.
+        artwork?.let {
+            Image(
+                bitmap = it.backdrop.asImageBitmap(),
+                contentDescription = null,
+                modifier = Modifier.matchParentSize(),
+                contentScale = ContentScale.Crop,
+                alpha = .34f,
+                filterQuality = FilterQuality.Low,
+            )
+            Box(Modifier.matchParentSize().background(Color.Black.copy(alpha = .22f)))
+        }
         Row(
             Modifier.fillMaxWidth().padding(10.dp),
             verticalAlignment = Alignment.CenterVertically,

@@ -125,7 +125,9 @@ fun Glass(
                 style =
                     HazeStyle(
                         backgroundColor = p.bg,
-                        tint = HazeTint(p.surface.copy(alpha = if (popup) .75f else .76f)),
+                        // Keep the artwork/background readable through the surface. The old
+                        // 76% tint made the card look like a flat opaque rectangle on phones.
+                        tint = HazeTint(p.surface.copy(alpha = if (popup) .62f else .56f)),
                         blurRadius = 14.dp,
                         noiseFactor = 0f,
                         fallbackTint = HazeTint(p.surface),
@@ -136,7 +138,10 @@ fun Glass(
             }
         } else Modifier.background(p.surface)
     Box(
-        modifier.clip(shape).then(material).border(1.dp, Color.White.copy(alpha = .188f), shape),
+        modifier
+            .clip(shape)
+            .then(material)
+            .border(1.dp, Color.White.copy(alpha = .22f), shape),
         content = content,
     )
 }
