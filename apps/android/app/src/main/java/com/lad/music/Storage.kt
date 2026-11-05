@@ -72,6 +72,7 @@ class Storage(private val context: Context) {
             prefs.getBoolean("syncVolume", false),
             prefs.getFloat("waveIntensity", 100f).let { if(it.isFinite())it.coerceIn(0f,100f)else 100f },
             prefs.getFloat("waveSmoothing", 50f).let { if(it.isFinite())it.coerceIn(0f,100f)else 50f },
+            LockScreenSettings.parse(prefs.getString("lockScreen", null)),
         )
 
     fun settings(s: Settings) {
@@ -87,6 +88,7 @@ class Storage(private val context: Context) {
             .putFloat("waveIntensity", s.waveIntensity)
             .putFloat("waveSmoothing", s.waveSmoothing)
             .putLong("lyricOffset", s.lyricOffsetMs)
+            .putString("lockScreen", s.lockScreen.json().toString())
             .apply()
     }
 

@@ -16,6 +16,7 @@ import org.json.*
 
 class LadApplication : Application() {
     val updates by lazy { AppUpdates(this) }
+    val lockArtwork by lazy { LockArtworkRepository(this) }
     lateinit var engine: MusicEngine
 
     override fun onCreate() {

@@ -204,6 +204,7 @@ data class Settings(
     val syncVolume: Boolean = false,
     val waveIntensity: Float = 100f,
     val waveSmoothing: Float = 50f,
+    val lockScreen: LockScreenSettings = LockScreenSettings(),
 )
 
 data class MusicState(

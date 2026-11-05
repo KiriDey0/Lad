@@ -29,6 +29,7 @@ class PlaybackService : Service() {
     private var metadataSignature: Triple<Track?, Long, Bitmap?>? = null
     private var playbackSignature = ""
     private var remoteVolume: VolumeProvider? = null
+    private var lockScreenLauncher: LockScreenLauncher? = null
     private var volumeOutput = ""
     private val localCastWake by lazy { getSystemService(android.os.PowerManager::class.java).newWakeLock(android.os.PowerManager.PARTIAL_WAKE_LOCK, "Lad:localCast") }
     private val localCastWifi by lazy { (applicationContext.getSystemService(android.net.wifi.WifiManager::class.java))?.createWifiLock(android.net.wifi.WifiManager.WIFI_MODE_FULL_HIGH_PERF,"Lad:localCast") }
@@ -37,6 +38,7 @@ class PlaybackService : Service() {
     override fun onCreate() {
         super.onCreate()
         engine = (application as LadApplication).engine
+        lockScreenLauncher = LockScreenLauncher(this, engine)
         val manager = getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(
             NotificationChannel("playback", "Воспроизведение", NotificationManager.IMPORTANCE_LOW)
@@ -201,9 +203,10 @@ class PlaybackService : Service() {
                     .build()
             )
         }
-        val next = listOf(t, s.playing, s.outputName, s.profile?.uid, bitmap)
+        val next = listOf(t, s.playing, s.outputName, s.profile?.uid, bitmap, s.settings.lockScreen.enabled)
         if (next != signature) {
             signature = next
+            session.setSessionActivity(playbackOpenIntent(this, s.settings.lockScreen.enabled))
             if (!foregroundStarted) {
                 showNotification(s)
             } else {
@@ -233,13 +236,7 @@ class PlaybackService : Service() {
         )
 
     private fun notification(s: MusicState): Notification {
-        val open =
-            PendingIntent.getActivity(
-                this,
-                0,
-                Intent(this, MainActivity::class.java),
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-            )
+        val open = playbackOpenIntent(this, s.settings.lockScreen.enabled)
         return Notification.Builder(this, "playback")
             .setSmallIcon(android.R.drawable.ic_media_play)
             .setLargeIcon(artworkFor(s))
@@ -302,6 +299,7 @@ class PlaybackService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
+        lockScreenLauncher?.close()
         if(localCastWake.isHeld)localCastWake.release()
         localCastWifi?.let {if(it.isHeld)it.release()}
         scope.cancel()

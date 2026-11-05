@@ -176,6 +176,13 @@ fun SettingsView(s: MusicState, engine: MusicEngine, modifier: Modifier, bottom:
             )
         }
         Section("Оформление")
+        SettingToggle("Экран блокировки", "Три стиля · ${settings.lockScreen.style.title}", settings.lockScreen.enabled) {
+            engine.settings(settings.copy(lockScreen = settings.lockScreen.copy(enabled = it)))
+        }
+        val lockContext = androidx.compose.ui.platform.LocalContext.current
+        Action("Оформление экрана блокировки", Icons.Outlined.Lock, tonal = true, modifier = Modifier.fillMaxWidth()) {
+            lockContext.startActivity(android.content.Intent(lockContext, LockScreenSettingsActivity::class.java))
+        }
         SettingToggle("OLED", "Настоящий чёрный фон", settings.oled) {
             engine.settings(settings.copy(oled = it))
         }
