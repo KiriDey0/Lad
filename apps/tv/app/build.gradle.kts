@@ -17,7 +17,7 @@ android {
  useLibrary("android.test.mock")
  namespace = "com.lad.music"
  compileSdk = 35
- defaultConfig { applicationId = "com.lad.music.tv"; minSdk = 28; targetSdk = 35; versionCode = 50004; versionName = "0.5.4"; testInstrumentationRunner = "android.test.InstrumentationTestRunner"; ndk { abiFilters += "armeabi-v7a" } }
+ defaultConfig { applicationId = "com.lad.music.tv"; minSdk = 28; targetSdk = 35; versionCode = 50005; versionName = "0.5.5"; testInstrumentationRunner = "android.test.InstrumentationTestRunner"; ndk { abiFilters += "armeabi-v7a" } }
  compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
  kotlinOptions { jvmTarget = "17" }
  buildFeatures { buildConfig = true }
