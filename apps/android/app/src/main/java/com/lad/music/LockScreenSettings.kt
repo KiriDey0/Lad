@@ -42,12 +42,17 @@ data class LockStyleOptions(
 data class LockScreenSettings(
     val enabled: Boolean = false,
     val automatic: Boolean = false,
+    /** Keep the custom player awake while it is visible on the lock screen. */
+    val keepScreenOn: Boolean = false,
+    /** Keep it awake only while the lock-screen lyrics view is open. */
+    val keepScreenOnLyrics: Boolean = false,
     val style: LockStyle = LockStyle.ATMOSPHERE,
     val styles: Map<LockStyle, LockStyleOptions> = emptyMap(),
 ) {
     fun options(forStyle: LockStyle = style) = styles[forStyle] ?: LockStyleOptions.defaults(forStyle)
     fun withOptions(value: LockStyleOptions) = copy(styles = styles + (style to value))
     fun json(): JSONObject = JSONObject().put("enabled", enabled).put("automatic", automatic)
+        .put("keepScreenOn", keepScreenOn).put("keepScreenOnLyrics", keepScreenOnLyrics)
         .put("style", style.key).put("styles", JSONObject().apply {
             styles.forEach { (key, value) -> put(key.key, value.json()) }
         })
@@ -55,7 +60,9 @@ data class LockScreenSettings(
         fun parse(value: String?): LockScreenSettings = runCatching {
             val j = JSONObject(value ?: "{}")
             val entries = j.optJSONObject("styles") ?: JSONObject()
-            LockScreenSettings(j.optBoolean("enabled"), j.optBoolean("automatic"), LockStyle.from(j.optString("style")),
+            LockScreenSettings(j.optBoolean("enabled"), j.optBoolean("automatic"),
+                j.optBoolean("keepScreenOn"), j.optBoolean("keepScreenOnLyrics"),
+                LockStyle.from(j.optString("style")),
                 LockStyle.entries.mapNotNull { style -> entries.optJSONObject(style.key)?.let { style to LockStyleOptions.from(it, style) } }.toMap())
         }.getOrDefault(LockScreenSettings())
     }

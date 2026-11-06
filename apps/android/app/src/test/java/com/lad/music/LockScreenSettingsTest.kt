@@ -25,6 +25,12 @@ class LockScreenSettingsTest {
         val s=LockScreenSettings.parse("""{"enabled":true,"style":"air","styles":{"air":{"clock":"future","seconds":true,"tone":"future"}}}""")
         assertTrue(s.enabled);assertTrue(s.options().seconds);assertEquals(LockClock.LIGHT,s.options().clock);assertEquals(LockTone.DARK,s.options().tone)
     }
+    @Test fun screenAwakeOptionsRoundTripIndependently() {
+        val s = LockScreenSettings(enabled = true, keepScreenOnLyrics = true)
+        val saved = LockScreenSettings.parse(s.json().toString())
+        assertFalse(saved.keepScreenOn)
+        assertTrue(saved.keepScreenOnLyrics)
+    }
     @Test fun automaticDisplayRequiresEveryGuard() {
         val s=LockScreenSettings(enabled=true,automatic=true)
         fun show(locked:Boolean=true,playing:Boolean=true,track:Boolean=true,permission:Boolean=true,call:Boolean=false,dismissed:Boolean=false,settings:LockScreenSettings=s)=

@@ -69,6 +69,7 @@ class LockScreenActivity : ComponentActivity() {
     private val engine get() = (application as LadApplication).engine
     private var interactive by mutableStateOf(false)
     private var foreground by mutableStateOf(false)
+    private var lyricsVisible by mutableStateOf(false)
     private val keyguard get() = getSystemService(KeyguardManager::class.java)
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -104,8 +105,16 @@ class LockScreenActivity : ComponentActivity() {
         setContent {
             val s by engine.state.collectAsStateWithLifecycle()
             val visible = interactive && foreground
+            SideEffect {
+                val keepAwake = visible && (
+                    s.settings.lockScreen.keepScreenOn ||
+                        (s.settings.lockScreen.keepScreenOnLyrics && lyricsVisible)
+                )
+                if (keepAwake) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            }
             LadTheme(s.settings.copy(scale = 1f, accent = 0xFFE2E6EC, tinted = false)) {
-                if (visible) LockPlayer(s, engine, ::closePlayer, ::unlock)
+                if (visible) LockPlayer(s, engine, ::closePlayer, ::unlock) { lyricsVisible = it }
                 else Box(Modifier.fillMaxSize().background(Color(0xFF0C0D0F)))
             }
         }
@@ -119,7 +128,7 @@ class LockScreenActivity : ComponentActivity() {
         }) else finish()
     }
     override fun onStart() { super.onStart(); foreground = true; interactive = getSystemService(PowerManager::class.java).isInteractive }
-    override fun onStop() { foreground = false; super.onStop() }
+    override fun onStop() { foreground = false; lyricsVisible = false; window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON); super.onStop() }
     override fun onDestroy() { runCatching { unregisterReceiver(receiver) }; super.onDestroy() }
     override fun onKeyDown(keyCode: Int, event: android.view.KeyEvent): Boolean {
         val s = engine.state.value

@@ -9,6 +9,7 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
@@ -43,13 +44,33 @@ internal fun rememberLockVisual(s: MusicState): LockVisual {
     return visual
 }
 
+private data class LockLyricsState(val lyrics: Lyrics = Lyrics(), val loading: Boolean = false)
+
 @Composable
-internal fun LockPlayer(s: MusicState, engine: MusicEngine, close: () -> Unit, unlock: () -> Unit) {
+internal fun LockPlayer(
+    s: MusicState,
+    engine: MusicEngine,
+    close: () -> Unit,
+    unlock: () -> Unit,
+    onLyricsVisibilityChanged: (Boolean) -> Unit = {},
+) {
     val visual = rememberLockVisual(s)
     val context = LocalContext.current
     val animatorScale = remember { AndroidSettings.Global.getFloat(context.contentResolver, AndroidSettings.Global.ANIMATOR_DURATION_SCALE, 1f) }
     val options = s.settings.lockScreen.options().let { if (animatorScale == 0f) it.copy(motion = LockMotion.OFF) else it }
-    LockScreenScene(s, visual, s.settings.lockScreen.style, options, Modifier.fillMaxSize(), false, close, unlock) { action ->
+    val track = s.track
+    val lyricsState by produceState(LockLyricsState(loading = track != null), track?.id) {
+        value = LockLyricsState(loading = track != null)
+        if (track != null) {
+            value = LockLyricsState(runCatching { engine.lyrics(track) }.getOrDefault(Lyrics()))
+        }
+    }
+    LockScreenScene(
+        s, visual, s.settings.lockScreen.style, options, Modifier.fillMaxSize(), false, close, unlock,
+        lyrics = lyricsState.lyrics,
+        lyricsLoading = lyricsState.loading,
+        onLyricsVisibilityChanged = onLyricsVisibilityChanged,
+    ) { action ->
         when (action) {
             "toggle" -> engine.task { engine.toggle() }
             "previous" -> engine.task { engine.advance(-1) }
@@ -66,6 +87,8 @@ internal fun LockPlayer(s: MusicState, engine: MusicEngine, close: () -> Unit, u
 internal fun LockScreenScene(
     s: MusicState, visual: LockVisual, style: LockStyle, options: LockStyleOptions,
     modifier: Modifier = Modifier, preview: Boolean = true, close: () -> Unit = {}, unlock: () -> Unit = {},
+    lyrics: Lyrics = Lyrics(), lyricsLoading: Boolean = false,
+    onLyricsVisibilityChanged: (Boolean) -> Unit = {},
     command: (String) -> Unit = {},
 ) {
     val music = style == LockStyle.MUSIC
@@ -76,6 +99,8 @@ internal fun LockScreenScene(
     val density = LocalDensity.current
     val motion = if (preview) LockMotion.OFF else options.motion
     var up by remember { mutableFloatStateOf(0f) }
+    var showLyrics by remember(t?.id) { mutableStateOf(false) }
+    LaunchedEffect(showLyrics) { onLyricsVisibilityChanged(showLyrics) }
     BoxWithConstraints(modifier.background(Color(0xFF0C0D0F)).pointerInput(preview) {
         if (!preview) detectVerticalDragGestures(onDragStart = { up = 0f }, onDragEnd = {
             if (up < -with(density) { 72.dp.toPx() }) unlock()
@@ -111,14 +136,32 @@ internal fun LockScreenScene(
             val clockHeight = if(music) 82.dp else if(options.clock==LockClock.COMPACT) 138.dp else 180.dp
             val available = (viewportHeight - topInset - bottomInset - controlsHeight - clockHeight - 78.dp).coerceAtLeast(120.dp)
             val edge = minOf(viewportWidth - if(music)32.dp else if(atmosphere)84.dp else 64.dp, available, 460.dp)
-            AnimatedContent(visual, transitionSpec = {
-                val ms = if(motion==LockMotion.OFF)0 else if(motion==LockMotion.REDUCED)120 else 280
-                val distance = with(density) { 12.dp.roundToPx() } * if(targetState.index>=initialState.index)1 else -1
-                (fadeIn(tween(ms)) + slideInHorizontally(tween(ms)) { if(motion==LockMotion.NORMAL) distance else 0 })
-                    .togetherWith(fadeOut(tween(if(ms==0)0 else 160)) + slideOutHorizontally(tween(ms)) { if(motion==LockMotion.NORMAL)-distance else 0 })
-            }, contentKey={it.track?.id to it.track?.cover}, modifier=Modifier.size(edge).clip(RoundedCornerShape(24.dp)), label="lock cover") { v ->
-                if(v.art!=null) Image(v.art.cover.asImageBitmap(), "Обложка: ${v.track?.title.orEmpty()}", Modifier.fillMaxSize(), contentScale=ContentScale.Crop)
-                else Artwork(null,v.track?.title.orEmpty(),modifier=Modifier.fillMaxSize())
+            Box(
+                Modifier.size(edge)
+                    .clip(RoundedCornerShape(24.dp))
+                    .clickable { showLyrics = !showLyrics },
+            ) {
+                AnimatedContent(
+                    showLyrics,
+                    transitionSpec = {
+                        val ms = if (motion == LockMotion.OFF) 0 else if (motion == LockMotion.REDUCED) 120 else 280
+                        fadeIn(tween(ms)).togetherWith(fadeOut(tween(if (ms == 0) 0 else 160)))
+                    },
+                    label = "lock cover and lyrics",
+                ) { textMode ->
+                    if (textMode) LockLyricsView(s, lyrics, lyricsLoading, Modifier.fillMaxSize())
+                    else {
+                        AnimatedContent(visual, transitionSpec = {
+                            val ms = if(motion==LockMotion.OFF)0 else if(motion==LockMotion.REDUCED)120 else 280
+                            val distance = with(density) { 12.dp.roundToPx() } * if(targetState.index>=initialState.index)1 else -1
+                            (fadeIn(tween(ms)) + slideInHorizontally(tween(ms)) { if(motion==LockMotion.NORMAL) distance else 0 })
+                                .togetherWith(fadeOut(tween(if(ms==0)0 else 160)) + slideOutHorizontally(tween(ms)) { if(motion==LockMotion.NORMAL)-distance else 0 })
+                        }, contentKey={it.track?.id to it.track?.cover}, modifier=Modifier.fillMaxSize(), label="lock cover") { v ->
+                            if(v.art!=null) Image(v.art.cover.asImageBitmap(), "Обложка: ${v.track?.title.orEmpty()}", Modifier.fillMaxSize(), contentScale=ContentScale.Crop)
+                            else Artwork(null,v.track?.title.orEmpty(),modifier=Modifier.fillMaxSize())
+                        }
+                    }
+                }
             }
             Spacer(Modifier.weight(if(music) .9f else .35f))
             LockGlassPanel(
@@ -154,6 +197,48 @@ internal fun LockScreenScene(
             Spacer(Modifier.weight(.3f))
             Box(Modifier.fillMaxWidth().height(44.dp).then(if(preview)Modifier else Modifier.clickable(onClick=unlock)),contentAlignment=Alignment.Center) {
                 LockText(if(preview)"Смахни вверх, чтобы разблокировать" else "Смахни вверх или нажми, чтобы разблокировать",10,p.text.copy(alpha=.5f),maxLines=1)
+            }
+        }
+    }
+}
+
+@Composable
+private fun LockLyricsView(s: MusicState, lyrics: Lyrics, loading: Boolean, modifier: Modifier = Modifier) {
+    val p = LocalPalette.current
+    val lines = lyrics.lines
+    val active = lines.indexOfLast {
+        it.timeMs != null && it.timeMs <= s.positionMs + s.settings.lyricOffsetMs
+    }
+    val listState = rememberLazyListState()
+    LaunchedEffect(active, lines.size) {
+        if (active >= 0) listState.animateScrollToItem((active - 2).coerceAtLeast(0))
+    }
+    Box(
+        modifier
+            .background(Color(0xFF0C0D0F).copy(alpha = .48f))
+            .border(1.dp, Color.White.copy(alpha = .18f), RoundedCornerShape(24.dp)),
+        contentAlignment = Alignment.Center,
+    ) {
+        when {
+            loading -> LockText("Загружаю текст…", 15, p.text.copy(alpha = .72f))
+            lines.isEmpty() -> LockText("Синхронный текст недоступен", 14, p.text.copy(alpha = .72f), modifier = Modifier.padding(20.dp), maxLines = 2)
+            else -> LazyColumn(
+                state = listState,
+                modifier = Modifier.fillMaxSize().padding(horizontal = 18.dp),
+                contentPadding = PaddingValues(vertical = 28.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                itemsIndexed(lines, key = { index, _ -> index }) { index, line ->
+                    LockText(
+                        line.text,
+                        if (index == active) 18 else 14,
+                        if (index == active) p.text else p.text.copy(alpha = .48f),
+                        weight = if (index == active) FontWeight.SemiBold else FontWeight.Normal,
+                        modifier = Modifier.fillMaxWidth(),
+                        maxLines = 3,
+                    )
+                }
             }
         }
     }

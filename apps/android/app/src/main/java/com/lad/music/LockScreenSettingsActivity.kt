@@ -130,6 +130,17 @@ private fun LockScreenChooser(s: MusicState, engine: MusicEngine, back: () -> Un
             }
             if(permissionMessage.isNotBlank())Label(permissionMessage,13,p.muted)
             Label("Без автоматического появления: нажми на системный плеер на экране блокировки. PIN и отпечаток остаются включены.",12,p.muted)
+            Section("Поведение экрана")
+            SettingToggle(
+                "Не выключать экран",
+                "Пока открыт плеер Лада на экране блокировки",
+                draft.keepScreenOn,
+            ) { draft = draft.copy(keepScreenOn = it) }
+            SettingToggle(
+                "Не выключать экран с текстом",
+                "Только когда вместо обложки открыт синхронный текст",
+                draft.keepScreenOnLyrics,
+            ) { draft = draft.copy(keepScreenOnLyrics = it) }
             Spacer(Modifier.height(12.dp))
         }
         Button({engine.settings(engine.state.value.settings.copy(lockScreen=draft.copy(enabled=true)));back()},
