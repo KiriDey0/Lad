@@ -26,6 +26,7 @@ import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.*
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.*
@@ -38,6 +39,7 @@ internal fun rememberLockVisual(s: MusicState): LockVisual {
     val app = LocalContext.current.applicationContext as LadApplication
     val track = s.track
     val visual by produceState(LockVisual(track, app.lockArtwork.cached(track?.cover), s.index), track?.id, track?.cover) {
+        value = LockVisual(track, app.lockArtwork.cached(track?.cover), s.index)
         val art = app.lockArtwork.load(track?.cover)
         value = LockVisual(track, art, s.index)
     }
@@ -52,6 +54,7 @@ internal fun LockPlayer(
     engine: MusicEngine,
     close: () -> Unit,
     unlock: () -> Unit,
+    active: Boolean = true,
     onLyricsVisibilityChanged: (Boolean) -> Unit = {},
 ) {
     val visual = rememberLockVisual(s)
@@ -59,17 +62,23 @@ internal fun LockPlayer(
     val animatorScale = remember { AndroidSettings.Global.getFloat(context.contentResolver, AndroidSettings.Global.ANIMATOR_DURATION_SCALE, 1f) }
     val options = s.settings.lockScreen.options().let { if (animatorScale == 0f) it.copy(motion = LockMotion.OFF) else it }
     val track = s.track
-    val lyricsState by produceState(LockLyricsState(loading = track != null), track?.id) {
-        value = LockLyricsState(loading = track != null)
-        if (track != null) {
-            value = LockLyricsState(runCatching { engine.lyrics(track) }.getOrDefault(Lyrics()))
+    var lyricsRequested by remember(track?.id) { mutableStateOf(false) }
+    val lyricsState by key(track?.id) {
+        produceState(LockLyricsState(), active, lyricsRequested) {
+            if (!active || !lyricsRequested || track == null) return@produceState
+            if (value.lyrics.lines.isNotEmpty()) return@produceState
+            value = LockLyricsState(loading = true)
+            value = try { LockLyricsState(engine.lyrics(track)) }
+            catch (e: CancellationException) { throw e }
+            catch (_: Exception) { LockLyricsState() }
         }
     }
     LockScreenScene(
         s, visual, s.settings.lockScreen.style, options, Modifier.fillMaxSize(), false, close, unlock,
         lyrics = lyricsState.lyrics,
         lyricsLoading = lyricsState.loading,
-        onLyricsVisibilityChanged = onLyricsVisibilityChanged,
+        active = active,
+        onLyricsVisibilityChanged = { lyricsRequested = it; onLyricsVisibilityChanged(it) },
     ) { action ->
         when (action) {
             "toggle" -> engine.task { engine.toggle() }
@@ -87,7 +96,7 @@ internal fun LockPlayer(
 internal fun LockScreenScene(
     s: MusicState, visual: LockVisual, style: LockStyle, options: LockStyleOptions,
     modifier: Modifier = Modifier, preview: Boolean = true, close: () -> Unit = {}, unlock: () -> Unit = {},
-    lyrics: Lyrics = Lyrics(), lyricsLoading: Boolean = false,
+    lyrics: Lyrics = Lyrics(), lyricsLoading: Boolean = false, active: Boolean = true,
     onLyricsVisibilityChanged: (Boolean) -> Unit = {},
     command: (String) -> Unit = {},
 ) {
@@ -124,7 +133,7 @@ internal fun LockScreenScene(
                 if (preview) Icon(Icons.Outlined.Lock, null, Modifier.size(16.dp), tint = p.text.copy(alpha=.6f))
                 else IconButton(close, Modifier.size(48.dp)) { Icon(Icons.Outlined.Close, "Закрыть плеер", Modifier.size(20.dp), tint=p.text.copy(alpha=.7f)) }
             }
-            if (!music) LockClockView(options, atmosphere, preview, Modifier.fillMaxWidth().padding(horizontal=28.dp))
+            if (!music) LockClockView(options, atmosphere, preview, active, Modifier.fillMaxWidth().padding(horizontal=28.dp))
             else { Spacer(Modifier.height(8.dp)); LockText("Сейчас играет", 16, weight=FontWeight.Medium); Spacer(Modifier.height(10.dp)) }
             Row(Modifier.fillMaxWidth().padding(horizontal = 32.dp).height(32.dp), horizontalArrangement=if(atmosphere||music) Arrangement.Center else Arrangement.Start,
                 verticalAlignment=Alignment.CenterVertically) {
@@ -149,7 +158,7 @@ internal fun LockScreenScene(
                     },
                     label = "lock cover and lyrics",
                 ) { textMode ->
-                    if (textMode) LockLyricsView(s, lyrics, lyricsLoading, Modifier.fillMaxSize())
+                    if (textMode) LockLyricsView(s, lyrics, lyricsLoading, active, Modifier.fillMaxSize())
                     else {
                         AnimatedContent(visual, transitionSpec = {
                             val ms = if(motion==LockMotion.OFF)0 else if(motion==LockMotion.REDUCED)120 else 280
@@ -203,15 +212,15 @@ internal fun LockScreenScene(
 }
 
 @Composable
-private fun LockLyricsView(s: MusicState, lyrics: Lyrics, loading: Boolean, modifier: Modifier = Modifier) {
+private fun LockLyricsView(s: MusicState, lyrics: Lyrics, loading: Boolean, visible: Boolean, modifier: Modifier = Modifier) {
     val p = LocalPalette.current
     val lines = lyrics.lines
     val active = lines.indexOfLast {
         it.timeMs != null && it.timeMs <= s.positionMs + s.settings.lyricOffsetMs
     }
     val listState = rememberLazyListState()
-    LaunchedEffect(active, lines.size) {
-        if (active >= 0) listState.animateScrollToItem((active - 2).coerceAtLeast(0))
+    LaunchedEffect(active, lines.size, visible) {
+        if (visible && active >= 0) listState.animateScrollToItem((active - 2).coerceAtLeast(0))
     }
     Box(
         modifier
@@ -286,12 +295,12 @@ private fun LockText(text:String,size:Int,color:Color=LocalPalette.current.text,
     fontWeight=weight,maxLines=maxLines,overflow=TextOverflow.Ellipsis)
 
 @Composable
-private fun LockClockView(options: LockStyleOptions, centered: Boolean, preview:Boolean, modifier:Modifier) {
+private fun LockClockView(options: LockStyleOptions, centered: Boolean, preview:Boolean, active:Boolean, modifier:Modifier) {
     val context=LocalContext.current
     val locale=Locale.getDefault()
     val twentyFour=when(options.format){LockTimeFormat.SYSTEM->DateFormat.is24HourFormat(context);LockTimeFormat.H24->true;LockTimeFormat.H12->false}
-    val now by produceState(if(preview)Calendar.getInstance().apply{set(Calendar.HOUR_OF_DAY,15);set(Calendar.MINUTE,30);set(Calendar.SECOND,24)}.timeInMillis else System.currentTimeMillis(),options.seconds,preview){
-        if(!preview)while(true){value=System.currentTimeMillis();val unit=if(options.seconds)1000L else 60000L;delay(unit-System.currentTimeMillis()%unit)}
+    val now by produceState(if(preview)Calendar.getInstance().apply{set(Calendar.HOUR_OF_DAY,15);set(Calendar.MINUTE,30);set(Calendar.SECOND,24)}.timeInMillis else System.currentTimeMillis(),options.seconds,preview,active){
+        if(!preview && active)while(true){value=System.currentTimeMillis();val unit=if(options.seconds)1000L else 60000L;delay(unit-System.currentTimeMillis()%unit)}
     }
     val date=remember(locale){SimpleDateFormat("EEEE, d MMMM",locale)}
     val time=remember(locale,twentyFour){SimpleDateFormat(if(twentyFour)"HH:mm" else "h:mm",locale)}

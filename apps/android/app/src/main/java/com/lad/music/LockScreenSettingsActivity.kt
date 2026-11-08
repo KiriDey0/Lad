@@ -119,7 +119,7 @@ private fun LockScreenChooser(s: MusicState, engine: MusicEngine, back: () -> Un
                 LockSegments(LockMotion.entries.map{it.title},o.motion.ordinal){draft=draft.withOptions(o.copy(motion=LockMotion.entries[it]))}
             }
             Section("Появление плеера")
-            SettingToggle("При включении экрана","Показывать на заблокированном телефоне, пока играет музыка",draft.automatic) { enabled ->
+            SettingToggle("При включении экрана","Во время прослушивания и в течение часа после паузы",draft.automatic) { enabled ->
                 if(!enabled)draft=draft.copy(automatic=false)
                 else if(AndroidSettings.canDrawOverlays(context))draft=draft.copy(automatic=true)
                 else {

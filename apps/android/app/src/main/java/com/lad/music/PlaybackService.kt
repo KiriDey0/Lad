@@ -81,6 +81,7 @@ class PlaybackService : Service() {
         scope.launch {
             engine.state.collect { s ->
                 val t = s.track
+                LockScreenSession.playback.update(s.playing, t != null && !s.demo)
                 val casting = t?.isLocal == true && s.output == "station" && s.playing && s.connection == "connected"
                 if(casting) {if(!localCastWake.isHeld)localCastWake.acquire(60*60*1000L);localCastWifi?.let {if(!it.isHeld)it.acquire()}}
                 else {if(localCastWake.isHeld)localCastWake.release();localCastWifi?.let {if(it.isHeld)it.release()}}
@@ -300,6 +301,7 @@ class PlaybackService : Service() {
 
     override fun onDestroy() {
         lockScreenLauncher?.close()
+        LockScreenSession.playback.clear()
         if(localCastWake.isHeld)localCastWake.release()
         localCastWifi?.let {if(it.isHeld)it.release()}
         scope.cancel()

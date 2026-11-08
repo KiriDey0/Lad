@@ -68,7 +68,7 @@ data class LockScreenSettings(
     }
 }
 
-/** Shared by the receiver and tests: never interrupt an unlocked phone, a call, or stopped playback. */
-internal fun shouldShowLockPlayer(settings: LockScreenSettings, locked: Boolean, playing: Boolean,
+/** Never interrupt an unlocked phone, a call, or a dismissed/expired media session. */
+internal fun shouldShowLockPlayer(settings: LockScreenSettings, locked: Boolean, sessionAvailable: Boolean,
     hasTrack: Boolean, overlayAllowed: Boolean, callActive: Boolean, dismissed: Boolean): Boolean =
-    settings.enabled && settings.automatic && locked && playing && hasTrack && overlayAllowed && !callActive && !dismissed
+    settings.enabled && settings.automatic && locked && sessionAvailable && hasTrack && overlayAllowed && !callActive && !dismissed
