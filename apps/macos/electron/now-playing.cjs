@@ -4,7 +4,8 @@ const readline = require("node:readline");
 const { spawn } = require("node:child_process");
 
 class NowPlayingBridge {
-  constructor({ executable, onCommand = () => {}, spawnImpl = spawn }) {
+  constructor({ executable, onCommand = () => {}, spawnImpl = spawn, platform = process.platform }) {
+    this.platform = platform;
     this.executable = executable;
     this.onCommand = onCommand;
     this.spawnImpl = spawnImpl;
@@ -13,7 +14,7 @@ class NowPlayingBridge {
   }
 
   start() {
-    if (process.platform !== "darwin" || !fs.existsSync(this.executable)) return false;
+    if (this.platform !== "darwin" || !fs.existsSync(this.executable)) return false;
     this.child = this.spawnImpl(this.executable, [], { stdio: ["pipe", "pipe", "ignore"] });
     const lines = readline.createInterface({ input: this.child.stdout });
     lines.on("line", (line) => {

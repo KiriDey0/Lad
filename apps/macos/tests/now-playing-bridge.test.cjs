@@ -23,6 +23,7 @@ test("publishes current track once per second and forwards remote commands", () 
   const child = new FakeChild();
   const commands = [];
   const bridge = new NowPlayingBridge({
+    platform: "darwin",
     executable: process.execPath,
     spawnImpl: () => child,
     onCommand: (event) => commands.push(event),
@@ -50,7 +51,7 @@ test("publishes current track once per second and forwards remote commands", () 
 
 test("clears Now Playing when no track exists", () => {
   const child = new FakeChild();
-  const bridge = new NowPlayingBridge({ executable: process.execPath, spawnImpl: () => child });
+  const bridge = new NowPlayingBridge({ platform: "darwin", executable: process.execPath, spawnImpl: () => child });
   bridge.start();
   bridge.update({ playback: { track: null } });
   assert.deepEqual(child.stdin.lines, [{ method: "clear" }]);
