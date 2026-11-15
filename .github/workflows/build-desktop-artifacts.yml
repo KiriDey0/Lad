@@ -1,0 +1,63 @@
+name: Build desktop artifacts
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  macos:
+    runs-on: macos-14
+    defaults:
+      run:
+        working-directory: apps/macos
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/macos/package-lock.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python scripts/build.py
+      - name: Archive macOS app
+        run: |
+          version=$(node -p "require('./package.json').version")
+          ditto -c -k --sequesterRsrc --keepParent "release/mac-arm64/Лад.app" "release/Lad-macOS-arm64-$version.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-macos
+          path: apps/macos/release/Lad-macOS-arm64-*.zip
+          if-no-files-found: error
+
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: apps/windows
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/windows/package-lock.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python scripts/build.py
+      - name: Normalize Windows artifact names
+        shell: pwsh
+        run: |
+          $version = (Get-Content package.json | ConvertFrom-Json).version
+          Rename-Item "release/Lad-Windows-x64-$version.zip" "Lad-Windows-Portable-$version-x64.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-windows
+          path: |
+            apps/windows/release/Lad-Setup-*-x64.exe
+            apps/windows/release/Lad-Windows-Portable-*-x64.zip
+          if-no-files-found: error
