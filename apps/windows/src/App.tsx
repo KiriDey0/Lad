@@ -85,6 +85,7 @@ import {
   duration,
 } from "./components/ui";
 import { AudioEngine } from "./components/AudioEngine";
+import { AudioSettingsPage, EqualizerPage } from "./components/AudioSettingsPages";
 import { ExplicitBadge } from "./components/ExplicitBadge";
 import {
   TrackActionsProvider,
@@ -101,9 +102,11 @@ import {
 import { usePinnedCollections, collectionKey } from "./usePinnedCollections";
 import { TrackProgress } from "./components/TrackProgress";
 import { loadTheme, applyTheme, defaultTheme, type Theme } from "./theme";
+import { loadAudioSettings, saveAudioSettings } from "./audioSettings";
+import type { AudioSettings } from "./types";
 
 type Page =
-  "home" | "search" | "collection" | "liked" | "now" | "settings" | "detail";
+  "home" | "search" | "collection" | "liked" | "now" | "settings" | "audio" | "equalizer" | "detail";
 type Content = {
   cards: Card[];
   tracks: Track[];
@@ -141,10 +144,15 @@ export default function App() {
   } | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [theme, setTheme] = useState<Theme>(loadTheme);
+  const [audioSettings, setAudioSettings] = useState<AudioSettings>(loadAudioSettings);
   const searchRef = useRef<HTMLInputElement>(null);
   const requestId = useRef(0);
   const stateRef = useRef(state);
   stateRef.current = state;
+  const updateAudioSettings = useCallback((value: AudioSettings) => {
+    setAudioSettings(value);
+    saveAudioSettings(value);
+  }, []);
   const notice = useCallback((message: string) => setToast(message), []);
   const pins = usePinnedCollections(
     scope,
@@ -472,7 +480,7 @@ export default function App() {
         }}
       >
         <div className="app-shell">
-          <AudioEngine state={state} notice={notice} />
+          <AudioEngine state={state} notice={notice} audioSettings={audioSettings} />
           <div className="titlebar" data-platform={bridge.platform}>
             <div className="titlebar-label">
               Лад <span>·</span> Музыка там, где ты
@@ -618,6 +626,8 @@ export default function App() {
                         liked: "Мне нравится",
                         now: "Сейчас играет",
                         settings: "Настройки",
+                        audio: "Звук",
+                        equalizer: "Эквалайзер",
                         detail:
                           detail?.type === "artist"
                             ? "Исполнитель"
@@ -666,6 +676,8 @@ export default function App() {
               >
                 {!authenticated &&
                 page !== "settings" &&
+                page !== "audio" &&
+                page !== "equalizer" &&
                 page !== "collection" &&
                 !(page === "now" && current?.source === "local") &&
                 !(page === "detail" && detail?.id.startsWith("local-")) ? (
@@ -686,9 +698,26 @@ export default function App() {
                     onTheme={setTheme}
                     onLogin={() => setModal("login")}
                     onDevices={() => setModal("devices")}
+                    onAudio={() => nav("audio")}
                     onLogout={() => {
                       void act("logout").then(() => setPage("home"));
                     }}
+                  />
+                ) : page === "audio" ? (
+                  <AudioSettingsPage
+                    state={state}
+                    settings={audioSettings}
+                    onChange={updateAudioSettings}
+                    onTab={(tab) => nav(tab === "overview" ? "audio" : "equalizer")}
+                    notice={notice}
+                  />
+                ) : page === "equalizer" ? (
+                  <EqualizerPage
+                    state={state}
+                    settings={audioSettings}
+                    onChange={updateAudioSettings}
+                    onTab={(tab) => nav(tab === "overview" ? "audio" : "equalizer")}
+                    notice={notice}
                   />
                 ) : page === "collection" ? (
                   <CollectionBrowser
@@ -2721,6 +2750,7 @@ function SettingsPage({
   onTheme,
   onLogin,
   onDevices,
+  onAudio,
   onLogout,
 }: {
   state: State;
@@ -2729,6 +2759,7 @@ function SettingsPage({
   onTheme: (theme: Theme) => void;
   onLogin: () => void;
   onDevices: () => void;
+  onAudio: () => void;
   onLogout: () => void;
 }) {
   const update = (value: Partial<Theme>) => onTheme({ ...theme, ...value });
@@ -2790,6 +2821,13 @@ function SettingsPage({
           >
             <span aria-hidden="true" />
           </button>
+        </div>
+        <div className="setting-row">
+          <div>
+            <strong>Профиль звука</strong>
+            <p>Пресеты, 10-полосный эквалайзер, dB-предусиление и защита пиков для каждого выхода.</p>
+          </div>
+          <Button icon={SlidersHorizontal} variant="secondary" onClick={onAudio}>Настроить</Button>
         </div>
       </section>
       <section className="settings-section">

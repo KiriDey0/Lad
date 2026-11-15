@@ -242,6 +242,52 @@ fun SettingsView(s: MusicState, engine: MusicEngine, modifier: Modifier, bottom:
         Label("Меньше — резкая реакция на музыку. Больше — мягкие и спокойные движения.", 13, p.muted)
         Section("Звук")
         SettingToggle(
+            "Обработка звука",
+            "10-полосный эквалайзер и native playback effect для этого телефона.",
+            settings.audioEnabled,
+        ) {
+            engine.settings(settings.copy(audioEnabled = it))
+        }
+        Label("Пресет", 16, weight = FontWeight.Medium)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf("flat" to "Ровный", "warm" to "Тёплый свет", "rock" to "Реп / рок", "night" to "Ночной").forEach { (id, title) ->
+                FilterChip(
+                    selected = settings.audioPreset == id,
+                    onClick = {
+                        val gains = when (id) {
+                            "flat" -> List(10) { 0f }
+                            "rock" -> listOf(3.5f, 3f, 1.5f, -1f, -1.5f, 0f, 1.5f, 2f, 2f, 1.5f)
+                            "night" -> listOf(-2f, -1f, 0f, 1f, 1.5f, 1f, .5f, -.5f, -1f, -1.5f)
+                            else -> listOf(2.5f, 2f, 1f, 0f, -.5f, 0f, .5f, 1f, 1f, .5f)
+                        }
+                        engine.settings(settings.copy(audioPreset = id, audioBands = gains))
+                    },
+                    label = { Text(title, maxLines = 1) },
+                )
+            }
+        }
+        Label("Предусиление · ${if (settings.audioPreampDb > 0) "+" else ""}${settings.audioPreampDb.toInt()} dB", 14, p.muted)
+        C4Slider(
+            settings.audioPreampDb,
+            { engine.settings(settings.copy(audioPreampDb = it, audioPreset = "custom")) },
+            valueRange = -12f..6f,
+            steps = 35,
+            modifier = Modifier.semantics { contentDescription = "Предусиление звука" },
+        )
+        Label("Полосы эквалайзера", 16, weight = FontWeight.Medium)
+        val frequencies = listOf("31.5", "63", "125", "250", "500", "1 k", "2 k", "4 k", "8 k", "16 k")
+        frequencies.forEachIndexed { index, frequency ->
+            val gain = settings.audioBands.getOrElse(index) { 0f }
+            Label("$frequency Hz · ${if (gain > 0) "+" else ""}${gain.toInt()} dB", 12, p.muted)
+            C4Slider(
+                gain,
+                { value -> engine.settings(settings.copy(audioBands = settings.audioBands.mapIndexed { i, old -> if (i == index) value else old }, audioPreset = "custom")) },
+                valueRange = -12f..12f,
+                steps = 47,
+                modifier = Modifier.semantics { contentDescription = "Эквалайзер $frequency Hz" },
+            )
+        }
+        SettingToggle(
             "Синхронизировать громкость с устройством",
             "Кнопки телефона управляют Ладом и Станцией. Выключено по умолчанию.",
             settings.syncVolume,

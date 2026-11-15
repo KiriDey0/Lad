@@ -90,6 +90,7 @@ class MusicEngine(
             )
             setHandleAudioBecomingNoisy(true)
         }
+    private val audioProfile = com.lad.music.wave.AudioProfileEffect()
     private val mutable = MutableStateFlow(MusicState(settings = storage.settings()))
     val state = mutable.asStateFlow()
     val uiState =
@@ -191,6 +192,11 @@ class MusicEngine(
     init {
         player.addListener(
             object : Player.Listener {
+                override fun onAudioSessionIdChanged(audioSessionId: Int) {
+                    audioProfile.attach(audioSessionId)
+                    val a = state.value.settings
+                    audioProfile.apply(a.audioEnabled, a.audioPreampDb, a.audioBands)
+                }
                 override fun onEvents(p: Player, events: Player.Events) {
                     if (state.value.output == "phone" && !state.value.demo)
                         update {
@@ -414,6 +420,7 @@ class MusicEngine(
         }
         val wasSync = state.value.settings.syncVolume
         storage.settings(value)
+        audioProfile.apply(value.audioEnabled, value.audioPreampDb, value.audioBands)
         if (value.syncVolume && !wasSync && state.value.output == "phone" && !state.value.demo)
             update { it.copy(volume = deviceVolume()) }
         player.volume = if (value.syncVolume && !state.value.demo) 1f else state.value.volume

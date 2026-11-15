@@ -74,6 +74,29 @@ export interface State {
   hasMusicSession: boolean;
   feedbackError?: string | null;
 }
+export interface AudioPreset {
+  id: string;
+  name: string;
+  description: string;
+  gains: number[];
+}
+export interface AudioProfile {
+  id: "mac" | "headphones" | "bluetooth" | "station";
+  name: string;
+  detail: string;
+  icon: "monitor" | "headphones" | "bluetooth" | "speaker";
+}
+export interface AudioSettings {
+  enabled: boolean;
+  profile: AudioProfile["id"];
+  preset: string;
+  gains: number[];
+  preamp: number;
+  limiter: boolean;
+  loudness: boolean;
+  stereoWidth: number;
+  reverb: boolean;
+}
 export interface Lyrics {
   synced: boolean;
   lines: { time: number | null; text: string }[];

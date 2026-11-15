@@ -205,6 +205,10 @@ data class Settings(
     val waveIntensity: Float = 100f,
     val waveSmoothing: Float = 50f,
     val lockScreen: LockScreenSettings = LockScreenSettings(),
+    val audioEnabled: Boolean = true,
+    val audioPreset: String = "warm",
+    val audioPreampDb: Float = -1f,
+    val audioBands: List<Float> = listOf(2.5f, 2f, 1f, 0f, -.5f, 0f, .5f, 1f, 1f, .5f),
 )
 
 data class MusicState(
