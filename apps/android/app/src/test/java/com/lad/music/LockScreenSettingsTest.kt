@@ -5,6 +5,12 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class LockScreenSettingsTest {
+    @Test fun previousRestartsOnlyAfterMoreThanFiveSeconds() {
+        assertFalse(previousPressRestarts(0))
+        assertFalse(previousPressRestarts(5_000))
+        assertTrue(previousPressRestarts(5_001))
+    }
+
     @Test fun upgradesAndInvalidPreferencesKeepTheFeatureOptIn() {
         for(value in listOf(null,"", "broken", "{}", "{\"style\":\"unknown\"}")) {
             val s=LockScreenSettings.parse(value)
@@ -33,9 +39,9 @@ class LockScreenSettingsTest {
     }
     @Test fun automaticDisplayRequiresEveryGuard() {
         val s=LockScreenSettings(enabled=true,automatic=true)
-        fun show(locked:Boolean=true,playing:Boolean=true,track:Boolean=true,permission:Boolean=true,call:Boolean=false,dismissed:Boolean=false,settings:LockScreenSettings=s)=
-            shouldShowLockPlayer(settings,locked,playing,track,permission,call,dismissed)
-        assertTrue(show());assertFalse(show(locked=false));assertFalse(show(playing=false));assertFalse(show(track=false))
+        fun show(locked:Boolean=true,sessionAvailable:Boolean=true,track:Boolean=true,permission:Boolean=true,call:Boolean=false,dismissed:Boolean=false,settings:LockScreenSettings=s)=
+            shouldShowLockPlayer(settings,locked,sessionAvailable,track,permission,call,dismissed)
+        assertTrue(show());assertFalse(show(locked=false));assertFalse(show(sessionAvailable=false));assertFalse(show(track=false))
         assertFalse(show(permission=false));assertFalse(show(call=true));assertFalse(show(dismissed=true))
         assertFalse(show(settings=s.copy(enabled=false)));assertFalse(show(settings=s.copy(automatic=false)))
     }

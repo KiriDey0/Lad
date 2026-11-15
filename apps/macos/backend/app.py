@@ -491,6 +491,8 @@ class App:
 
     async def control(self, action, value=None):
         if action in ('next', 'previous'):
+            if action == 'previous' and not self.demo and self.current_position() > 5:
+                return await self.control('seek', 0)
             return await self.advance(1 if action == 'next' else -1)
         if action == 'toggle':
             action = 'pause' if self.playback['playing'] else 'play'

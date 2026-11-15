@@ -14,6 +14,11 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.json.*
 
+internal const val PREVIOUS_RESTART_THRESHOLD_MS = 5_000L
+
+internal fun previousPressRestarts(positionMs: Long): Boolean =
+    positionMs > PREVIOUS_RESTART_THRESHOLD_MS
+
 class LadApplication : Application() {
     val updates by lazy { AppUpdates(this) }
     val lockArtwork by lazy { LockArtworkRepository(this) }
@@ -639,6 +644,18 @@ class MusicEngine(
                     !acceptsCoverSelection(s, coverSelection.first, coverSelection.second)
             )
                 return@playbackLock
+            // The first previous press after five seconds restarts the current
+            // track; a second press within the first five seconds changes track.
+            if (direction < 0 && !automatic && coverSelection == null && previousPressRestarts(s.positionMs)) {
+                if (s.demo) demoAt = SystemClock.elapsedRealtime()
+                else if (s.output == "station") {
+                    station?.command(JSONObject().put("command", "rewind").put("position", 0))
+                    stationBase = 0
+                    stationAt = SystemClock.elapsedRealtime()
+                } else player.seekTo(0)
+                update { it.copy(positionMs = 0) }
+                return@playbackLock
+            }
             if (s.output == "station" && !s.owned) {
                 check(!s.settings.blockExplicit) { "Фильтр 18+ включён. Выбери трек через Лад." }
                 station?.command(JSONObject().put("command", if (direction > 0) "next" else "prev"))
