@@ -440,6 +440,10 @@ if (primaryInstance) app.whenReady().then(() => {
     cache:path.join(dataPath(),"updates"),execPath:process.execPath,appPath:app.getAppPath(),
     emit:state => { if(window && !window.isDestroyed())window.webContents.send("lad:update",state); },
     quit:() => app.quit()});
+  ipcMain.handle("lad:release-history", async (event) => {
+    if (event.sender !== window?.webContents) throw Error("Действие недоступно");
+    return require("./release-history.cjs").loadReleaseHistory();
+  });
   ipcMain.handle("lad:updates", async (event, action) => {
     if(event.sender !== window?.webContents || !["state","check","download","cancel","install"].includes(action))throw Error("Действие недоступно");
     if(action === "install" && !app.isPackaged)throw Error("Установка доступна в собранном приложении");

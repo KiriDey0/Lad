@@ -121,7 +121,13 @@ export interface LadEvent {
   event: string;
   data: any;
 }
+export interface ReleaseHistoryEntry {
+  version: string;
+  date: string;
+  notes: string;
+}
 export interface Bridge {
+  releaseHistory?: () => Promise<ReleaseHistoryEntry[]>;
   wavePower?: (request?: {mode: "auto" | "eco" | "smooth"; active: boolean; pressure?: number}) => Promise<{ fps: number }>;
   localFiles?(
     action: "add" | "restore" | "locate" | "lyrics" | "reveal",

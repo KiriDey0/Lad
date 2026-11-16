@@ -3,6 +3,7 @@ const { contextBridge, ipcRenderer } = require("electron");
 contextBridge.exposeInMainWorld("lad", {
   wavePower: (request) => ipcRenderer.invoke("lad:wave-power", request),
   localFiles: (action, id) => ipcRenderer.invoke("lad:local-files", action, id),
+  releaseHistory: () => ipcRenderer.invoke("lad:release-history"),
   updates: (action = "state") => ipcRenderer.invoke("lad:updates", action),
   onUpdate: (callback) => {
     const listener = (_event, state) => callback(state);

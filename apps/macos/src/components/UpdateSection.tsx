@@ -3,11 +3,13 @@ import { useEffect, useState } from "react";
 import { Download, RefreshCw, X, Check, RotateCw } from "lucide-react";
 import { bridge } from "../bridge";
 import { Button } from "./ui";
+import { ReleaseHistoryDialog, ReleaseNotes } from "./ReleaseHistoryDialog";
 export interface UpdateState {
   phase: string; currentVersion: string; version?: string; notes?: string;
   message?: string; progress: number; size?: number;
 }
 export function UpdateSection() {
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [s, set] = useState<UpdateState>({phase:"idle",currentVersion:"",progress:0});
   useEffect(() => {
     if (!bridge.updates) return;
@@ -28,11 +30,12 @@ export function UpdateSection() {
       {s.phase==="ready" && <p className="settings-about">Лад {s.version} готов к установке. Очередь и настройки сохранятся. Воспроизведение на этом устройстве прервётся при перезапуске.</p>}
       {s.phase==="downloading" && <><progress aria-label="Загрузка обновления" max={100} value={s.progress}/><p className="settings-about">Можно продолжать слушать музыку.</p></>}
     </div>
-    {s.notes && ["available","ready"].includes(s.phase) && <div className="update-notes">{s.notes}</div>}
+    {s.notes && ["available","ready"].includes(s.phase) && <div className="update-notes"><ReleaseNotes notes={s.notes} /></div>}
     <div className="update-actions">
       {s.phase==="available"?<Button icon={Download} onClick={()=>void act("download")}>Скачать обновление{s.size?` · ${Math.ceil(s.size/1048576)} МБ`:""}</Button>:s.phase==="ready"?<Button icon={RotateCw} onClick={()=>void act("install")}>Установить и перезапустить</Button>:<Button icon={s.phase==="current"?Check:RefreshCw} loading={busy} onClick={()=>void act("check")}>{s.phase==="installing"?"Устанавливаем…":s.phase==="checking"?"Проверяем…":"Проверить обновления"}</Button>}
       {["checking","downloading"].includes(s.phase) && <Button icon={X} variant="ghost" onClick={()=>void act("cancel")}>Отменить</Button>}
-      {["available","ready"].includes(s.phase) && <Button variant="ghost" onClick={()=>void bridge.open("https://github.com/KiriDey0/Lad/releases")}>История версий</Button>}
+      <Button variant="ghost" onClick={() => setHistoryOpen(true)}>История версий</Button>
     </div>
+    {historyOpen && <ReleaseHistoryDialog close={() => setHistoryOpen(false)} />}
   </section>;
 }
