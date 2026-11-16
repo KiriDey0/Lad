@@ -1445,7 +1445,8 @@ kbd {
   .eq-rail::before { content: ""; @apply absolute left-1/2 top-0 h-full w-1 -translate-x-1/2 rounded-full; background: var(--raised); }
   .eq-zero { @apply absolute left-0 right-0 top-1/2 h-px; background: var(--border); }
   .eq-active { @apply absolute left-1/2 w-1 -translate-x-1/2 rounded-full; background: var(--accent); }
-  .eq-band input { @apply absolute inset-0 h-full w-full opacity-0; writing-mode: vertical-lr; direction: rtl; cursor: ns-resize; }
+  .eq-band .eq-range { @apply absolute inset-0 h-full w-full opacity-0; writing-mode: vertical-lr; direction: rtl; cursor: ns-resize; }
+  .eq-band .eq-number { @apply relative z-10 h-7 w-[54px] rounded-lg border px-1 text-center text-[10px] tabular-nums; border-color: var(--border); background: var(--surface); color: var(--accent); }
   .eq-band strong { @apply mt-3 text-xs; }
   .eq-band small { @apply text-[10px]; color: var(--muted); }
   .eq-summary { @apply mt-5 flex items-center justify-between border-t pt-4 text-xs; border-color: var(--border); color: var(--muted); }
