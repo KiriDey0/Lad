@@ -32,3 +32,9 @@ run(PYTHON, '-m', 'PyInstaller', '--noconfirm', '--clean', '--name', 'lad-backen
     '--collect-all', 'mutagen', '--collect-all', 'PIL', '--collect-all', 'miniaudio',
     '--hidden-import', '_miniaudio', '--hidden-import', '_cffi_backend', ROOT / 'backend/app.py')
 run(NPM, 'exec', 'electron-builder', '--', '--mac' if sys.platform == 'darwin' else '--win', 'dir')
+if sys.platform == 'darwin':
+    # identity=null skips electron-builder signing entirely. The linker's signature
+    # on the Electron executable does not seal the finished app's resources.
+    bundle = ROOT / 'release/mac-arm64/Лад.app'
+    run('/usr/bin/codesign', '--force', '--deep', '--sign', '-', bundle)
+    run('/usr/bin/codesign', '--verify', '--deep', '--strict', bundle)
