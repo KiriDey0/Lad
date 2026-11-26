@@ -35,6 +35,18 @@ class QueueInteractionTest {
         assertEquals(q[0].queueEntryId, appended[0].queueEntryId)
         assertNotEquals(appended[0].queueEntryId, appended[1].queueEntryId)
     }
+    @Test fun insertingNextCannotStealTheIdentityOfALaterOccurrence() {
+        val q = queueEntries(listOf(track("A"), track("D"), track("F"), track("D")))
+        val selected = q.last().queueEntryId
+        val inserted = insertQueueEntries(q, listOf(q.last(), q.last()), 1)
+        assertEquals(listOf("A", "D", "D", "D", "F", "D"), inserted.map { it.id })
+        assertEquals(q.map { it.queueEntryId }, (listOf(inserted[0]) + inserted.drop(3)).map { it.queueEntryId })
+        assertEquals(6, inserted.map { it.queueEntryId }.toSet().size)
+        assertEquals(5, queueEntryIndex(inserted, selected))
+        val removed = inserted.filter { it.queueEntryId != selected }
+        assertEquals(5, removed.size)
+        assertEquals(3, removed.count { it.id == "D" })
+    }
     @Test fun unshuffleDoesNotExchangeDuplicateOccurrences() {
         val q = queueEntries(listOf(track("A"), track("D"), track("F"), track("A"), track("D")))
         val current = listOf(q[4], q[3], q[2], q[1], q[0])

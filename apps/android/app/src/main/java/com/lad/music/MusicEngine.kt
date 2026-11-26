@@ -863,7 +863,7 @@ class MusicEngine(
         check(eligible.isNotEmpty()) { "Нет доступных треков с учётом фильтра" }
         check(s.queue.size + eligible.size <= 5000) { "Очередь вмещает до 5000 треков" }
         val position = if (next) (s.index + 1).coerceAtLeast(0) else s.queue.size
-        val q = s.queue.toMutableList().apply { addAll(position, eligible) }
+        val q = insertQueueEntries(s.queue, eligible, position)
         originalQueue = null
         update { it.copy(queue = q, shuffle = false) }
         persist()

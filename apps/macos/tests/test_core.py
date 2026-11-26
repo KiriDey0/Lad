@@ -85,3 +85,14 @@ def test_adding_a_queue_track_creates_a_new_occurrence_and_restore_keeps_ids():
     assert [t['queueEntryId'] for t in restored.snapshot()['tracks']] == ids
     restored.shuffle(True); restored.shuffle(False)
     assert [t['queueEntryId'] for t in restored.tracks] == ids
+
+
+def test_unshuffle_keeps_refreshed_metadata_and_never_reinserts_played_duplicates():
+    q = Queue(); q.replace([tr('A'), tr('D'), tr('F'), tr('A'), tr('D')], 1)
+    original = [t['queueEntryId'] for t in q.tracks]
+    q.shuffle(True)
+    q.tracks = [dict(t, liked=True, title='refreshed') for t in q.tracks]
+    q.shuffle(False)
+    assert [t['queueEntryId'] for t in q.tracks] == original
+    assert q.index == 1 and q.current['queueEntryId'] == original[1]
+    assert all(t['liked'] and t['title'] == 'refreshed' for t in q.tracks)

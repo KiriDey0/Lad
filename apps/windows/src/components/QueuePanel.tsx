@@ -186,7 +186,7 @@ export function QueuePanel({ state, act, close }: { state: State; act: Act; clos
           className={clsx("queue-row", q.index === i && q.owned && "queue-current", i < q.index && q.owned && "queue-played", drag?.id === id && "queue-placeholder")}
           onContextMenu={e => { if (drag) e.preventDefault(); else actions.menu(e, t, () => command("jump", t, i), i); }}
           onPointerDown={e => {
-            if (e.button !== 0 || saving || (e.target as HTMLElement).closest("button:not(.queue-grip),a")) return;
+            if (!e.isPrimary || active.current || press.current || e.button !== 0 || saving || (e.target as HTMLElement).closest("button:not(.queue-grip),a")) return;
             press.current = { id: e.pointerId, x: e.clientX, y: e.clientY, row: e.currentTarget, track: t, index: i };
             if (e.pointerType !== "mouse") press.current.timer = setTimeout(begin, 350);
           }}>

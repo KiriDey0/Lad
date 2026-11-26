@@ -307,6 +307,12 @@ fun queueEntries(tracks: List<Track>): List<Track> {
     }
 }
 
+/** Incoming songs never take the identity of an existing queue occurrence. */
+fun insertQueueEntries(queue: List<Track>, tracks: List<Track>, index: Int): List<Track> {
+    val additions = queueEntries(tracks.map { it.copy(queueEntryId = "") })
+    return queue.toMutableList().apply { addAll(index.coerceIn(0, size), additions) }
+}
+
 fun queueEntryIndex(tracks: List<Track>, entryId: String): Int =
     if (entryId.isBlank()) -1 else tracks.indexOfFirst { it.queueEntryId == entryId }
 

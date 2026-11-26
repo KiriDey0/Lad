@@ -1,10 +1,14 @@
 name: Queue interaction on desktop
 on:
   push:
-    branches: [fix/queue-interaction]
+    branches: [main]
+  pull_request:
   workflow_dispatch:
 permissions:
   contents: read
+concurrency:
+  group: queue-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   queue:
     strategy:

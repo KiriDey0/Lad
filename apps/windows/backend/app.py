@@ -370,8 +370,11 @@ class App:
         epoch = self.operation_epoch
         if not 0 <= index < len(self.queue.tracks):
             raise ValueError('Выбери трек в очереди.')
+        self.queue.ensure_entries()
+        entry_id = self.queue.tracks[index]['queueEntryId']
         await self.report_listen()
         self.require_operation(epoch)
+        index = self.queue.entry_index(entry_id)
         t = self.queue.tracks[index]
         if local_id(t.get('id')):
             t = dict(self.local_library.track(t['id'], self.local_media.cover, require=True), queueEntryId=t.get('queueEntryId', ''))
@@ -396,6 +399,7 @@ class App:
             else:
                 station_state = await self.station.play_track(t['id'], position, paused)
             self.require_operation(epoch)
+        index = self.queue.entry_index(entry_id)
         self.queue.index, self.queue.owned = index, True
         self.generation += 1
         self.play_id = str(uuid.uuid4())
@@ -988,14 +992,19 @@ class App:
             async with self.lock:
                 action = p['action']
                 if action == 'jump':
+                    self.require_operation(epoch)
+                    self.queue.ensure_entries()
                     index = self.queue.entry_index(p['entryId']) if p.get('entryId') else int(p['index'])
                     if not 0 <= index < len(self.queue.tracks):
                         raise ValueError('Выбери трек в очереди.')
+                    entry_id = self.queue.tracks[index]['queueEntryId']
                     if self.radio and self.queue.current and index != self.queue.index and not self.demo:
                         await self.radio_feedback('skip', self.queue.current, radio=dict(self.radio),
                             played=self.current_position() if self.output == 'station' else self.total_played)
-                    # Selecting an occurrence changes position within the same Wave, not its source.
-                    await self.start_track(index)
+                    self.require_operation(epoch)
+                    # Resolve again after network waits: shuffle can move this occurrence.
+                    await self.start_track(self.queue.entry_index(entry_id))
+                    index = self.queue.index
                     if self.radio and index >= len(self.queue.tracks) - 2 and not self.demo:
                         try:
                             await self.topup_radio()

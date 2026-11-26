@@ -107,6 +107,24 @@ test('cancelling a drag restores order without a playback command', async () => 
   expect((await snapshot()).queue.tracks.map((t: any) => t.queueEntryId)).toEqual(before.queue.tracks.map((t: any) => t.queueEntryId));
 });
 
+test('a second pointer cannot finish or replace an active drag', async () => {
+  await fillQueue(30, 0);
+  const scroll = page.locator('.queue-scroll');
+  await scroll.evaluate(el => el.scrollTop = 0);
+  const before = await snapshot();
+  const grip = (await page.locator('.queue-row').nth(1).locator('.queue-grip').boundingBox())!;
+  await page.mouse.move(grip.x+5, grip.y+5); await page.mouse.down();
+  await page.mouse.move(grip.x+5, grip.y+100, {steps:8});
+  await expect(page.locator('.queue-floating')).toBeVisible();
+  const other = page.locator('.queue-row:not(.queue-placeholder) .queue-grip').first();
+  await other.dispatchEvent('pointerdown', {pointerId:2,pointerType:'touch',button:0,buttons:1,isPrimary:false});
+  await other.dispatchEvent('pointerup', {pointerId:2,pointerType:'touch',button:0,buttons:0,isPrimary:false});
+  await expect(page.locator('.queue-floating')).toBeVisible();
+  await page.keyboard.press('Escape'); await page.mouse.up();
+  await expect(page.locator('.queue-floating')).toHaveCount(0);
+  expect((await snapshot()).queue.tracks.map((t:any)=>t.queueEntryId)).toEqual(before.queue.tracks.map((t:any)=>t.queueEntryId));
+});
+
 test('holding a touch drag keeps the card alive while the viewport scrolls', async () => {
   await fillQueue(100, 40);
   await page.locator('.queue-scroll').evaluate(el => el.scrollTop = 0);

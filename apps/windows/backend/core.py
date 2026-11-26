@@ -121,18 +121,17 @@ class Queue:
     def shuffle(self, enabled: bool):
         if enabled == self.shuffled:
             return
+        self.ensure_entries()
         if enabled:
             self.original = copy.deepcopy(self.tracks)
             tail = self.tracks[self.index + 1:]
             random.shuffle(tail)
             self.tracks[self.index + 1:] = tail
         else:
-            # Preserve the played prefix, including duplicate track occurrences.
-            rest = self.original.copy()
-            for played in self.tracks[:self.index + 1]:
-                try:
-                    rest.remove(played)
-                except ValueError:
-                    pass
-            self.tracks[self.index + 1:] = rest
+            # Metadata can change while shuffled. Match occurrences by identity,
+            # keep the played prefix, and retain live metadata in the restored tail.
+            played = {t['queueEntryId'] for t in self.tracks[:self.index + 1]}
+            live = {t['queueEntryId']: t for t in self.tracks[self.index + 1:]}
+            self.tracks[self.index + 1:] = [live[t['queueEntryId']] for t in self.original
+                                          if t['queueEntryId'] not in played and t['queueEntryId'] in live]
         self.shuffled = enabled
