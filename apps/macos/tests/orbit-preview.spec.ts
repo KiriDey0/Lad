@@ -274,7 +274,9 @@ for (const width of [1440, 320])
       await expect(page.locator('input[type="color"]')).toHaveCount(0);
       const pickerBox = (await picker.boundingBox())!;
       expect(pickerBox.x).toBeGreaterThanOrEqual(0);
-      expect(pickerBox.x + pickerBox.width).toBeLessThanOrEqual(width + 1);
+      expect(pickerBox.x + pickerBox.width).toBeLessThanOrEqual(
+        (await page.evaluate(() => innerWidth)) + 1,
+      );
       expect(pickerBox.y).toBeGreaterThanOrEqual(0);
       const seed = () =>
         page.evaluate(
@@ -423,7 +425,9 @@ for (const width of [1440, 320])
       await expect(dialog).toBeVisible();
       const box = (await dialog.boundingBox())!;
       expect(box.x).toBeGreaterThanOrEqual(0);
-      expect(box.x + box.width).toBeLessThanOrEqual(width + 1);
+      expect(box.x + box.width).toBeLessThanOrEqual(
+        (await page.evaluate(() => innerWidth)) + 1,
+      );
       const insets = await dialog.evaluate((el) => {
         const frame = el.getBoundingClientRect();
         return Array.from(
@@ -514,7 +518,7 @@ for (const width of [1440, 320])
               BrowserWindow.getAllWindows()[0].webContents.getZoomFactor(),
             ),
           )
-          .toBe(percent / 100);
+          .toBe((percent / 100) * 0.85);
         for (const group of ["Основа", "Режим волны"]) {
           const options = page
             .getByRole("radiogroup", { name: group, exact: true })
@@ -719,6 +723,195 @@ for (const width of [1440, 320])
       });
       await page.keyboard.press("Escape");
       await expect(dialog).toHaveCount(0);
+    } finally {
+      await app.close();
+      fs.rmSync(profile, { recursive: true, force: true });
+    }
+  });
+
+test("old 85 percent becomes 100 without changing zoom; migration survives reload", async () => {
+  const profile = fs.mkdtempSync(path.join(os.tmpdir(), "lad-orbit-scale-"));
+  const app = await electron.launch({
+    executablePath: process.env.LAD_TEST_EXE || undefined,
+    args: process.env.LAD_TEST_EXE ? [] : [root],
+    env: {
+      ...process.env,
+      LAD_USER_DATA: profile,
+      LAD_PYTHON: process.env.LAD_PYTHON,
+    },
+  });
+  try {
+    const page = await app.firstWindow();
+    await page.evaluate(() => window.lad!.rpc("snapshot"));
+    for (const oldScale of [75, 85, 100, 115]) {
+      await page.evaluate((oldScale) => {
+        const theme = JSON.parse(localStorage.getItem("orbit-theme") || "{}");
+        delete theme.scaleBasis;
+        theme.scale = oldScale;
+        localStorage.setItem("orbit-theme", JSON.stringify(theme));
+      }, oldScale);
+      await page.reload();
+      await page.evaluate(() => window.lad!.rpc("snapshot"));
+      await expect
+        .poll(() =>
+          app.evaluate(({ BrowserWindow }) =>
+            BrowserWindow.getAllWindows()[0].webContents.getZoomFactor(),
+          ),
+        )
+        .toBeCloseTo(oldScale / 100, 8);
+      await expect
+        .poll(() =>
+          page.evaluate(
+            () => JSON.parse(localStorage.getItem("orbit-theme")!).scaleBasis,
+          ),
+        )
+        .toBe(85);
+      expect(
+        await page.evaluate(
+          () => JSON.parse(localStorage.getItem("orbit-theme")!).scale,
+        ),
+      ).toBeCloseTo(oldScale / 0.85, 8);
+      await page.reload();
+      await page.evaluate(() => window.lad!.rpc("snapshot"));
+      await expect
+        .poll(() =>
+          app.evaluate(({ BrowserWindow }) =>
+            BrowserWindow.getAllWindows()[0].webContents.getZoomFactor(),
+          ),
+        )
+        .toBeCloseTo(oldScale / 100, 8);
+    }
+    await page.evaluate(() => {
+      const theme = JSON.parse(localStorage.getItem("orbit-theme")!);
+      theme.scale = 85;
+      delete theme.scaleBasis;
+      localStorage.setItem("orbit-theme", JSON.stringify(theme));
+    });
+    await page.reload();
+    await page.evaluate(() => window.lad!.rpc("snapshot"));
+    await page
+      .getByRole("button", { name: "Посмотреть демо", exact: true })
+      .click();
+    await page.getByRole("button", { name: "Настройки", exact: true }).click();
+    await expect(
+      page.getByRole("combobox", { name: "Размер интерфейса", exact: true }),
+    ).toHaveValue("100");
+  } finally {
+    await app.close();
+    fs.rmSync(profile, { recursive: true, force: true });
+  }
+});
+
+for (const size of [
+  { width: 1440, height: 800 },
+  { width: 1100, height: 720 },
+  { width: 320, height: 800 },
+])
+  test(`wave card fits above dock and Orbit spacing survives at ${size.width}x${size.height}`, async () => {
+    const profile = fs.mkdtempSync(path.join(os.tmpdir(), "lad-orbit-fit-"));
+    const app = await electron.launch({
+      executablePath: process.env.LAD_TEST_EXE || undefined,
+      args: process.env.LAD_TEST_EXE ? [] : [root],
+      env: {
+        ...process.env,
+        LAD_USER_DATA: profile,
+        LAD_PYTHON: process.env.LAD_PYTHON,
+      },
+    });
+    try {
+      const page = await app.firstWindow();
+      await app.evaluate(({ BrowserWindow }, size) => {
+        const win = BrowserWindow.getAllWindows()[0];
+        win.setContentSize(size.width, size.height);
+      }, size);
+      await page.evaluate(() => window.lad!.rpc("snapshot"));
+      await page
+        .getByRole("button", { name: "Посмотреть демо", exact: true })
+        .click();
+      const nav = async (label: string) => {
+        if (size.width < 760)
+          await page.getByRole("link", { name: label, exact: true }).click();
+        else
+          await page.getByRole("button", { name: label, exact: true }).click();
+      };
+      await nav("Для тебя");
+      const geometry = await page.locator(".wave-home").evaluate((card) => {
+        const hero = card.getBoundingClientRect();
+        const dock = document.querySelector(".player")!.getBoundingClientRect();
+        const header = document
+          .querySelector(".main-header")!
+          .getBoundingClientRect();
+        return {
+          top: hero.top,
+          bottom: hero.bottom,
+          dock: dock.top,
+          header: header.bottom,
+          scroll: card.scrollHeight,
+          client: card.clientHeight,
+          cover: card.querySelector(".art")!.getBoundingClientRect().height,
+        };
+      });
+      expect(geometry.top).toBeGreaterThanOrEqual(geometry.header - 1);
+      expect(geometry.bottom, JSON.stringify(geometry)).toBeLessThanOrEqual(
+        geometry.dock - 8,
+      );
+      expect(geometry.scroll).toBeLessThanOrEqual(geometry.client + 2);
+      await expect(page.locator(".wave-home-controls")).toBeInViewport();
+      const button = page.locator(".wave-home-controls .lad-button").first();
+      const spacing = await button.evaluate((el) => {
+        const icon = el.querySelector("svg")!.getBoundingClientRect();
+        const label = el
+          .querySelector(".lad-button-label")!
+          .getBoundingClientRect();
+        return {
+          gap:
+            (label.left - icon.right) /
+            (el.getBoundingClientRect().width /
+              (el as HTMLElement).offsetWidth),
+          padding: getComputedStyle(el.querySelector(".orbit-button__icon")!)
+            .padding,
+        };
+      });
+      expect(spacing.gap).toBeCloseTo(8, 0);
+      expect(spacing.padding).toBe("0px");
+      const capture = await app.evaluate(async ({ BrowserWindow }) =>
+        (await BrowserWindow.getAllWindows()[0].webContents.capturePage())
+          .toPNG()
+          .toString("base64"),
+      );
+      fs.writeFileSync(
+        path.join(shots, `refined-wave-${size.width}-${size.height}.png`),
+        Buffer.from(capture, "base64"),
+      );
+      await nav("Поиск");
+      await page
+        .getByRole("searchbox", { name: "Поиск музыки", exact: true })
+        .fill("Тихий");
+      const chip = page
+        .getByRole("group", { name: "Тип поиска", exact: true })
+        .locator('button[aria-pressed="true"]');
+      expect(
+        await chip
+          .locator(".orbit-button__icon")
+          .evaluate((el) => getComputedStyle(el).padding),
+      ).toBe("0px");
+      await nav("Для тебя");
+      if (size.width < 760) await page.locator(".mobile-queue-button").click();
+      else if (!(await page.locator(".queue-panel").count()))
+        await page
+          .locator(".player-right")
+          .getByRole("button", { name: "Показать очередь", exact: true })
+          .click();
+      const alignment = await page.locator(".queue-panel").evaluate((el) => {
+        const close = el
+          .querySelector(".queue-header button")!
+          .getBoundingClientRect();
+        const clear = el
+          .querySelector(".queue-source button")!
+          .getBoundingClientRect();
+        return Math.abs(close.right - clear.right);
+      });
+      expect(alignment).toBeLessThanOrEqual(1);
     } finally {
       await app.close();
       fs.rmSync(profile, { recursive: true, force: true });

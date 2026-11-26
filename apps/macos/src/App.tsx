@@ -1,9 +1,11 @@
 import { OrbitToggle as OrbitSwitch } from "./components/OrbitToggle";
 import {
   OrbitProvider,
+  Container,
   SideNav,
   TabBar,
   SearchField,
+  SelectField,
   FilterChips,
   Segmented,
   Toast,
@@ -125,6 +127,12 @@ import {
   orbitTokens,
   type Theme,
 } from "./theme";
+import {
+  interfaceScaleOptions,
+  stepInterfaceScale,
+  MIN_INTERFACE_SCALE,
+  MAX_INTERFACE_SCALE,
+} from "./interfaceScale";
 import { loadAudioSettings, saveAudioSettings } from "./audioSettings";
 import type { AudioSettings } from "./types";
 
@@ -880,7 +888,10 @@ export default function App() {
                           />
                         </>
                       ) : page === "home" ? (
-                        <div className="home-hero wave-home">
+                        <Container
+                          material="surface"
+                          className="home-hero wave-home"
+                        >
                           <WaveBackdrop
                             cover={current?.cover}
                             playing={state.playback.playing}
@@ -950,7 +961,7 @@ export default function App() {
                               Настроить
                             </Button>
                           </div>
-                        </div>
+                        </Container>
                       ) : page === "liked" ? (
                         <div className="collection-heading">
                           <span className="liked-cover">
@@ -2849,27 +2860,32 @@ function SettingsPage({
             <button
               className="scale-step"
               aria-label="Уменьшить интерфейс"
-              disabled={theme.scale <= 75}
-              onClick={() => update({ scale: theme.scale - 5 })}
+              disabled={theme.scale <= MIN_INTERFACE_SCALE}
+              onClick={() =>
+                update({ scale: stepInterfaceScale(theme.scale, -5) })
+              }
             >
               −
             </button>
-            <select
+            <SelectField
+              label="Масштаб"
               aria-label="Размер интерфейса"
-              value={theme.scale}
-              onChange={(e) => update({ scale: Number(e.target.value) })}
-            >
-              {[75, 80, 85, 90, 95, 100, 105, 110, 115].map((scale) => (
-                <option key={scale} value={scale}>
-                  {scale}%{scale === 100 ? " · по умолчанию" : ""}
-                </option>
-              ))}
-            </select>
+              value={String(theme.scale)}
+              onChange={(event) =>
+                update({ scale: Number(event.target.value) })
+              }
+              options={interfaceScaleOptions(theme.scale).map((scale) => ({
+                value: String(scale),
+                label: `${Math.round(scale)}%${scale === 100 ? " · базовый" : ""}`,
+              }))}
+            />
             <button
               className="scale-step"
               aria-label="Увеличить интерфейс"
-              disabled={theme.scale >= 115}
-              onClick={() => update({ scale: theme.scale + 5 })}
+              disabled={theme.scale >= MAX_INTERFACE_SCALE}
+              onClick={() =>
+                update({ scale: stepInterfaceScale(theme.scale, 5) })
+              }
             >
               +
             </button>
@@ -2897,15 +2913,19 @@ function SettingsPage({
               Исходная палитра, цветной акцент или лёгкий оттенок поверхностей.
             </p>
           </div>
-          <select
+          <SelectField
+            label="Палитра"
             aria-label="Окраска интерфейса"
             value={theme.mode}
-            onChange={(e) => update({ mode: e.target.value as Theme["mode"] })}
-          >
-            <option value="default">Исходная</option>
-            <option value="accent">Акцентная</option>
-            <option value="tinted">Тонированная</option>
-          </select>
+            onChange={(event) =>
+              update({ mode: event.target.value as Theme["mode"] })
+            }
+            options={[
+              { value: "default", label: "Исходная" },
+              { value: "accent", label: "Акцентная" },
+              { value: "tinted", label: "Тонированная" },
+            ]}
+          />
         </div>
         {theme.mode !== "default" && (
           <div className="setting-row">

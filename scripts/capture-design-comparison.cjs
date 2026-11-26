@@ -9,7 +9,10 @@ const path = require("node:path");
 const root = path.resolve(__dirname, "..");
 const classic = path.resolve(root, "../implementation/apps/macos");
 const orbit = path.join(root, "apps/macos");
-const output = path.join(root, "work/design-comparison");
+const output = path.resolve(
+  root,
+  process.env.LAD_COMPARISON_DIR || "work/design-comparison",
+);
 fs.mkdirSync(output, { recursive: true });
 const screens = [
   ["01-wave", "Моя волна"],
@@ -26,7 +29,7 @@ const screens = [
 ];
 const sizes = [
   { id: "wide", width: 1440, height: 847, scale: 85 },
-  { id: "compact", width: 1100, height: 800, scale: 100 },
+  { id: "compact", width: 1100, height: 800, scale: 85 },
 ];
 const manifest = {
   created: "2026-11-27",
@@ -72,12 +75,13 @@ async function run(design, spec) {
         localStorage.setItem("orbit-theme", JSON.stringify(theme));
       },
       {
-        base: "dark",
+        base: "oled",
         mode: "default",
         seed: "#BFCAF5",
         transparency: true,
         lyricOffset: 0,
-        scale: spec.scale,
+        scale: design === "orbit" ? spec.scale / 0.85 : spec.scale,
+        ...(design === "orbit" ? { scaleBasis: 85 } : {}),
         waveIntensity: 70,
         waveSmoothing: 50,
         waveQuality: "auto",
@@ -136,7 +140,19 @@ async function run(design, spec) {
           .click();
     };
     const capture = async (id) => {
-      await page.evaluate(() => document.fonts.ready);
+      await app.evaluate(({ BrowserWindow }) => {
+        const win = BrowserWindow.getAllWindows()[0];
+        win.show();
+        win.focus();
+        win.webContents.setBackgroundThrottling(false);
+      });
+      await page.bringToFront();
+      await page.evaluate(async () => {
+        await document.fonts.ready;
+        await new Promise((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(resolve)),
+        );
+      });
       await page.mouse.move(2, 2);
       await pause(280);
       const image = await app.evaluate(async ({ BrowserWindow }) =>
@@ -188,9 +204,13 @@ async function run(design, spec) {
       .filter({
         has: page.getByRole("heading", { name: "Оформление", exact: true }),
       })
-      .evaluate(
-        (el) => (el.closest(".page-content").scrollTop = el.offsetTop - 18),
-      );
+      .evaluate((el) => {
+        const scroll = el.closest(".page-content");
+        scroll.scrollTop +=
+          el.getBoundingClientRect().top -
+          scroll.getBoundingClientRect().top -
+          16;
+      });
     await capture("07-appearance");
     await page
       .locator(".page-content")
@@ -245,8 +265,22 @@ async function run(design, spec) {
   }
 }
 (async () => {
-  for (const size of sizes)
-    for (const design of ["classic", "orbit"]) await run(design, size);
+  const selectedDesigns = (
+    process.env.LAD_COMPARE_DESIGNS || "classic,orbit"
+  ).split(",");
+  const selectedSizes = (process.env.LAD_COMPARE_SIZES || "wide,compact").split(
+    ",",
+  );
+  const manifestPath = path.join(output, "manifest.json");
+  if (fs.existsSync(manifestPath)) {
+    const previous = JSON.parse(fs.readFileSync(manifestPath));
+    manifest.images = previous.images.filter(
+      (i) =>
+        !selectedDesigns.includes(i.design) || !selectedSizes.includes(i.size),
+    );
+  }
+  for (const size of sizes.filter((s) => selectedSizes.includes(s.id)))
+    for (const design of selectedDesigns) await run(design, size);
   fs.writeFileSync(
     path.join(output, "manifest.json"),
     JSON.stringify(manifest, null, 2),

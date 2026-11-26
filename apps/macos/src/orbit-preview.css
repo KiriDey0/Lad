@@ -81,13 +81,7 @@ body {
 .lad-orbit .orbit-side-nav ul {
   gap: 4px;
 }
-.lad-orbit .orbit-side-nav :is(a, button) {
-  min-height: 48px;
-  border-radius: 16px;
-  font-size: 14px;
-  padding: 10px 14px;
-  gap: 12px;
-}
+
 .lad-orbit .sidebar-heading {
   margin-top: 26px;
   padding-left: 14px;
@@ -199,49 +193,7 @@ body {
   font-weight: 600;
   letter-spacing: -0.4px;
 }
-.lad-orbit .wave-home {
-  min-height: 630px;
-  padding: 32px 12px 34px;
-  border-radius: 0;
-}
-.lad-orbit .wave-heading h1 {
-  font-size: 34px;
-  letter-spacing: -1px;
-  font-weight: 650;
-  line-height: 1.2;
-  margin-top: 8px;
-}
-.lad-orbit .wave-now-playing {
-  gap: 18px;
-  margin-top: 24px;
-}
-.lad-orbit .wave-now-playing > .art {
-  width: 232px;
-  height: 232px;
-  border-radius: 24px;
-  box-shadow: 0 16px 48px #0005;
-}
-.lad-orbit .wave-track-meta strong {
-  font-size: 19px;
-  letter-spacing: -0.4px;
-}
-.lad-orbit .wave-track-meta small {
-  font-size: 13px;
-  margin-top: 5px;
-}
-.lad-orbit .wave-lyrics {
-  font-size: 15px;
-  line-height: 1.65;
-  min-height: 54px;
-}
-.lad-orbit .wave-expand {
-  font-size: 11px;
-  color: var(--orbit-muted);
-}
-.lad-orbit .wave-home-controls {
-  gap: 10px;
-  margin-top: 24px;
-}
+
 .lad-orbit .home-hero .orbit-button {
   font-size: 13px;
 }
@@ -797,49 +749,12 @@ body {
   .lad-orbit .page-heading {
     margin-bottom: 24px;
   }
-  .lad-orbit .wave-home {
-    min-height: 550px;
-    padding: 18px 0 30px;
-    display: block;
-  }
-  .lad-orbit .wave-heading h1 {
-    font-size: 28px;
-  }
-  .lad-orbit .wave-now-playing {
-    display: flex;
-    flex-direction: column;
-    flex-wrap: nowrap;
-    gap: 16px;
-    margin-top: 24px;
-  }
-  .lad-orbit .wave-now-playing > .art {
-    width: 200px;
-    height: 200px;
-    border-radius: 24px;
-  }
+
   .lad-orbit .wave-track-meta {
     width: 100%;
     text-align: center;
   }
-  .lad-orbit .wave-track-meta strong {
-    font-size: 18px;
-  }
-  .lad-orbit .wave-lyrics {
-    font-size: 13px;
-    line-height: 1.7;
-    width: 100%;
-    text-wrap: balance;
-  }
-  .lad-orbit .wave-home-controls {
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 8px;
-  }
-  .lad-orbit .wave-home-controls .orbit-button {
-    font-size: 12px;
-    padding-inline: 14px;
-    min-height: 44px;
-  }
+
   .lad-orbit .section-title {
     flex-wrap: wrap;
   }
@@ -1501,4 +1416,352 @@ body {
 }
 .device-dialog > .modal-footer {
   flex: none;
+}
+
+/* Orbit primitives own their internal spacing. Lad only composes the surrounding layout. */
+.lad-orbit {
+  --lad-space-xs: 4px;
+  --lad-space-sm: 8px;
+  --lad-space-md: 16px;
+  --lad-space-lg: 24px;
+  --lad-space-xl: 32px;
+}
+.orbit-button__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  padding: 0;
+}
+.lad-button-label {
+  min-width: 0;
+}
+.lad-orbit .lad-button {
+  gap: 8px;
+}
+.lad-orbit .orbit-filter-chips {
+  gap: 8px;
+}
+.lad-orbit .orbit-filter-chips .orbit-button {
+  min-height: 36px;
+  padding-inline: 14px;
+  font-size: 13px;
+  gap: 8px;
+}
+.lad-orbit .main-header > div {
+  gap: 4px;
+}
+.lad-orbit .main-header > div > .icon-button {
+  width: 32px;
+  height: 32px;
+  min-height: 32px;
+}
+.lad-orbit .main-header {
+  margin-bottom: 16px;
+}
+.lad-orbit .header-location {
+  font-size: 13px;
+  line-height: 20px;
+}
+.lad-orbit .section-title .lad-button {
+  font-size: 13px;
+  padding-inline: 16px;
+  min-height: 40px;
+}
+.lad-orbit .queue-header,
+.lad-orbit .queue-source {
+  padding-inline: 8px;
+}
+.lad-orbit .queue-source {
+  gap: 8px;
+  margin-bottom: 12px;
+  min-height: 40px;
+}
+.lad-orbit .queue-source > span {
+  flex: 1;
+  min-width: 0;
+  line-height: 18px;
+}
+.lad-orbit .queue-source > .icon-button,
+.lad-orbit .queue-header > .icon-button {
+  width: 32px;
+  height: 32px;
+  min-height: 32px;
+}
+.lad-orbit .queue-source > .icon-button svg {
+  width: 16px;
+  height: 16px;
+}
+.lad-orbit .lyric-line {
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 1.45;
+  letter-spacing: -0.5px;
+}
+.lad-orbit .lyric-line.lyric-active {
+  font-size: 32px;
+  font-weight: 700;
+}
+.lad-orbit .now-heading h1 {
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.7px;
+}
+.lad-orbit .settings-page {
+  max-width: 820px;
+  gap: 16px;
+}
+.lad-orbit .settings-section {
+  padding: 24px;
+}
+.lad-orbit .settings-section > h2,
+.lad-orbit .settings-section .section-title h2 {
+  font-size: 18px;
+  font-weight: 650;
+  line-height: 24px;
+}
+.lad-orbit .setting-row {
+  padding: 16px 0;
+  min-height: 88px;
+  gap: 16px;
+}
+.lad-orbit .setting-row > div:first-child {
+  flex: 1 1 280px;
+}
+.lad-orbit
+  .setting-row
+  > :is(.orbit-field, .orbit-segmented, .interface-scale-control) {
+  flex: 0 1 auto;
+}
+.lad-orbit .setting-row strong {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+}
+.lad-orbit .setting-row p {
+  font-size: 13px;
+  line-height: 20px;
+  margin-top: 6px;
+  max-width: 390px;
+}
+.lad-orbit .setting-row > .orbit-field {
+  width: 200px;
+}
+.lad-orbit .interface-scale-control {
+  gap: 8px;
+}
+.lad-orbit .interface-scale-control > .orbit-field {
+  width: 180px;
+}
+.lad-orbit .orbit-field__member select {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 1.25rem 0 0.4rem;
+  max-width: 100%;
+  width: 100%;
+  font-size: 14px;
+}
+.lad-orbit .orbit-field__control {
+  min-height: 54px;
+}
+.lad-orbit .scale-step {
+  width: 32px;
+  height: 40px;
+  min-width: 32px;
+  background: transparent;
+}
+/* The hero is a bounded card. Canvas alone can escape it; the controls stay above the dock. */
+.lad-orbit .wave-home {
+  --wave-card-height: min(680px, calc(100dvh - 300px));
+  height: var(--wave-card-height);
+  min-height: 0;
+  padding: 16px 24px;
+  margin-bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  position: relative;
+  isolation: auto;
+  background: transparent;
+  border: 1px solid var(--orbit-rim);
+  border-radius: 24px;
+}
+.lad-orbit .wave-home::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--orbit-surface);
+  border-radius: inherit;
+  z-index: -1;
+}
+.lad-orbit .wave-home > :not(.wave-scene-anchor) {
+  position: relative;
+  z-index: 1;
+}
+.wave-backdrop {
+  z-index: 0;
+}
+.lad-orbit .wave-heading h1 {
+  font-size: 28px;
+  line-height: 34px;
+  font-weight: 700;
+  letter-spacing: -0.7px;
+  margin-top: 4px;
+}
+.lad-orbit .wave-heading .eyebrow {
+  line-height: 14px;
+}
+.lad-orbit .wave-home .wave-now-playing {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(100%, 500px);
+  margin: 0;
+  text-align: center;
+}
+.lad-orbit .wave-home .wave-now-playing > .art,
+.lad-orbit .wave-empty > .art {
+  width: clamp(96px, calc(var(--wave-card-height) - 394px), 220px);
+  height: clamp(96px, calc(var(--wave-card-height) - 394px), 220px);
+  border-radius: 20px;
+  flex: none;
+  box-shadow: 0 12px 36px #0004;
+}
+.lad-orbit .wave-track-meta strong {
+  font-size: 18px;
+  line-height: 24px;
+  font-weight: 650;
+  letter-spacing: -0.3px;
+}
+.lad-orbit .wave-track-meta small {
+  font-size: 13px;
+  line-height: 18px;
+  margin-top: 2px;
+}
+.lad-orbit .wave-lyrics {
+  font-size: 14px;
+  line-height: 20px;
+  min-height: 40px;
+}
+.lad-orbit .wave-expand {
+  font-size: 12px;
+  line-height: 20px;
+  min-height: 20px;
+}
+.lad-orbit .wave-home-controls {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin: 0;
+  flex: none;
+}
+.lad-orbit .wave-home-controls .lad-button {
+  min-height: 44px;
+  padding-inline: 18px;
+  font-size: 14px;
+}
+.lad-orbit .wave-empty {
+  min-height: 0;
+  gap: 16px;
+}
+.lad-orbit .wave-empty p {
+  font-size: 14px;
+  line-height: 22px;
+}
+@media (max-height: 850px) {
+  .lad-orbit .wave-home {
+    gap: 8px;
+  }
+  .lad-orbit .wave-home .wave-now-playing {
+    gap: 8px;
+  }
+  .lad-orbit .wave-heading .eyebrow {
+    display: none;
+  }
+  .lad-orbit .wave-heading h1 {
+    font-size: 26px;
+    line-height: 30px;
+    margin: 0;
+  }
+  .lad-orbit .wave-lyrics {
+    display: none;
+  }
+}
+@media (max-width: 760px) {
+  .lad-orbit .wave-home {
+    --wave-card-height: min(640px, calc(100dvh - 350px));
+    padding: 16px 12px;
+    gap: 10px;
+  }
+  .lad-orbit .wave-heading h1 {
+    font-size: 26px;
+    line-height: 32px;
+  }
+  .lad-orbit .wave-home .wave-now-playing {
+    gap: 8px;
+  }
+  .lad-orbit .wave-home-controls {
+    gap: 8px;
+    max-width: 100%;
+  }
+  .lad-orbit .wave-home-controls .lad-button {
+    font-size: 12px;
+    padding-inline: 12px;
+    min-height: 44px;
+  }
+  .lad-orbit .lyric-line {
+    font-size: 24px;
+    font-weight: 600;
+  }
+  .lad-orbit .lyric-line.lyric-active {
+    font-size: 26px;
+    font-weight: 700;
+  }
+  .lad-orbit .settings-section {
+    padding: 20px 16px;
+  }
+  .lad-orbit .setting-row > div:first-child {
+    flex: 1 1 220px;
+  }
+  .lad-orbit .setting-row > .orbit-field {
+    width: 100%;
+  }
+}
+
+/* Zero-height marker follows the hero without adding decorative canvas height to scrolling. */
+.wave-scene-anchor {
+  height: 0;
+  --wave-canvas-height: 780px;
+}
+.lad-orbit .orbit-side-nav :is(a, button),
+.lad-orbit .nav-item {
+  font-size: 16px;
+  font-weight: 500;
+}
+.lad-orbit .orbit-side-nav [aria-current="page"],
+.lad-orbit .nav-item.icon-active {
+  font-weight: 600;
+}
+.lad-orbit .nav-item {
+  height: 44px;
+  min-height: 44px;
+  padding: 6px 12px;
+  gap: 9px;
+}
+.lad-orbit .playlist-shortcut strong {
+  font-weight: 550;
+}
+.lad-orbit .device-selector {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 18px;
+  gap: 8px;
+}
+.lad-orbit .now-meta {
+  font-size: 12px;
+  line-height: 18px;
 }

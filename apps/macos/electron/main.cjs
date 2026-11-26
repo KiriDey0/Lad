@@ -505,8 +505,8 @@ app.whenReady().then(() => {
     if (
       event.sender !== window.webContents ||
       !Number.isFinite(scale) ||
-      scale < 0.75 ||
-      scale > 1.15
+      scale < 0.85 * 0.75 ||
+      scale > 0.85 * 1.4
     )
       throw new Error("Некорректный масштаб интерфейса.");
     window.webContents.setZoomFactor(scale);

@@ -1,4 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
+import {
+  interfaceZoom,
+  INTERFACE_SCALE_BASIS,
+  MIN_INTERFACE_SCALE,
+  MAX_INTERFACE_SCALE,
+} from "./interfaceScale";
 import { resolveOrbitTheme } from "@kiridey/orbit-ui";
 import type { CSSProperties } from "react";
 export type Theme = {
@@ -8,6 +14,7 @@ export type Theme = {
   transparency: boolean;
   lyricOffset: number;
   scale: number;
+  scaleBasis: 85;
   waveIntensity: number;
   waveSmoothing: number;
   waveQuality: "auto" | "eco" | "smooth";
@@ -19,20 +26,27 @@ export const defaultTheme: Theme = {
   transparency: true,
   lyricOffset: 0,
   scale: 100,
+  scaleBasis: INTERFACE_SCALE_BASIS,
   waveIntensity: 100,
   waveSmoothing: 50,
   waveQuality: "auto",
 };
 export function loadTheme(): Theme {
   try {
-    const theme = {
-      ...defaultTheme,
-      ...JSON.parse(localStorage.getItem("orbit-theme") || "{}"),
-    };
-    theme.scale =
-      typeof theme.scale === "number" && Number.isFinite(theme.scale)
-        ? Math.max(75, Math.min(115, Math.round(theme.scale / 5) * 5))
-        : defaultTheme.scale;
+    const saved = JSON.parse(localStorage.getItem("orbit-theme") || "{}");
+    const theme = { ...defaultTheme, ...saved };
+    // Migrate the old absolute zoom without changing the user's actual size.
+    const previous =
+      typeof saved.scale === "number" && Number.isFinite(saved.scale)
+        ? saved.scale
+        : 85;
+    const display =
+      saved.scaleBasis === INTERFACE_SCALE_BASIS ? previous : previous / 0.85;
+    theme.scale = Math.max(
+      MIN_INTERFACE_SCALE,
+      Math.min(MAX_INTERFACE_SCALE, display),
+    );
+    theme.scaleBasis = INTERFACE_SCALE_BASIS;
     theme.waveIntensity = Number.isFinite(theme.waveIntensity)
       ? Math.max(0, Math.min(100, theme.waveIntensity))
       : 100;
@@ -133,12 +147,12 @@ export function applyTheme(theme: Theme) {
   );
   root.dataset.transparency = String(theme.transparency);
   if (window.lad?.setScale)
-    void window.lad.setScale(theme.scale / 100).catch(() => {});
+    void window.lad.setScale(interfaceZoom(theme.scale)).catch(() => {});
   else {
-    root.style.zoom = String(theme.scale / 100);
+    root.style.zoom = String(interfaceZoom(theme.scale));
     root.style.setProperty(
       "--scaled-viewport-height",
-      `${10000 / theme.scale}dvh`,
+      `${100 / interfaceZoom(theme.scale)}dvh`,
     );
   }
   localStorage.setItem("orbit-theme", JSON.stringify(theme));

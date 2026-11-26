@@ -24,7 +24,7 @@ export function WaveBackdrop(props: ComponentProps<typeof WaveScene>) {
         left: `${(bounds.left - parent.left) / scale - main.clientLeft}px`,
         top: `${(bounds.top - parent.top) / scale - main.clientTop}px`,
         width: `${bounds.width / scale}px`,
-        height: `${bounds.height / scale}px`,
+        height: `${parseFloat(getComputedStyle(slot).getPropertyValue("--wave-canvas-height")) || 780}px`,
       });
     };
     place();

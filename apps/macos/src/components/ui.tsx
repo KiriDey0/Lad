@@ -29,7 +29,7 @@ export function Button({
       loading={loading}
       leading={Icon && <Icon size={20} />}
     >
-      {children}
+      <span className="lad-button-label">{children}</span>
     </OrbitButton>
   );
 }
