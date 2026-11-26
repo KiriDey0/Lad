@@ -1,3 +1,4 @@
+import { QueuePanel } from "./components/QueuePanel";
 import {Modal} from "./components/Modal";
 import {
   deviceTitle,
@@ -672,6 +673,7 @@ export default function App() {
                 className={clsx(
                   "page-content",
                   page === "now" && "page-lyrics",
+                  page === "home" && "page-wave",
                 )}
               >
                 {!authenticated &&
@@ -1740,182 +1742,6 @@ function Player({
         </div>
       </footer>
     </div>
-  );
-}
-function QueuePanel({
-  state,
-  act,
-  close,
-}: {
-  state: State;
-  act: Act;
-  close: () => void;
-}) {
-  const actions = useTrackActions();
-  const [drag, setDrag] = useState<number | null>(null);
-  const [dropSlot, setDropSlot] = useState<number | null>(null);
-  const q = state.queue;
-  const insertion =
-    drag !== null && dropSlot !== drag && dropSlot !== drag + 1
-      ? dropSlot
-      : null;
-  return (
-    <aside className="queue-panel">
-      <div className="queue-header">
-        <h2>
-          Очередь <span>{q.tracks.length || ""}</span>
-        </h2>
-        <IconButton icon={X} label="Скрыть очередь" onClick={close} />
-      </div>
-      <div className="queue-source">
-        <span>
-          {q.owned
-            ? q.source
-            : q.tracks.length
-              ? "Сохранённая очередь Лад"
-              : "Пока ничего не выбрано"}
-        </span>
-        {q.tracks.length > 0 && (
-          <IconButton
-            icon={Trash2}
-            label="Очистить следующие треки"
-            onClick={() => void act("queue", { action: "clear" })}
-          />
-        )}
-      </div>
-      {state.output === "station" && !q.owned && state.playback.track && (
-        <div className="inline-note">
-          <Info size={16} />
-          <span>
-            Музыку включили вне «Лада». Станция не передаёт полный список своей
-            очереди. Сохранённую очередь можно запустить снова.
-          </span>
-        </div>
-      )}
-      <div
-        className="queue-scroll"
-        onDragOver={(e) => {
-          if (drag === null) return;
-          e.preventDefault();
-          e.dataTransfer.dropEffect = "move";
-          const rows =
-            e.currentTarget.querySelectorAll<HTMLElement>(".queue-row");
-          const index = [...rows].findIndex((row) => {
-            const rect = row.getBoundingClientRect();
-            return e.clientY < rect.top + rect.height / 2;
-          });
-          setDropSlot(index === -1 ? q.tracks.length : index);
-        }}
-        onDragLeave={(e) => {
-          if (!e.currentTarget.contains(e.relatedTarget as Node | null))
-            setDropSlot(null);
-        }}
-        onDrop={(e) => {
-          e.preventDefault();
-          if (drag !== null && dropSlot !== null) {
-            const to = dropSlot > drag ? dropSlot - 1 : dropSlot;
-            if (drag !== to)
-              void act("queue", { action: "move", from: drag, to });
-          }
-          setDrag(null);
-          setDropSlot(null);
-        }}
-      >
-        {!q.tracks.length ? (
-          <Empty icon={ListMusic} title="Поставь что-нибудь">
-            Найди трек или открой плейлист — очередь будет здесь.
-          </Empty>
-        ) : (
-          q.tracks.map((t, i) => (
-            <div
-              key={`${t.id}:${i}`}
-              onContextMenu={(e) =>
-                actions.menu(
-                  e,
-                  t,
-                  () => void act("queue", { action: "jump", index: i }),
-                  i,
-                )
-              }
-              draggable
-              onDragStart={(e) => {
-                setDrag(i);
-                setDropSlot(null);
-                e.dataTransfer.effectAllowed = "move";
-                e.dataTransfer.setData("text/plain", String(i));
-              }}
-              onDragEnd={() => {
-                setDrag(null);
-                setDropSlot(null);
-              }}
-              className={clsx(
-                "queue-row",
-                q.index === i && q.owned && "queue-current",
-                i < q.index && q.owned && "queue-played",
-                drag === i && "opacity-40",
-                insertion === i && "queue-drop-before",
-                insertion === q.tracks.length &&
-                  i === q.tracks.length - 1 &&
-                  "queue-drop-after",
-              )}
-            >
-              <span className="queue-grip" aria-hidden="true">
-                <GripVertical size={14} />
-              </span>
-              <button
-                className="queue-art-play"
-                disabled={
-                  t.available === false || (state.blockExplicit && t.explicit)
-                }
-                onClick={() => void act("queue", { action: "jump", index: i })}
-                aria-label={`Включить ${t.title} из очереди`}
-              >
-                <Art item={t} size="xs" />
-                <Play size={16} />
-              </button>
-              <div className="queue-track">
-                <TrackMetadata track={t} />
-              </div>
-              {q.index === i && q.owned ? (
-                <AudioLines className="queue-playing" size={17} />
-              ) : (
-                <span className="queue-track-time">{duration(t.duration)}</span>
-              )}
-              <div className="queue-actions">
-                <IconButton
-                  icon={ArrowUp}
-                  label={`Поднять ${t.title}`}
-                  disabled={i === 0}
-                  onClick={() =>
-                    void act("queue", { action: "move", from: i, to: i - 1 })
-                  }
-                />
-                <IconButton
-                  icon={ArrowDown}
-                  label={`Опустить ${t.title}`}
-                  disabled={i === q.tracks.length - 1}
-                  onClick={() =>
-                    void act("queue", { action: "move", from: i, to: i + 1 })
-                  }
-                />
-                <IconButton
-                  icon={X}
-                  label={`Удалить ${t.title} из очереди`}
-                  disabled={q.index === i && q.owned}
-                  onClick={() =>
-                    void act("queue", { action: "remove", index: i })
-                  }
-                />
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-      <div className="queue-bottom">
-        <GripVertical size={15} />
-        <span>Перетаскивай треки, меняй порядок</span>
-      </div>
-    </aside>
   );
 }
 function LyricsPage({

@@ -167,7 +167,10 @@ class MusicEngine(
     }
 
     private fun update(block: (MusicState) -> MusicState) {
-        mutable.update(block)
+        mutable.update { old ->
+            val next = block(old)
+            if (next.queue === old.queue) next else next.copy(queue = queueEntries(next.queue))
+        }
     }
 
     fun notice(message: String) {
@@ -455,7 +458,7 @@ class MusicEngine(
         check(!(s.settings.blockExplicit && fresh.explicit)) {
             "Трек 18+ пропущен: включён фильтр контента"
         }
-        return fresh
+        return fresh.copy(queueEntryId = track.queueEntryId)
     }
 
     private suspend fun start(index: Int, position: Long = 0, paused: Boolean = false) {
@@ -463,7 +466,7 @@ class MusicEngine(
         val old = state.value
         val t = checked(old.queue.getOrNull(index) ?: throw IllegalArgumentException("Выбери трек"))
         requireOperation(epoch)
-        if (old.queue.map { it.id } != state.value.queue.map { it.id })
+        if (old.queue.map { it.queueEntryId } != state.value.queue.map { it.queueEntryId })
             throw CancellationException("Очередь изменилась")
         metadata[t.id] = t
         foreground()
@@ -859,6 +862,26 @@ class MusicEngine(
         update { it.copy(queue = q, shuffle = false) }
         persist()
         notice(if (next) "Будет играть следующим" else "Добавлено в очередь")
+    }
+
+    fun moveEntry(entryId: String, beforeEntryId: String?) {
+        val q = state.value.queue
+        val from = queueEntryIndex(q, entryId)
+        if (from < 0) return
+        val rest = q.filter { it.queueEntryId != entryId }
+        val to = if (beforeEntryId == null) rest.size else queueEntryIndex(rest, beforeEntryId)
+        if (to >= 0 && from != to) move(from, to)
+    }
+
+    fun moveEntryBy(entryId: String, delta: Int) {
+        val q = state.value.queue
+        val from = queueEntryIndex(q, entryId)
+        if (from >= 0 && from + delta in q.indices) move(from, from + delta)
+    }
+
+    fun removeEntry(entryId: String) {
+        val index = queueEntryIndex(state.value.queue, entryId)
+        if (index >= 0) remove(index)
     }
 
     fun move(from: Int, to: Int) {

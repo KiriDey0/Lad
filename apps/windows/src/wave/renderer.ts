@@ -36,6 +36,7 @@ export class WaveRenderer {
   constructor(
     private canvas: HTMLCanvasElement,
     private wake: () => void,
+    private topBleed = 0,
   ) {
     this.gl = canvas.getContext("webgl", {
       alpha: true,
@@ -149,10 +150,10 @@ export class WaveRenderer {
   ) {
     this.clear();
     const w = this.width,
-      h = this.height,
+      h = this.height - this.topBleed,
       size = Math.min(w, h) * 1.08,
       cx = w * 0.5,
-      cy = h * 0.42;
+      cy = h * 0.42 + this.topBleed;
     const tint = colors[0].map((v, i) =>
       Math.round(v * 0.55 + colors[1][i] * 0.45),
     );
@@ -253,7 +254,7 @@ export class WaveRenderer {
       gl.uniform2f(
         (line ? this.lineUniforms : this.dotUniforms).viewport,
         w,
-        h,
+        this.height,
       );
     };
     bind(this.lines!, this.lineBuffer!, this.lineData, n, 3);

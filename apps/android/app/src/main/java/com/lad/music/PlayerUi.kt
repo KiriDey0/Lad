@@ -371,14 +371,6 @@ fun QueueView(
     menu: (Track) -> Unit,
 ) {
     val p = LocalPalette.current
-    val listState = rememberLazyListState()
-    val scope = rememberCoroutineScope()
-    val haptic = LocalHapticFeedback.current
-    val bounds = remember { mutableStateMapOf<Int, Rect>() }
-    var from by remember { mutableStateOf<Int?>(null) }
-    var target by remember { mutableStateOf<Int?>(null) }
-    var dragY by remember { mutableFloatStateOf(0f) }
-    var listBounds by remember { mutableStateOf(Rect.Zero) }
     SwipeDismissLayer(Modifier.fillMaxSize(), dismiss) { handle ->
         Column(
             Modifier.fillMaxSize()
@@ -424,96 +416,7 @@ fun QueueView(
                             modifier = Modifier.weight(1f).padding(top = 48.dp),
                         )
                     else
-                        LazyColumn(
-                            Modifier.weight(1f).onGloballyPositioned {
-                                listBounds = it.boundsInRoot()
-                            },
-                            state = listState,
-                            contentPadding = PaddingValues(bottom = 20.dp),
-                        ) {
-                            itemsIndexed(s.queue, key = { i, t -> "$i:${t.id}" }) { i, t ->
-                                Column {
-                                    if (target == i && from != null && i < from!!)
-                                        HorizontalDivider(color = Color.White, thickness = 2.dp)
-                                    TrackRow(
-                                        t,
-                                        s,
-                                        { engine.task { engine.jump(i) } },
-                                        open,
-                                        { menu(t) },
-                                        Modifier.onGloballyPositioned {
-                                                bounds[i] = it.boundsInRoot()
-                                            }
-                                            .alpha(if (from == i) .45f else 1f),
-                                        trailing = {
-                                            Tool(
-                                                Icons.Outlined.MoreHoriz,
-                                                "Действия в очереди: ${t.title}",
-                                                onClick = { menu(t) },
-                                            )
-                                            Icon(
-                                                Icons.Outlined.DragIndicator,
-                                                "Переставить ${t.title}",
-                                                Modifier.size(48.dp).padding(12.dp).pointerInput(
-                                                    i,
-                                                    s.queue.size,
-                                                ) {
-                                                    detectDragGesturesAfterLongPress(
-                                                        onDragStart = {
-                                                            from = i
-                                                            target = i
-                                                            dragY = bounds[i]?.center?.y ?: 0f
-                                                            haptic.performHapticFeedback(
-                                                                HapticFeedbackType.LongPress
-                                                            )
-                                                        },
-                                                        onDrag = { change, delta ->
-                                                            change.consume()
-                                                            dragY += delta.y
-                                                            target =
-                                                                bounds.entries
-                                                                    .filter {
-                                                                        it.key in s.queue.indices
-                                                                    }
-                                                                    .minByOrNull {
-                                                                        abs(
-                                                                            it.value.center.y -
-                                                                                dragY
-                                                                        )
-                                                                    }
-                                                                    ?.key ?: i
-                                                            if (dragY < listBounds.top + 64)
-                                                                scope.launch {
-                                                                    listState.scrollBy(-24f)
-                                                                }
-                                                            else if (dragY > listBounds.bottom - 64)
-                                                                scope.launch {
-                                                                    listState.scrollBy(24f)
-                                                                }
-                                                        },
-                                                        onDragEnd = {
-                                                            val a = from
-                                                            val b = target
-                                                            if (a != null && b != null && a != b)
-                                                                engine.move(a, b)
-                                                            from = null
-                                                            target = null
-                                                        },
-                                                        onDragCancel = {
-                                                            from = null
-                                                            target = null
-                                                        },
-                                                    )
-                                                },
-                                                tint = p.muted,
-                                            )
-                                        },
-                                    )
-                                    if (target == i && from != null && i > from!!)
-                                        HorizontalDivider(color = Color.White, thickness = 2.dp)
-                                }
-                            }
-                        }
+                        QueueTrackList(s, engine, open, menu, Modifier.weight(1f))
                     Label(
                         "Удерживай ручку справа и перетаскивай треки",
                         12,

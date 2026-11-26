@@ -42,6 +42,7 @@ const cards: Card[] = [
 export function browserBridge(): Bridge {
   let savedAlbums: Card[] = [];
   let state: State = structuredClone(initialState);
+  const entries = (tracks: Track[]): Track[] => tracks.map(t => ({ ...t, queueEntryId: crypto.randomUUID() }));
   const listeners = new Set<(e: LadEvent) => void>();
   const emit = () =>
     listeners.forEach((fn) =>
@@ -103,7 +104,7 @@ export function browserBridge(): Bridge {
             demo: true,
             profile: { name: "Режим знакомства", uid: "demo", plus: true },
             queue: {
-              tracks: structuredClone(demoTracks),
+              tracks: entries(demoTracks),
               index: 0,
               source: "Лад Session · пример",
               owned: true,
@@ -113,7 +114,7 @@ export function browserBridge(): Bridge {
           };
           state.playback = {
             ...state.playback,
-            track: demoTracks[0],
+            track: state.queue.tracks[0],
             duration: 216,
           };
           out = state;
@@ -199,18 +200,28 @@ export function browserBridge(): Bridge {
           out = state;
           break;
         case "play":
-          state.queue.tracks = structuredClone(p.tracks);
+          state.queue.tracks = entries(p.tracks);
           state.queue.source = p.source;
           start(p.index || 0);
           out = state;
           break;
         case "queue":
+          if (p.entryId) {
+            const index = state.queue.tracks.findIndex(t => t.queueEntryId === p.entryId);
+            if (index < 0) throw new Error("Трек уже удалён из очереди");
+            p = { ...p, index, from: index };
+            if (p.action === "move") {
+              const rest = state.queue.tracks.filter(t => t.queueEntryId !== p.entryId);
+              p.to = "beforeEntryId" in p ? (p.beforeEntryId === null ? rest.length : rest.findIndex(t => t.queueEntryId === p.beforeEntryId)) : index + (p.delta || 0);
+              if (p.to < 0 || p.to >= state.queue.tracks.length) throw new Error("Очередь изменилась");
+            }
+          }
           if (p.action === "jump") start(p.index);
           if (p.action === "add") {
             state.queue.tracks.splice(
               p.next ? state.queue.index + 1 : state.queue.tracks.length,
               0,
-              ...p.tracks,
+              ...entries(p.tracks),
             );
           }
           if (p.action === "remove" && p.index !== state.queue.index) {

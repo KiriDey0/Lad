@@ -37,6 +37,7 @@ type MenuTarget = MenuAnchor & {
   track: Track;
   play?: () => void;
   queueIndex?: number;
+  queueEntryId?: string;
 };
 type Actions = {
   open: (card: Card) => void;
@@ -156,7 +157,7 @@ export function TrackActionsProvider({
     return () => window.removeEventListener("lad:local-playlist", open);
   }, []);
   const menu: Actions["menu"] = (event, track, run, queueIndex) => {
-    setTarget({ ...menuAnchor(event), track, play: run, queueIndex });
+    setTarget({ ...menuAnchor(event), track, play: run, queueIndex, queueEntryId: queueIndex === undefined ? undefined : track.queueEntryId });
   };
   useEffect(() => setTarget(null), [state.profile?.uid, state.demo]);
   const rows: MenuRow[] = [];
@@ -279,14 +280,16 @@ export function TrackActionsProvider({
           run: () => bridge.open(url),
         },
       );
-    const i = target.queueIndex;
+    const i = target.queueEntryId
+      ? state.queue.tracks.findIndex(track => track.queueEntryId === target.queueEntryId)
+      : target.queueIndex;
     if (i !== undefined && state.queue.tracks[i]?.id === t.id)
       rows.push({
         label: "Удалить из очереди",
         icon: Trash2,
         separator: true,
         disabled: state.queue.owned && state.queue.index === i,
-        run: () => act("queue", { action: "remove", index: i }),
+        run: () => act("queue", { action: "remove", index: i, entryId: target.queueEntryId }),
       });
   }
   return (

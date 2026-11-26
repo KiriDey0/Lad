@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 export interface Track {
+  queueEntryId?: string;
   source?: "local";
   folderId?: string;
   fileName?: string;

@@ -36,6 +36,7 @@ data class Track(
     val available: Boolean = true,
     val explicit: Boolean = false,
     val liked: Boolean = false,
+    val queueEntryId: String = "",
 ) {
     val isLocal get() = id.startsWith("local-track-")
 
@@ -65,6 +66,7 @@ data class Track(
             .put("available", available)
             .put("explicit", explicit)
             .put("liked", liked)
+            .put("queueEntryId", queueEntryId)
 
     companion object {
         fun fromApi(j: JSONObject): Track {
@@ -94,6 +96,7 @@ data class Track(
                 j.optBoolean("available", true),
                 j.optBoolean("explicit"),
                 j.optBoolean("liked"),
+                j.text("queueEntryId"),
             )
     }
 }
@@ -295,6 +298,18 @@ fun nextPlayable(
     }
 }
 
+/** A song can occur many times. Each occurrence, including restored ones, owns its identity. */
+fun queueEntries(tracks: List<Track>): List<Track> {
+    val seen = HashSet<String>()
+    return tracks.map { track ->
+        if (track.queueEntryId.isNotBlank() && seen.add(track.queueEntryId)) track
+        else track.copy(queueEntryId = java.util.UUID.randomUUID().toString()).also { seen.add(it.queueEntryId) }
+    }
+}
+
+fun queueEntryIndex(tracks: List<Track>, entryId: String): Int =
+    if (entryId.isBlank()) -1 else tracks.indexOfFirst { it.queueEntryId == entryId }
+
 fun moveQueue(tracks: List<Track>, index: Int, from: Int, to: Int): Pair<List<Track>, Int> {
     require(from in tracks.indices && to in tracks.indices)
     val indexed = tracks.mapIndexed { i, t -> i to t }.toMutableList()
@@ -404,13 +419,13 @@ fun restoreUnshuffledQueue(current: List<Track>, index: Int, original: List<Trac
     val prefix = current.take((index + 1).coerceIn(0, current.size))
     val remaining = original.toMutableList()
     prefix.forEach { played ->
-        val i = remaining.indexOfFirst { it.id == played.id }
+        val i = remaining.indexOfFirst { if (played.queueEntryId.isNotBlank()) it.queueEntryId == played.queueEntryId else it.id == played.id }
         if (i >= 0) remaining.removeAt(i)
     }
-    val live = current.drop(prefix.size).groupBy { it.id }.mapValues { it.value.toMutableList() }
+    val live = current.drop(prefix.size).groupBy { it.queueEntryId.ifBlank { it.id } }.mapValues { it.value.toMutableList() }
     return prefix +
         remaining.map { originalTrack ->
-            live[originalTrack.id]?.let { if (it.isNotEmpty()) it.removeAt(0) else null }
+            live[originalTrack.queueEntryId.ifBlank { originalTrack.id }]?.let { if (it.isNotEmpty()) it.removeAt(0) else null }
                 ?: originalTrack
         }
 }
