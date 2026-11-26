@@ -27,6 +27,7 @@ test.beforeAll(async () => {
   });
   page = await app.firstWindow();
   await page.waitForLoadState("domcontentloaded");
+  await page.evaluate(() => window.lad!.rpc("snapshot"));
   const paths = await app.evaluate(({ app }) => ({
     data: app.getPath("userData"),
     session: app.getPath("sessionData"),
@@ -379,6 +380,7 @@ test("collection pinning, album likes and batch queue actions", async () => {
   });
   page = await app.firstWindow();
   await page.waitForLoadState("domcontentloaded");
+  await page.evaluate(() => window.lad!.rpc("snapshot"));
   await app.evaluate(({ BrowserWindow }) =>
     BrowserWindow.getAllWindows()[0].hide(),
   );
@@ -734,7 +736,7 @@ test("backend exit is reported without crashing or hanging RPC", async () => {
             "-NoProfile",
             "-NonInteractive",
             "-Command",
-            `(Get-CimInstance Win32_Process -Filter 'ParentProcessId = ${pid}' | Where-Object { $_.Name -eq 'lad-backend.exe' }).ProcessId`,
+            `(Get-CimInstance Win32_Process -Filter 'ParentProcessId = ${pid}' | Where-Object { $_.Name -match '^(python[0-9.w]*|lad-backend)\\.exe$' }).ProcessId`,
           ],
           { encoding: "utf8" },
         )
@@ -744,7 +746,7 @@ test("backend exit is reported without crashing or hanging RPC", async () => {
           .split("\n")
           .filter((line) => {
             const parts = line.trim().split(/\s+/, 3);
-            return Number(parts[1]) === pid && /python|lad-backend/.test(line);
+            return Number(parts[1]) === pid && /python|lad-backend/i.test(line);
           })
           .map((line) => line.trim().split(/\s+/)[0])
           .join("\n");

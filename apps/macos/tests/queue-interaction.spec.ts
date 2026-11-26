@@ -10,6 +10,7 @@ test.beforeAll(async () => {
   app = await electron.launch({ executablePath: process.env.LAD_TEST_EXE || undefined, args: process.env.LAD_TEST_EXE ? [] : [path.resolve(__dirname, '..')], env: { ...process.env, LAD_USER_DATA: profile, LAD_PYTHON: process.env.LAD_PYTHON } });
   page = await app.firstWindow();
   await page.waitForLoadState('domcontentloaded');
+  await page.evaluate(() => window.lad!.rpc('snapshot'));
   await page.getByRole('button', { name: 'Посмотреть демо', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Первый свет', exact: true })).toBeVisible();
   await page.evaluate(() => window.lad!.rpc('control', { action: 'pause' }));

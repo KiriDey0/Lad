@@ -27,6 +27,7 @@ test.beforeAll(async () => {
   });
   page = await app.firstWindow();
   await page.waitForLoadState("domcontentloaded");
+  await page.evaluate(() => window.lad!.rpc("snapshot"));
   await page.evaluate(() => {
     localStorage.removeItem("lad:pinned:v1:demo:demo");
     localStorage.removeItem("lad:pinned:v1:demo:pin-isolation-test");
@@ -189,7 +190,7 @@ test("catalog search, collection, add next and no layout overflow", async () => 
     .click();
   await expect(page.locator(".queue-row")).toHaveCount(7);
   await page.getByRole("button", { name: "Коллекция", exact: true }).click();
-  await expect(page.locator(".music-card")).toHaveCount(4);
+  await expect(page.getByRole("heading", {name:"Любимые исполнители"})).toBeVisible();
   const favorites = page.getByRole("region", {
     name: "Любимые треки в коллекции",
   });
@@ -201,7 +202,7 @@ test("catalog search, collection, add next and no layout overflow", async () => 
   await favorites.locator(".liked-preview-heading").click();
   await expect(page.locator(".header-location")).toHaveText("Мне нравится");
   await page.getByRole("button", { name: "Коллекция", exact: true }).click();
-  await page.getByRole("tab", { name: "Альбомы", exact: true }).click();
+  await page.locator(".collection-group").filter({hasText:"Альбомы"}).click();
   await expect(
     page.getByRole("heading", { name: "Здесь пока пусто" }),
   ).toBeVisible();
@@ -284,7 +285,7 @@ test("track links and contextual actions preserve playback and fit the viewport"
 test("collection pinning, album likes and batch queue actions", async () => {
   await page.evaluate(() => window.lad!.rpc("control", { action: "pause" }));
   await page.getByRole("button", { name: "Коллекция", exact: true }).click();
-  await page.getByRole("tab", { name: "Плейлисты", exact: true }).click();
+  await page.locator(".collection-group").filter({hasText:"Плейлисты"}).click();
   await expect(page.locator(".music-card")).toHaveCount(4);
   let shortcuts = page.locator(".sidebar-playlists .playlist-shortcut");
   const original = await shortcuts.count();
@@ -351,7 +352,7 @@ test("collection pinning, album likes and batch queue actions", async () => {
   await expect(shortcuts).toHaveCount(original + 1);
   await expect(shortcuts.filter({ hasText: "Альбом" })).toHaveCount(1);
   await page.getByRole("button", { name: "Коллекция", exact: true }).click();
-  await page.getByRole("tab", { name: "Альбомы", exact: true }).click();
+  await page.locator(".collection-group").filter({hasText:"Альбомы"}).click();
   await expect(page.locator(".music-card")).toHaveCount(1);
   await page.locator(".music-card").click({ button: "right" });
   await page
@@ -375,6 +376,7 @@ test("collection pinning, album likes and batch queue actions", async () => {
   });
   page = await app.firstWindow();
   await page.waitForLoadState("domcontentloaded");
+  await page.evaluate(() => window.lad!.rpc("snapshot"));
   if (process.platform !== "win32") {
     await app.evaluate(({ BrowserWindow }) =>
       BrowserWindow.getAllWindows()[0].hide(),
@@ -494,7 +496,7 @@ test("local audio engine loads, seeks, pauses and changes volume", async () => {
     .poll(() =>
       page.locator("audio").evaluate((el: HTMLAudioElement) => el.volume),
     )
-    .toBe(0.65);
+    .toBe(1); // Listening gain is applied downstream in the audio graph.
   await page.locator("audio").evaluate((el: HTMLAudioElement) => {
     el.removeAttribute("src");
     el.load();
@@ -624,7 +626,7 @@ test("devices transfer, settings theme roles, login dialog and logout", async ()
   await page.emulateMedia({ reducedMotion: "no-preference" });
   await page.getByRole("button", { name: /Станция Миди · пример/ }).click();
   await page
-    .getByRole("button", { name: "Продолжить на Станции", exact: true })
+    .getByRole("button", { name: "Продолжить: Станция Миди · пример", exact: true })
     .click();
   await expect(page.locator(".device-selector")).toContainText("Станция Миди");
   await page.getByRole("button", { name: "Настройки", exact: true }).click();
@@ -735,7 +737,7 @@ test("backend exit is reported without crashing or hanging RPC", async () => {
             "-NoProfile",
             "-NonInteractive",
             "-Command",
-            `(Get-CimInstance Win32_Process -Filter 'ParentProcessId = ${pid}' | Where-Object { $_.Name -eq 'lad-backend.exe' }).ProcessId`,
+            `(Get-CimInstance Win32_Process -Filter 'ParentProcessId = ${pid}' | Where-Object { $_.Name -match '^(python[0-9.w]*|lad-backend)\\.exe$' }).ProcessId`,
           ],
           { encoding: "utf8" },
         )
@@ -745,7 +747,7 @@ test("backend exit is reported without crashing or hanging RPC", async () => {
           .split("\n")
           .filter((line) => {
             const parts = line.trim().split(/\s+/, 3);
-            return Number(parts[1]) === pid && /python|lad-backend/.test(line);
+            return Number(parts[1]) === pid && /python|lad-backend/i.test(line);
           })
           .map((line) => line.trim().split(/\s+/)[0])
           .join("\n");
