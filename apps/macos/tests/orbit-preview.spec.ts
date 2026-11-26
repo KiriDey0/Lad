@@ -260,6 +260,97 @@ for (const width of [1440, 320])
         await dark.click();
         await expect.poll(palette).toEqual(graphite);
       }
+      await coloring.selectOption("tinted");
+      const colorTrigger = page.getByRole("button", {
+        name: "Выбрать цвет акцента",
+        exact: true,
+      });
+      await colorTrigger.click();
+      const picker = page.getByRole("dialog", {
+        name: "Цвет акцента",
+        exact: true,
+      });
+      await expect(picker).toBeVisible();
+      await expect(page.locator('input[type="color"]')).toHaveCount(0);
+      const pickerBox = (await picker.boundingBox())!;
+      expect(pickerBox.x).toBeGreaterThanOrEqual(0);
+      expect(pickerBox.x + pickerBox.width).toBeLessThanOrEqual(width + 1);
+      expect(pickerBox.y).toBeGreaterThanOrEqual(0);
+      const seed = () =>
+        page.evaluate(
+          () => JSON.parse(localStorage.getItem("orbit-theme")!).seed,
+        );
+      const initialSeed = await seed();
+      await picker
+        .getByRole("textbox", { name: "HEX", exact: true })
+        .fill("#12");
+      await picker.getByRole("textbox", { name: "R", exact: true }).focus();
+      await expect(
+        picker.getByText("Нужны # и 6 символов: 0–9, A–F", { exact: true }),
+      ).toBeVisible();
+      expect(await seed()).toBe(initialSeed);
+      await picker
+        .getByRole("textbox", { name: "HEX", exact: true })
+        .fill("#112233");
+      await expect.poll(seed).toBe("#112233");
+      await expect(
+        picker.getByRole("textbox", { name: "R", exact: true }),
+      ).toHaveValue("17");
+      await picker.getByRole("textbox", { name: "R", exact: true }).fill("256");
+      await picker.getByRole("textbox", { name: "G", exact: true }).focus();
+      await expect(picker.getByRole("alert")).toHaveText(
+        "Значения RGB — от 0 до 255",
+      );
+      expect(await seed()).toBe("#112233");
+      await picker.getByRole("textbox", { name: "R", exact: true }).fill("191");
+      await expect.poll(seed).toBe("#BF2233");
+      const hue = picker.getByRole("slider", {
+        name: "Цветовой тон",
+        exact: true,
+      });
+      await hue.focus();
+      await page.keyboard.press("Home");
+      await expect(hue).toHaveValue("0");
+      await picker.getByRole("button", { name: "Шалфей", exact: true }).click();
+      await expect.poll(seed).toBe("#A8C8B3");
+      await picker.locator(".lad-color-plane").scrollIntoViewIfNeeded();
+      const plane = (await picker.locator(".lad-color-plane").boundingBox())!;
+      await page.mouse.click(
+        plane.x + plane.width * 0.5,
+        plane.y + plane.height * 0.5,
+      );
+      expect(await seed()).not.toBe("#A8C8B3");
+      await picker
+        .getByRole("button", { name: "Лавандовый", exact: true })
+        .click();
+      await expect.poll(seed).toBe("#BFCAF5");
+      await expect
+        .poll(async () =>
+          page
+            .locator(".lad-orbit")
+            .evaluate((el) =>
+              getComputedStyle(el).getPropertyValue("--orbit-accent"),
+            ),
+        )
+        .toBe(
+          await page.evaluate(() =>
+            document.documentElement.style.getPropertyValue("--orbit-accent"),
+          ),
+        );
+      await picker.evaluate((el) => (el.scrollTop = 0));
+      const hexField = picker.getByRole("textbox", {
+        name: "HEX",
+        exact: true,
+      });
+      expect(
+        await hexField.evaluate((el) => getComputedStyle(el).paddingLeft),
+      ).toBe("0px");
+      await page.screenshot({
+        path: path.join(shots, `accent-picker-${width}.png`),
+      });
+      await page.keyboard.press("Escape");
+      await expect(picker).toHaveCount(0);
+      await expect(colorTrigger).toBeFocused();
       await coloring.selectOption("default");
       await expect.poll(palette).toEqual(originalDark);
       const glass = page.getByRole("switch", {
@@ -371,6 +462,156 @@ for (const width of [1440, 320])
         .getByRole("button", { name: "Скрыть очередь", exact: true })
         .click();
       expect(errors).toEqual([]);
+    } finally {
+      await app.close();
+      fs.rmSync(profile, { recursive: true, force: true });
+    }
+  });
+
+for (const width of [1440, 320])
+  test(`Orbit controls contain their icons and labels at every scale (${width}px)`, async () => {
+    test.setTimeout(90000);
+    const profile = fs.mkdtempSync(
+      path.join(os.tmpdir(), "lad-orbit-controls-"),
+    );
+    const app = await electron.launch({
+      executablePath: process.env.LAD_TEST_EXE || undefined,
+      args: process.env.LAD_TEST_EXE ? [] : [root],
+      env: {
+        ...process.env,
+        LAD_USER_DATA: profile,
+        LAD_PYTHON: process.env.LAD_PYTHON,
+      },
+    });
+    try {
+      const page = await app.firstWindow();
+      await app.evaluate(
+        ({ BrowserWindow }, width) =>
+          BrowserWindow.getAllWindows()[0].setContentSize(width, 900),
+        width,
+      );
+      await page.evaluate(() => window.lad!.rpc("snapshot"));
+      await page
+        .getByRole("button", { name: "Посмотреть демо", exact: true })
+        .click();
+      if (width < 760)
+        await page
+          .getByRole("link", { name: "Настройки", exact: true })
+          .click();
+      else
+        await page
+          .getByRole("button", { name: "Настройки", exact: true })
+          .click();
+      const scale = page.getByRole("combobox", {
+        name: "Размер интерфейса",
+        exact: true,
+      });
+      for (const percent of [85, 100, 115]) {
+        await scale.selectOption(String(percent));
+        await expect
+          .poll(() =>
+            app.evaluate(({ BrowserWindow }) =>
+              BrowserWindow.getAllWindows()[0].webContents.getZoomFactor(),
+            ),
+          )
+          .toBe(percent / 100);
+        for (const group of ["Основа", "Режим волны"]) {
+          const options = page
+            .getByRole("radiogroup", { name: group, exact: true })
+            .getByRole("radio");
+          for (let i = 0; i < (await options.count()); i++) {
+            await options.nth(i).click();
+            await expect(options.nth(i)).toHaveAttribute(
+              "aria-checked",
+              "true",
+            );
+            const overflow = await options.nth(i).evaluate((button) => {
+              const bounds = button.getBoundingClientRect();
+              const inside = (r: DOMRect) =>
+                r.left >= bounds.left + 3 &&
+                r.right <= bounds.right - 3 &&
+                r.top >= bounds.top &&
+                r.bottom <= bounds.bottom;
+              const failures: string[] = [];
+              for (const svg of button.querySelectorAll("svg"))
+                if (!inside(svg.getBoundingClientRect())) failures.push("icon");
+              for (const child of button.childNodes)
+                if (
+                  child.nodeType === Node.TEXT_NODE &&
+                  child.textContent?.trim()
+                ) {
+                  const range = document.createRange();
+                  range.selectNodeContents(child);
+                  if (!inside(range.getBoundingClientRect()))
+                    failures.push("label");
+                }
+              return failures;
+            });
+            expect(overflow, `${group} at ${percent}% / ${width}px`).toEqual(
+              [],
+            );
+          }
+        }
+        await noOverflow(page);
+        const escapedIcons = await page
+          .locator(".settings-page")
+          .evaluate((root) => {
+            const failures: string[] = [];
+            for (const button of root.querySelectorAll(
+              "button,.orbit-choice",
+            )) {
+              const rect = button.getBoundingClientRect();
+              for (const icon of button.querySelectorAll("svg")) {
+                const bounds = icon.getBoundingClientRect();
+                if (
+                  bounds.width > 0 &&
+                  (bounds.left < rect.left - 1 ||
+                    bounds.right > rect.right + 1 ||
+                    bounds.top < rect.top - 1 ||
+                    bounds.bottom > rect.bottom + 1)
+                )
+                  failures.push(
+                    button.textContent?.trim() ||
+                      button.getAttribute("aria-label") ||
+                      "switch",
+                  );
+              }
+            }
+            return failures;
+          });
+        expect(
+          escapedIcons,
+          `settings icons at ${percent}% / ${width}px`,
+        ).toEqual([]);
+        const capture = await app.evaluate(async ({ BrowserWindow }) =>
+          (await BrowserWindow.getAllWindows()[0].webContents.capturePage())
+            .toPNG()
+            .toString("base64"),
+        );
+        fs.writeFileSync(
+          path.join(shots, `controls-${width}-${percent}.png`),
+          Buffer.from(capture, "base64"),
+        );
+      }
+      await scale.selectOption("100");
+      await page
+        .locator(".setting-row")
+        .filter({ has: page.getByText("Профиль звука", { exact: true }) })
+        .getByRole("button", { name: "Настроить", exact: true })
+        .click();
+      await page.getByRole("tab", { name: "Эквалайзер", exact: true }).click();
+      const gain = page.getByRole("spinbutton", {
+        name: "31.5 Hz значение",
+        exact: true,
+      });
+      await gain.fill("-12");
+      const geometry = await gain.evaluate((el) => ({
+        padding: getComputedStyle(el).paddingLeft,
+        width: el.clientWidth,
+        scroll: el.scrollWidth,
+      }));
+      expect(geometry.padding).toBe("3px");
+      expect(geometry.scroll).toBeLessThanOrEqual(geometry.width);
     } finally {
       await app.close();
       fs.rmSync(profile, { recursive: true, force: true });

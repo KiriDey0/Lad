@@ -10,6 +10,7 @@ import {
   ToastViewport,
   Button as OrbitButton,
 } from "@kiridey/orbit-ui";
+import { AccentColorPicker } from "./components/AccentColorPicker";
 import { QueuePanel } from "./components/QueuePanel";
 import { Modal } from "./components/Modal";
 import {
@@ -2911,11 +2912,9 @@ function SettingsPage({
               <strong>Цвет акцента</strong>
               <p>Смысловые цвета ошибок и статусов остаются независимыми.</p>
             </div>
-            <input
-              type="color"
-              aria-label="Цвет акцента"
+            <AccentColorPicker
               value={theme.seed}
-              onChange={(e) => update({ seed: e.target.value })}
+              onChange={(seed) => update({ seed })}
             />
           </div>
         )}

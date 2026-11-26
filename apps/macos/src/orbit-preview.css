@@ -1259,3 +1259,217 @@ body {
   width: 100%;
   height: 100%;
 }
+
+/* App color picker composed from Orbit Popover, Button, Slider and TextField. */
+.lad-color-trigger {
+  gap: 10px;
+  font-variant-numeric: tabular-nums;
+}
+.lad-color-chip {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid #ffffff35;
+}
+.orbit-popover:has(.lad-color-picker) {
+  z-index: 110;
+  width: min(340px, calc(100vw - 24px));
+  padding: 20px;
+  border-radius: 24px;
+  max-height: min(660px, var(--radix-popover-content-available-height));
+}
+.lad-color-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.lad-color-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.lad-color-heading strong {
+  font-size: 16px;
+  letter-spacing: -0.3px;
+}
+.lad-color-heading p,
+.lad-color-picker .lad-color-note {
+  font-size: 11px;
+  line-height: 1.5;
+  margin: 4px 0 0;
+}
+.lad-color-plane {
+  position: relative;
+  height: 150px;
+  flex: none;
+  border-radius: 14px;
+  touch-action: none;
+  cursor: crosshair;
+  background-image:
+    linear-gradient(to top, #000, transparent),
+    linear-gradient(to right, #fff, transparent);
+}
+.lad-color-cursor {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border: 2px solid white;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px #0008;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.lad-color-hue .orbit-slider__track {
+  background: linear-gradient(
+    to right,
+    #f00,
+    #ff0,
+    #0f0,
+    #0ff,
+    #00f,
+    #f0f,
+    #f00
+  );
+}
+.lad-color-hue .orbit-slider__position {
+  background: transparent;
+}
+.lad-color-hue .orbit-slider__head {
+  font-size: 12px;
+}
+.lad-color-presets {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 2px;
+}
+.lad-color-preset.orbit-button {
+  width: 100%;
+  min-width: 0;
+  min-height: 36px;
+  padding: 3px;
+}
+.lad-color-preset > span {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  color: #111318;
+  border: 1px solid #ffffff30;
+}
+.lad-color-preset[aria-pressed="true"] > span {
+  outline: 2px solid var(--orbit-accent);
+  outline-offset: 3px;
+}
+.lad-color-rgb {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.lad-color-picker .orbit-field {
+  min-width: 0;
+}
+.lad-color-picker .orbit-field input {
+  width: 100%;
+  min-width: 0;
+  font-variant-numeric: tabular-nums;
+}
+.lad-color-error {
+  color: var(--orbit-danger) !important;
+  font-size: 11px;
+  margin: 0 !important;
+}
+
+.lad-color-picker .orbit-field input {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 1.25rem 0 0.4rem;
+  font-size: 14px;
+}
+@media (max-width: 760px) {
+  [data-radix-popper-content-wrapper]:has(.lad-color-picker) {
+    position: fixed !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    min-width: 0 !important;
+    width: calc(100vw - 24px);
+    z-index: 110 !important;
+  }
+  .orbit-popover:has(.lad-color-picker) {
+    width: 100%;
+    max-height: calc(100dvh - 32px);
+    padding: 16px;
+  }
+  .lad-color-picker {
+    gap: 12px;
+  }
+  .lad-color-plane {
+    height: 132px;
+  }
+}
+
+/* Let labels and icons define their minimum width; never squeeze them outside a control. */
+.lad-orbit .setting-row {
+  flex-wrap: wrap;
+}
+.lad-orbit .setting-row > div:first-child {
+  flex: 1 1 240px;
+}
+.lad-orbit .setting-row > .orbit-segmented {
+  flex: 0 1 auto;
+}
+.lad-orbit .orbit-segmented {
+  max-width: 100%;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.lad-orbit .orbit-segmented button {
+  flex: 1 0 auto;
+  min-width: max-content;
+  white-space: nowrap;
+  padding: 8px 12px;
+  gap: 8px;
+}
+.lad-orbit .orbit-segmented button > span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+.lad-orbit .orbit-segmented button > span:empty {
+  display: none;
+}
+.lad-orbit .orbit-segmented button svg {
+  flex: none;
+}
+:is(.lad-orbit, .orbit-dialog, .orbit-popover) .orbit-field__member input {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 1.25rem 0 0.4rem;
+}
+.lad-orbit .eq-band .eq-number {
+  width: 54px;
+  min-width: 0;
+  height: 30px;
+  padding: 0 3px;
+  font-size: 11px;
+  border-radius: 8px;
+  appearance: textfield;
+}
+.lad-orbit .eq-band .eq-number::-webkit-inner-spin-button,
+.lad-orbit .eq-band .eq-number::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.lad-orbit .settings-section > .orbit-button {
+  max-width: 100%;
+  white-space: normal;
+  height: auto;
+}
+.lad-orbit .settings-section > .orbit-button svg {
+  flex: none;
+}
