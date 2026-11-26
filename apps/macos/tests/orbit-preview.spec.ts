@@ -106,6 +106,54 @@ for (const width of [1440, 320])
           .toBeLessThanOrEqual(2);
       }
       await page.screenshot({ path: path.join(shots, `wave-${width}.png`) });
+      const beforeScroll = await page
+        .locator(".wave-backdrop canvas")
+        .boundingBox();
+      await page.locator(".page-content").evaluate((el) => {
+        const cover = el
+          .querySelector(".wave-now-playing > .art")!
+          .getBoundingClientRect();
+        el.scrollTop += cover.top - el.getBoundingClientRect().top + 60;
+      });
+      await expect
+        .poll(async () =>
+          page.locator(".wave-home").evaluate((hero) => {
+            const clip = hero.closest(".page-content")!.getBoundingClientRect();
+            const cover = hero.querySelector(".wave-now-playing > .art")!;
+            const rect = cover.getBoundingClientRect();
+            const x = rect.left + rect.width / 2;
+            return {
+              clippedAbove: !cover.contains(
+                document.elementFromPoint(x, clip.top - 4),
+              ),
+              visibleBelow: cover.contains(
+                document.elementFromPoint(x, clip.top + 20),
+              ),
+              spansBoundary: rect.top < clip.top && rect.bottom > clip.top + 20,
+            };
+          }),
+        )
+        .toEqual({
+          clippedAbove: true,
+          visibleBelow: true,
+          spansBoundary: true,
+        });
+      await expect
+        .poll(
+          async () =>
+            (await page.locator(".wave-backdrop canvas").boundingBox())!.y,
+        )
+        .toBeLessThan(beforeScroll!.y - 50);
+      expect(
+        await page
+          .locator(".wave-backdrop canvas")
+          .evaluate((el) => el.closest(".page-content") === null),
+      ).toBe(true);
+      await page.screenshot({
+        path: path.join(shots, `wave-scroll-${width}.png`),
+      });
+      await page.locator(".page-content").evaluate((el) => (el.scrollTop = 0));
+
       await page.locator(".player .main-play").click();
       await expect(page.locator(".player .main-play")).toHaveAttribute(
         "aria-label",

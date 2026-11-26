@@ -18,7 +18,7 @@ import {
   deviceContext,
   deviceAmbiguous,
 } from "../../../shared/devices/identity.mjs";
-import { WaveScene } from "./wave/WaveScene";
+import { WaveBackdrop } from "./wave/WaveBackdrop";
 // SPDX-License-Identifier: AGPL-3.0-only
 import {
   useState,
@@ -880,7 +880,7 @@ export default function App() {
                         </>
                       ) : page === "home" ? (
                         <div className="home-hero wave-home">
-                          <WaveScene
+                          <WaveBackdrop
                             cover={current?.cover}
                             playing={state.playback.playing}
                             local={state.output === "local"}

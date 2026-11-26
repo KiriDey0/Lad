@@ -159,7 +159,7 @@ test('wave can draw above the hero boundary without shrinking cover or simulatio
   const hero = page.locator('.wave-home');
   await expect(hero).toBeVisible();
   const geometry = await hero.evaluate(el => {
-    const canvas = el.querySelector('canvas')!;
+    const canvas = el.closest('.main')!.querySelector('.wave-backdrop canvas')!;
     return {overflow: getComputedStyle(el).overflow, bleed: el.getBoundingClientRect().top-canvas.getBoundingClientRect().top, height: canvas.getBoundingClientRect().height};
   });
   expect(geometry.overflow).toBe('visible');

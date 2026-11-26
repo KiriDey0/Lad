@@ -172,8 +172,8 @@ body {
   padding: 28px 32px calc(var(--player-clearance) + 28px);
 }
 .lad-orbit .page-content.page-wave {
-  margin-top: -112px;
-  padding-top: 112px;
+  margin-top: 0;
+  padding-top: 0;
 }
 .lad-orbit .page-heading {
   margin-bottom: 28px;
@@ -787,8 +787,8 @@ body {
     padding: 22px 16px calc(var(--player-clearance) + 20px);
   }
   .lad-orbit .page-content.page-wave {
-    margin-top: -112px;
-    padding-top: 112px;
+    margin-top: 0;
+    padding-top: 0;
   }
   .lad-orbit .page-heading h1 {
     font-size: 28px;
@@ -1236,4 +1236,26 @@ body {
 }
 :root[data-transparency="false"] .lad-orbit .player-wash {
   display: none;
+}
+
+/* The scroll viewport clips artwork; only the canvas is portaled behind it. */
+.lad-orbit .main {
+  position: relative;
+  isolation: isolate;
+}
+.wave-scene-anchor {
+  position: absolute;
+  inset: -160px 0 auto;
+  height: 780px;
+  pointer-events: none;
+}
+.wave-backdrop {
+  position: absolute;
+  pointer-events: none;
+  z-index: -1;
+}
+.wave-backdrop .wave-scene {
+  inset: 0;
+  width: 100%;
+  height: 100%;
 }
