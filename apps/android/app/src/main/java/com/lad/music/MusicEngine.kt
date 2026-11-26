@@ -746,19 +746,25 @@ class MusicEngine(
         }
     }
 
-    suspend fun jump(index: Int) = playbackLock {
+    suspend fun jumpEntry(entryId: String) = jump(-1, entryId)
+
+    suspend fun jump(index: Int, entryId: String? = null) = playbackLock {
+        var selectedIndex = entryId?.let { queueEntryIndex(state.value.queue, it) } ?: index
+        if (selectedIndex !in state.value.queue.indices) return@playbackLock
         val epoch = operationEpoch
         val old = state.value
         val context = radio
-        if (context != null && !old.demo && old.index != index)
+        if (context != null && !old.demo && old.index != selectedIndex)
             runCatching { context.report("skip", old.track, old.positionMs / 1000) }
         requireOperation(epoch)
-        start(index)
-        if (context != null && !old.demo && state.value.queue.size - index < 3) {
+        if (entryId != null) selectedIndex = queueEntryIndex(state.value.queue, entryId)
+        if (selectedIndex !in state.value.queue.indices) return@playbackLock
+        start(selectedIndex)
+        if (context != null && !old.demo && state.value.queue.size - selectedIndex < 3) {
             runCatching {
                     val additions =
                         context.replenish(
-                            state.value.queue.drop(index),
+                            state.value.queue.drop(selectedIndex),
                             state.value.track?.id.orEmpty(),
                             state.value.settings.blockExplicit,
                             isCurrent = { radio === context && state.value.owned && operationEpoch == epoch },

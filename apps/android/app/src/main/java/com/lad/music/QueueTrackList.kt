@@ -145,7 +145,7 @@ fun QueueTrackList(
                     .semantics { contentDescription = "Строка очереди: ${track.title}"; selected = isCurrent }) {
                     if (id == entryId) Spacer(Modifier.fillMaxWidth().height(with(density) { rowHeight.toDp() }))
                     else TrackRow(track, state,
-                        { val i = queueEntryIndex(engine.state.value.queue, id); if (i >= 0) engine.task { engine.jump(i) } },
+                        { engine.task { engine.jumpEntry(id) } },
                         onOpen, { onMenu(track) }, trailing = {
                             Tool(Icons.Outlined.MoreHoriz, "Действия в очереди: ${track.title}", onClick = { onMenu(track) })
                             DisposableEffect(id) { onDispose { handles.remove(id) } }

@@ -76,7 +76,7 @@ export function QueuePanel({ state, act, close }: { state: State; act: Act; clos
   };
   const finishRef = useRef(release); finishRef.current = release;
   useEffect(() => {
-    if (active.current && active.current.source !== signature) finishRef.current(false);
+    if (active.current ? active.current.source !== signature : !!press.current) finishRef.current(false);
   }, [signature]);
   useEffect(() => {
     const cancel = () => finishRef.current(false);
@@ -85,6 +85,32 @@ export function QueuePanel({ state, act, close }: { state: State; act: Act; clos
     window.addEventListener("keydown", escape, true);
     return () => { cancel(); window.removeEventListener("blur", cancel); window.removeEventListener("keydown", escape, true); };
   }, []);
+
+  // Chromium can lose capture when rows are rearranged. Keep the gesture owned
+  // by the window until pointer-up/cancel; moving a list row cannot terminate it.
+  useEffect(() => {
+    if (!drag) return;
+    const move = (e: PointerEvent) => {
+      const current = active.current;
+      if (!current || current.pointer !== e.pointerId) return;
+      if (e.buttons === 0) { finishRef.current(false); return; }
+      e.preventDefault();
+      current.y = e.clientY;
+    };
+    const up = (e: PointerEvent) => { if (active.current?.pointer === e.pointerId) finishRef.current(true); };
+    const cancel = (e: PointerEvent) => { if (active.current?.pointer === e.pointerId) finishRef.current(false); };
+    const leave = (e: PointerEvent) => { if (e.relatedTarget === null) cancel(e); };
+    window.addEventListener("pointermove", move, { capture: true, passive: false });
+    window.addEventListener("pointerup", up, true);
+    window.addEventListener("pointercancel", cancel, true);
+    window.addEventListener("pointerout", leave, true);
+    return () => {
+      window.removeEventListener("pointermove", move, true);
+      window.removeEventListener("pointerup", up, true);
+      window.removeEventListener("pointercancel", cancel, true);
+      window.removeEventListener("pointerout", leave, true);
+    };
+  }, [drag?.id]);
 
   useEffect(() => {
     if (!drag) return;
@@ -137,17 +163,17 @@ export function QueuePanel({ state, act, close }: { state: State; act: Act; clos
     <div className="queue-source"><span>{q.owned ? q.source : q.tracks.length ? "Сохранённая очередь Лад" : "Пока ничего не выбрано"}</span>
       {q.tracks.length > 0 && <IconButton icon={Trash2} label="Очистить следующие треки" onClick={() => void act("queue", { action: "clear" })}/>}</div>
     {state.output === "station" && !q.owned && state.playback.track && <div className="inline-note"><Info size={16}/><span>Музыку включили вне «Лада». Станция не передаёт полный список своей очереди.</span></div>}
-    <div ref={scroll} className="queue-scroll"
+    <div ref={scroll} className="queue-scroll" onDragStart={e => e.preventDefault()}
       onPointerMove={e => {
         const current = active.current;
-        if (current) { e.preventDefault(); current.y = e.clientY; return; }
+        if (current) { if (current.pointer === e.pointerId) { e.preventDefault(); current.y = e.clientY; } return; }
         const pending = press.current;
         if (pending && e.pointerId === pending.id && Math.hypot(e.clientX - pending.x, e.clientY - pending.y) > 5) {
           if (e.pointerType === "mouse") begin(); else { clearTimeout(pending.timer); press.current = null; }
         }
       }}
-      onPointerUp={() => release(true)} onPointerCancel={() => release(false)}
-      onLostPointerCapture={() => { if (active.current) release(false); }}
+      onPointerLeave={() => { if (!active.current && press.current) release(false); }}
+      onPointerUp={e => { if (active.current?.pointer === e.pointerId || press.current?.id === e.pointerId) release(true); }} onPointerCancel={e => { if (active.current?.pointer === e.pointerId || press.current?.id === e.pointerId) release(false); }}
       onClickCapture={e => { if (drag) { e.preventDefault(); e.stopPropagation(); } }}>
       {!q.tracks.length ? <Empty icon={ListMusic} title="Поставь что-нибудь">Найди трек или открой плейлист — очередь будет здесь.</Empty>
       : shown.map(id => {

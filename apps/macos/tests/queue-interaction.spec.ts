@@ -24,6 +24,10 @@ async function fillQueue(count: number, index: number) {
     await window.lad!.rpc('play', { tracks: Array.from({ length: count }, (_, n) => ({ ...template, title: `Трек ${n}` })), index, source: 'QA' });
     await window.lad!.rpc('control', { action: 'pause' });
   }, { count, index });
+  if (await page.locator('.queue-panel').count()) {
+    await expect(page.locator('.queue-scroll > .queue-row')).toHaveCount(count);
+    await expect(page.locator('.queue-current .queue-track strong')).toHaveText(`Трек ${index}`);
+  }
 }
 
 test('opening queue anchors current occurrence at two thirds and never follows manual scrolling', async () => {
@@ -69,6 +73,9 @@ test('drag survives stationary edge autoscroll, makes a row-sized gap, and moves
   await page.mouse.down();
   await page.mouse.move(box.x + box.width/2, box.y + box.height/2 + 10);
   await expect(page.locator('.queue-floating')).toBeVisible();
+  await page.locator('.queue-placeholder .queue-grip').dispatchEvent('lostpointercapture', {pointerId:1,bubbles:true});
+  await scroll.evaluate(el => el.releasePointerCapture(1));
+  await expect(page.locator('.queue-floating')).toBeVisible();
   const list = (await scroll.boundingBox())!;
   await page.mouse.move(box.x + box.width/2, list.y + list.height - 8, {steps: 8});
   await expect.poll(() => scroll.evaluate(el => el.scrollTop), { timeout: 15000 }).toBeGreaterThan(900);
@@ -97,6 +104,33 @@ test('cancelling a drag restores order without a playback command', async () => 
   await page.keyboard.press('Escape'); await page.mouse.up();
   await expect(page.locator('.queue-floating')).toHaveCount(0);
   expect((await snapshot()).queue.tracks.map((t: any) => t.queueEntryId)).toEqual(before.queue.tracks.map((t: any) => t.queueEntryId));
+});
+
+test('holding a touch drag keeps the card alive while the viewport scrolls', async () => {
+  await fillQueue(100, 40);
+  await page.locator('.queue-scroll').evaluate(el => el.scrollTop = 0);
+  const id = (await snapshot()).queue.tracks[1].queueEntryId;
+  const box = (await page.locator('.queue-row').nth(1).locator('.queue-grip').boundingBox())!;
+  const bounds = (await page.locator('.queue-scroll').boundingBox())!;
+  const session = await page.context().newCDPSession(page);
+  const point = {x:box.x+box.width/2,y:box.y+box.height/2};
+  let touching = false;
+  try {
+    await session.send('Emulation.setTouchEmulationEnabled', {enabled:true,maxTouchPoints:2});
+    await session.send('Input.dispatchTouchEvent', {type:'touchStart',touchPoints:[point]});
+    touching = true;
+    await expect(page.locator('.queue-floating')).toBeVisible();
+    await session.send('Input.dispatchTouchEvent', {type:'touchMove',touchPoints:[{x:point.x,y:bounds.y+bounds.height-6}]});
+    await expect.poll(() => page.locator('.queue-scroll').evaluate(el=>el.scrollTop), {timeout:15000}).toBeGreaterThan(900);
+    await expect(page.locator('.queue-floating')).toBeVisible();
+    await session.send('Input.dispatchTouchEvent', {type:'touchEnd',touchPoints:[]});
+    touching = false;
+    await expect.poll(async () => (await snapshot()).queue.tracks.findIndex((t:any)=>t.queueEntryId===id)).toBeGreaterThan(15);
+  } finally {
+    if (touching) await session.send('Input.dispatchTouchEvent', {type:'touchCancel',touchPoints:[]});
+    await session.send('Emulation.setTouchEmulationEnabled', {enabled:false});
+    await session.detach();
+  }
 });
 
 test('wave can draw above the hero boundary without shrinking cover or simulation', async () => {

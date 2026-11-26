@@ -1561,7 +1561,11 @@ fun LadApp(engine: MusicEngine) {
                                 !blocked,
                                 play = {
                                     trackMenu = null
-                                    run { engine.play(listOf(t), 0, "Выбранный трек") }
+                                    run {
+                                        val entry = menuEntryId?.takeIf { overlay == "queue" && it == t.queueEntryId }
+                                        if (entry != null) engine.jumpEntry(entry)
+                                        else engine.play(listOf(t), 0, "Выбранный трек")
+                                    }
                                 },
                                 next = {
                                     trackMenu = null
