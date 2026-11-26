@@ -1473,3 +1473,32 @@ body {
 .lad-orbit .settings-section > .orbit-button svg {
   flex: none;
 }
+
+/* Settings cards share one spacing rule, including the preview information card. */
+.lad-orbit .settings-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.lad-orbit .settings-page > .settings-section {
+  margin: 0;
+}
+.lad-orbit .settings-page > .page-heading {
+  margin-bottom: 12px;
+}
+/* Keep the device chooser at two thirds of its previous maximum height. */
+.orbit-dialog:has(.device-dialog) {
+  max-height: calc(66.667dvh - 32px);
+}
+.device-dialog {
+  min-height: 0;
+  flex: 0 1 auto;
+}
+.device-dialog > .modal-scroll {
+  flex: 1 1 auto;
+  max-height: none;
+  overflow-y: auto;
+}
+.device-dialog > .modal-footer {
+  flex: none;
+}

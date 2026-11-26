@@ -2465,6 +2465,7 @@ function DeviceModal({
   return (
     <Modal
       title="Где будем слушать?"
+      className="device-dialog"
       subtitle="Одна очередь — компьютер или Яндекс Станция."
       close={close}
       footer={

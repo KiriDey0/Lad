@@ -10,7 +10,7 @@ export interface UpdateState {
 import { Container } from "@kiridey/orbit-ui";
 export function UpdateSection() {
   return (
-    <Container>
+    <Container className="settings-section orbit-preview-info">
       <h2>Лад Orbit</h2>
       <p className="settings-about">
         Тестовая сборка на базе Лада 0.6.4 · Orbit UI 0.2.0.

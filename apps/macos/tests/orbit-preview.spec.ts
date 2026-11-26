@@ -619,3 +619,108 @@ for (const width of [1440, 320])
       fs.rmSync(profile, { recursive: true, force: true });
     }
   });
+
+for (const width of [1440, 320])
+  test(`settings cards stay separate and long device lists scroll in a compact dialog (${width}px)`, async () => {
+    const profile = fs.mkdtempSync(path.join(os.tmpdir(), "lad-orbit-dialog-"));
+    const app = await electron.launch({
+      executablePath: process.env.LAD_TEST_EXE || undefined,
+      args: process.env.LAD_TEST_EXE ? [] : [root],
+      env: {
+        ...process.env,
+        LAD_USER_DATA: profile,
+        LAD_PYTHON: process.env.LAD_PYTHON,
+      },
+    });
+    try {
+      const page = await app.firstWindow();
+      await app.evaluate(
+        ({ BrowserWindow }, width) =>
+          BrowserWindow.getAllWindows()[0].setContentSize(width, 900),
+        width,
+      );
+      await page.evaluate(() => window.lad!.rpc("snapshot"));
+      await page
+        .getByRole("button", { name: "Посмотреть демо", exact: true })
+        .click();
+      if (width < 760)
+        await page
+          .getByRole("link", { name: "Настройки", exact: true })
+          .click();
+      else
+        await page
+          .getByRole("button", { name: "Настройки", exact: true })
+          .click();
+      const gaps = await page.locator(".settings-page").evaluate((el) =>
+        Array.from(el.querySelectorAll(":scope > .settings-section"))
+          .slice(1)
+          .map((card) => {
+            const previous = card.previousElementSibling!;
+            return (
+              card.getBoundingClientRect().top -
+              previous.getBoundingClientRect().bottom
+            );
+          }),
+      );
+      for (const gap of gaps) expect(gap).toBeGreaterThanOrEqual(15);
+      await page
+        .locator(".page-content")
+        .evaluate((el) => (el.scrollTop = el.scrollHeight));
+      await page.screenshot({
+        path: path.join(shots, `settings-bottom-${width}.png`),
+      });
+      const state = await page.evaluate(() => window.lad!.rpc("snapshot"));
+      state.devices = Array.from({ length: 9 }, (_, i) => ({
+        id: "qa-device-" + i,
+        name: i === 0 ? "Яндекс Станция Миди" : "Устройство с Алисой " + i,
+        room: i % 2 ? "Гостиная" : "Кухня",
+        household: "Мой дом",
+        platform: "yandexmidi",
+        metadataStatus: "ready",
+      }));
+      await app.evaluate(({ ipcMain, BrowserWindow }, state) => {
+        const fixture = structuredClone(state);
+        ipcMain.removeHandler("orbit:rpc");
+        ipcMain.handle("orbit:rpc", (_e, method) =>
+          method === "devices" ? fixture.devices : fixture,
+        );
+        BrowserWindow.getAllWindows()[0].webContents.send("orbit:event", {
+          event: "state",
+          data: fixture,
+        });
+      }, state);
+      await page.locator(".device-selector").click();
+      const dialog = page.getByRole("dialog", {
+        name: "Где будем слушать?",
+        exact: true,
+      });
+      await expect(dialog.locator(".device-option")).toHaveCount(10);
+      const height = await dialog.evaluate((el) => ({
+        height: el.getBoundingClientRect().height,
+        viewport: innerHeight,
+      }));
+      expect(height.height).toBeLessThanOrEqual(
+        ((height.viewport - 48) * 2) / 3 + 2,
+      );
+      const list = dialog.locator(".modal-scroll");
+      expect(
+        await list.evaluate((el) => el.scrollHeight > el.clientHeight + 100),
+      ).toBe(true);
+      const footer = (await dialog.locator(".modal-footer").boundingBox())!;
+      await list.evaluate((el) => (el.scrollTop = el.scrollHeight));
+      await expect(dialog.locator(".device-option").last()).toBeInViewport();
+      const moved = (await dialog.locator(".modal-footer").boundingBox())!;
+      expect(moved.y).toBeCloseTo(footer.y, 0);
+      await expect(
+        dialog.getByRole("button", { name: "Слушать на Mac", exact: true }),
+      ).toBeInViewport();
+      await page.screenshot({
+        path: path.join(shots, `devices-compact-${width}.png`),
+      });
+      await page.keyboard.press("Escape");
+      await expect(dialog).toHaveCount(0);
+    } finally {
+      await app.close();
+      fs.rmSync(profile, { recursive: true, force: true });
+    }
+  });
