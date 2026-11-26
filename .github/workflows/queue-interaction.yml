@@ -1,5 +1,7 @@
 name: Queue interaction on desktop
 on:
+  push:
+    branches: [fix/queue-interaction]
   workflow_dispatch:
 permissions:
   contents: read
