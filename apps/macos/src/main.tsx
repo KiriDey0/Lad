@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react";
 import { createRoot } from "react-dom/client";
-import "@fontsource-variable/golos-text";
 import "./style.css";
+import "@kiridey/orbit-ui/styles.css";
+import "./orbit-preview.css";
 import App from "./App";
 class ErrorBoundary extends React.Component<
   { children: React.ReactNode },

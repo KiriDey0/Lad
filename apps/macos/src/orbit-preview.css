@@ -1,0 +1,1239 @@
+/* App compositions use Orbit 0.2.0 surfaces, roles and interaction primitives. */
+:root {
+  --orbit-canvas: #040405;
+  --orbit-surface: #131417;
+  --orbit-raised: #202227;
+  --orbit-elevated: #282b32;
+  --orbit-text: #f0f2f6;
+  --orbit-muted: #a9afbb;
+  --orbit-rim: #ffffff24;
+  --orbit-accent: #bfcaf5;
+  --orbit-on-accent: #111728;
+  --orbit-tonal: #292f46;
+  --orbit-on-tonal: #dce4ff;
+  --orbit-focus: var(--orbit-accent);
+  --orbit-action-glass: #171a21d6;
+}
+.lad-orbit,
+.orbit-dialog,
+.track-menu,
+.explicit-tooltip {
+  --bg: var(--orbit-canvas);
+  --surface: var(--orbit-surface);
+  --raised: var(--orbit-raised);
+  --text: var(--orbit-text);
+  --muted: var(--orbit-muted);
+  --border: var(--orbit-rim);
+  --accent: var(--orbit-accent);
+  --tonal: var(--orbit-tonal);
+  --on-accent: var(--orbit-on-accent);
+  --glass-fill: var(--orbit-action-glass);
+  --glass-popup-fill: var(--orbit-elevated);
+  --glass-border: var(--orbit-rim);
+  --accent-soft: color-mix(in srgb, var(--orbit-accent) 14%, transparent);
+}
+body {
+  background: var(--orbit-canvas);
+}
+.lad-orbit {
+  min-height: 100dvh;
+}
+.lad-orbit .app-shell {
+  min-width: 0;
+  min-height: 540px;
+  --player-clearance: 138px;
+  background: var(--orbit-canvas);
+}
+.lad-orbit .titlebar {
+  height: 52px;
+}
+.lad-orbit .titlebar-label {
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  opacity: 0.7;
+}
+.lad-orbit .workspace {
+  padding: 4px 20px 0;
+  gap: 24px;
+}
+.lad-orbit .sidebar {
+  width: 210px;
+  padding: 12px 0 0;
+}
+.lad-orbit .brand {
+  margin: 0 0 26px 12px;
+  height: 42px;
+  gap: 10px;
+}
+.lad-orbit .brand svg {
+  color: var(--orbit-accent);
+  width: 27px;
+}
+.lad-orbit .brand > span:not(.brand-dot) {
+  font-size: 32px;
+  letter-spacing: -1.6px;
+}
+.lad-orbit .brand-dot {
+  background: var(--orbit-accent);
+  width: 5px;
+  height: 5px;
+}
+.lad-orbit .orbit-side-nav ul {
+  gap: 4px;
+}
+.lad-orbit .orbit-side-nav :is(a, button) {
+  min-height: 48px;
+  border-radius: 16px;
+  font-size: 14px;
+  padding: 10px 14px;
+  gap: 12px;
+}
+.lad-orbit .sidebar-heading {
+  margin-top: 26px;
+  padding-left: 14px;
+}
+.lad-orbit .sidebar-heading > span {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+}
+.lad-orbit .nav-item {
+  height: 46px;
+  min-height: 46px;
+  justify-content: flex-start;
+  padding: 10px 14px;
+  border-radius: 16px;
+  font-size: 14px;
+  gap: 12px;
+}
+.lad-orbit .sidebar-playlists {
+  gap: 2px;
+}
+.lad-orbit .playlist-shortcut {
+  height: 56px;
+  border-radius: 16px;
+  padding: 8px 12px;
+  gap: 10px;
+}
+.lad-orbit .playlist-shortcut strong {
+  font-size: 12px;
+}
+.lad-orbit .playlist-shortcut small {
+  font-size: 10px;
+}
+.lad-orbit .sidebar-actions {
+  gap: 4px;
+  padding-top: 14px;
+}
+.lad-orbit .account-button {
+  border-top: 1px solid var(--orbit-line);
+  border-radius: 0;
+  padding: 14px 10px 0;
+  margin-top: 8px;
+  height: 66px;
+}
+.lad-orbit .account-avatar {
+  background: var(--orbit-tonal);
+  color: var(--orbit-on-tonal);
+  border-radius: 50%;
+}
+.lad-orbit .main {
+  min-width: 0;
+  border: 1px solid var(--orbit-line);
+  border-radius: 28px 28px 0 0;
+  background: transparent;
+  overflow: visible;
+}
+.lad-orbit .main-header {
+  height: 66px;
+  padding: 0 24px;
+  gap: 12px;
+}
+.lad-orbit .header-location {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--orbit-muted);
+}
+.lad-orbit .device-selector {
+  height: 38px;
+  min-width: 0;
+  max-width: 260px;
+  border-radius: 999px;
+  background: var(--orbit-surface);
+  border: 1px solid var(--orbit-line);
+  padding: 0 14px;
+  font-size: 11px;
+}
+.lad-orbit .device-selector > span:not(.status-dot) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lad-orbit .page-content {
+  padding: 28px 32px calc(var(--player-clearance) + 28px);
+}
+.lad-orbit .page-content.page-wave {
+  margin-top: -112px;
+  padding-top: 112px;
+}
+.lad-orbit .page-heading {
+  margin-bottom: 28px;
+}
+.lad-orbit .page-heading h1 {
+  font-size: 34px;
+  letter-spacing: -1.2px;
+  font-weight: 650;
+  line-height: 1.15;
+}
+.lad-orbit .eyebrow {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--orbit-muted);
+  font-weight: 550;
+}
+.lad-orbit .section-title {
+  margin-bottom: 18px;
+  gap: 12px;
+}
+.lad-orbit .section-title h2 {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.4px;
+}
+.lad-orbit .wave-home {
+  min-height: 630px;
+  padding: 32px 12px 34px;
+  border-radius: 0;
+}
+.lad-orbit .wave-heading h1 {
+  font-size: 34px;
+  letter-spacing: -1px;
+  font-weight: 650;
+  line-height: 1.2;
+  margin-top: 8px;
+}
+.lad-orbit .wave-now-playing {
+  gap: 18px;
+  margin-top: 24px;
+}
+.lad-orbit .wave-now-playing > .art {
+  width: 232px;
+  height: 232px;
+  border-radius: 24px;
+  box-shadow: 0 16px 48px #0005;
+}
+.lad-orbit .wave-track-meta strong {
+  font-size: 19px;
+  letter-spacing: -0.4px;
+}
+.lad-orbit .wave-track-meta small {
+  font-size: 13px;
+  margin-top: 5px;
+}
+.lad-orbit .wave-lyrics {
+  font-size: 15px;
+  line-height: 1.65;
+  min-height: 54px;
+}
+.lad-orbit .wave-expand {
+  font-size: 11px;
+  color: var(--orbit-muted);
+}
+.lad-orbit .wave-home-controls {
+  gap: 10px;
+  margin-top: 24px;
+}
+.lad-orbit .home-hero .orbit-button {
+  font-size: 13px;
+}
+.lad-orbit .orbit-button {
+  box-shadow: none;
+}
+.lad-orbit button:disabled {
+  opacity: 1;
+}
+.lad-orbit .icon-button {
+  width: 38px;
+  height: 38px;
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 0;
+  border-radius: 50%;
+}
+.lad-orbit .icon-button svg {
+  width: 18px;
+  height: 18px;
+}
+.lad-orbit .icon-active {
+  color: var(--orbit-on-tonal);
+}
+.lad-orbit .track-row {
+  height: 66px;
+  border-radius: 16px;
+  padding: 8px 10px;
+  gap: 12px;
+}
+.lad-orbit .track-row:hover {
+  background: var(--orbit-surface);
+}
+.lad-orbit .track-row .art-xs {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+}
+.lad-orbit .track-name strong {
+  font-size: 13px;
+  font-weight: 550;
+}
+.lad-orbit .track-name small {
+  font-size: 11px;
+  color: var(--orbit-muted);
+}
+.lad-orbit .track-number {
+  width: 18px;
+  font-size: 11px;
+  color: var(--orbit-muted);
+}
+.lad-orbit .track-row .icon-button {
+  width: 36px;
+  height: 36px;
+  min-height: 36px;
+}
+.lad-orbit .track-like {
+  display: flex;
+}
+.lad-orbit .track-like:not(.icon-active) {
+  opacity: 0.45;
+}
+.lad-orbit .track-duration {
+  font-size: 11px;
+}
+.lad-orbit .music-card,
+.lad-orbit .music-card .art {
+  border-radius: 18px;
+}
+.lad-orbit .queue-panel {
+  width: 292px;
+  flex-shrink: 0;
+  border-radius: 26px;
+  background: var(--orbit-surface);
+  border: 1px solid var(--orbit-line);
+  padding: 18px 12px 10px;
+}
+.lad-orbit .queue-header {
+  padding: 0 4px 0 8px;
+  height: 42px;
+}
+.lad-orbit .queue-header h2 {
+  font-size: 18px;
+  letter-spacing: -0.5px;
+}
+.lad-orbit .queue-header h2 > span {
+  font-size: 11px;
+  color: var(--orbit-muted);
+}
+.lad-orbit .queue-source {
+  padding-left: 8px;
+  margin-bottom: 14px;
+}
+.lad-orbit .queue-source > span {
+  font-size: 10px;
+}
+.lad-orbit .queue-row {
+  height: 64px;
+  padding: 8px;
+  gap: 8px;
+  border-radius: 16px;
+}
+.lad-orbit .queue-current {
+  background: var(--orbit-tonal);
+}
+.lad-orbit .queue-current .queue-track strong {
+  color: var(--orbit-on-tonal);
+}
+.lad-orbit .queue-row .art-xs {
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+}
+.lad-orbit .queue-track strong {
+  font-size: 11px;
+  font-weight: 550;
+}
+.lad-orbit .queue-track small {
+  font-size: 10px;
+}
+.lad-orbit .queue-grip {
+  opacity: 0.3;
+  width: 12px;
+  flex: none;
+}
+.lad-orbit .queue-bottom {
+  font-size: 10px;
+  padding: 12px 8px;
+  color: var(--orbit-muted);
+}
+.queue-floating {
+  background: var(--orbit-elevated);
+  color: var(--orbit-text);
+  border: 1px solid var(--orbit-rim);
+  font-family: var(--orbit-font);
+}
+.lad-orbit .player-dock {
+  height: 128px;
+  z-index: 15;
+}
+.lad-orbit .player-dock > .player {
+  display: grid;
+  grid-template-columns: minmax(190px, 1fr) minmax(240px, 1.25fr) minmax(
+      200px,
+      1fr
+    );
+  gap: 24px;
+  height: 108px;
+  margin: 0 20px 16px;
+  padding: 12px 20px;
+  border-radius: 26px;
+  background: var(--orbit-action-glass);
+  border: 1px solid var(--orbit-rim);
+  backdrop-filter: blur(18px);
+}
+.lad-orbit .player-track {
+  width: auto;
+  min-width: 0;
+  gap: 12px;
+}
+.lad-orbit .player-track .art-sm {
+  width: 52px;
+  height: 52px;
+  border-radius: 13px;
+}
+.lad-orbit .player-track-name {
+  min-width: 0;
+  flex: 1;
+}
+.lad-orbit .player-track-name strong {
+  font-size: 13px;
+}
+.lad-orbit .player-track-name small {
+  font-size: 11px;
+}
+.lad-orbit .player-center {
+  width: auto;
+  min-width: 0;
+  gap: 4px;
+}
+.lad-orbit .player-controls {
+  gap: 12px;
+}
+.lad-orbit .main-play {
+  width: 42px;
+  height: 42px;
+  min-height: 42px;
+  border-radius: 50%;
+}
+.lad-orbit .main-play svg {
+  width: 18px;
+  height: 18px;
+}
+.lad-orbit .player-right {
+  width: auto;
+  min-width: 0;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.lad-orbit .volume-control {
+  max-width: 130px;
+  min-width: 70px;
+}
+.lad-orbit .volume-control input {
+  width: 70px;
+}
+.lad-orbit .volume-value {
+  display: none;
+}
+.lad-orbit .player-wash {
+  display: block;
+  opacity: 0.28;
+  filter: blur(28px);
+}
+.lad-orbit .progress-row {
+  display: flex;
+  width: 100%;
+  gap: 10px;
+  align-items: center;
+  margin-top: 0;
+  min-height: 26px;
+}
+.lad-orbit .progress-row > .orbit-scrubber {
+  flex: 1;
+  min-width: 0;
+  gap: 10px;
+}
+.lad-orbit .orbit-scrubber__scale {
+  height: 26px;
+  min-height: 26px;
+}
+.lad-orbit .progress-total,
+.lad-orbit .orbit-scrubber__time {
+  font-size: 10px;
+  color: var(--orbit-muted);
+  font-variant-numeric: tabular-nums;
+  min-width: 26px;
+}
+.lad-orbit .orbit-scrubber__time {
+  order: -1;
+}
+.lad-orbit .progress-row input[type="range"] {
+  height: 100%;
+}
+.lad-orbit .player-divider {
+  margin: 0 6px;
+  height: 20px;
+}
+.lad-orbit .settings-page,
+.lad-orbit .audio-settings-page {
+  max-width: 900px;
+  margin: 0 auto;
+}
+.lad-orbit .settings-section {
+  border: 1px solid var(--orbit-line);
+  border-radius: 24px;
+  background: var(--orbit-surface);
+  padding: 24px;
+  margin-bottom: 16px;
+}
+.lad-orbit .settings-section > h2 {
+  font-size: 17px;
+  margin-bottom: 12px;
+}
+.lad-orbit .setting-row {
+  gap: 20px;
+  padding: 18px 0;
+  border-color: var(--orbit-line);
+}
+.lad-orbit .setting-row strong {
+  font-size: 13px;
+  font-weight: 550;
+}
+.lad-orbit .setting-row p {
+  font-size: 12px;
+  line-height: 1.6;
+  max-width: 430px;
+}
+.lad-toggle {
+  flex-shrink: 0;
+  min-width: 48px;
+}
+.lad-orbit .audio-tabs-orbit {
+  max-width: 380px;
+  margin-bottom: 24px;
+}
+.lad-orbit .audio-hero-card,
+.lad-orbit .audio-settings-section,
+.lad-orbit .collection-group {
+  background: var(--orbit-surface);
+  border: 1px solid var(--orbit-line);
+  border-radius: 24px;
+}
+.lad-orbit .audio-preset-card,
+.lad-orbit .audio-profile-card {
+  border-radius: 18px;
+  border-color: var(--orbit-line);
+  background: var(--orbit-field);
+}
+.lad-orbit .audio-preset-card.active,
+.lad-orbit .audio-profile-card.active {
+  border-color: var(--orbit-accent);
+  background: var(--orbit-tonal);
+}
+.lad-orbit .lad-search {
+  margin: 22px 0 14px;
+}
+.lad-orbit .orbit-filter-chips {
+  margin-bottom: 28px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.lad-orbit .orbit-filter-chips .orbit-button {
+  font-size: 12px;
+}
+.lad-orbit .orbit-search input {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.lad-orbit .welcome {
+  min-height: 480px;
+  padding: 54px 28px;
+  gap: 24px;
+}
+.lad-orbit .welcome h1 {
+  font-size: 48px;
+  letter-spacing: -2px;
+  line-height: 1.06;
+  margin: 20px 0;
+}
+.lad-orbit .welcome-copy p {
+  font-size: 14px;
+  line-height: 1.7;
+  max-width: 390px;
+}
+.orbit-dialog__overlay {
+  z-index: 100;
+  background: #0009;
+  backdrop-filter: blur(8px);
+}
+.orbit-dialog {
+  z-index: 101;
+  width: min(560px, calc(100% - 32px));
+  max-height: calc(100dvh - 48px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 24px;
+  border-radius: 28px;
+  background: var(--orbit-surface);
+}
+.orbit-dialog__head {
+  flex: none;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+.orbit-dialog__head h2 {
+  font-size: 22px;
+  letter-spacing: -0.6px;
+  line-height: 1.2;
+}
+.orbit-dialog > p {
+  flex: none;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.lad-dialog-content {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+}
+.lad-dialog-content > .modal-scroll {
+  min-height: 0;
+  overflow: auto;
+  padding: 2px;
+  margin: 0;
+  width: auto;
+  max-width: 100%;
+  max-height: calc(100dvh - 220px);
+}
+.lad-dialog-content .modal-footer {
+  padding: 18px 0 0;
+  margin-top: 16px;
+  border-top: 1px solid var(--orbit-line);
+  background: none;
+}
+.orbit-dialog .orbit-button {
+  font-size: 13px;
+}
+.orbit-dialog .device-option {
+  padding: 18px;
+  border-radius: 20px;
+  background: var(--orbit-field);
+}
+.orbit-dialog .device-option.selected {
+  background: var(--orbit-tonal);
+  border-color: var(--orbit-rim);
+}
+.orbit-dialog .device-option strong {
+  font-size: 14px;
+}
+.orbit-dialog .device-option small {
+  font-size: 12px;
+}
+.orbit-dialog .device-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+}
+.orbit-dialog input {
+  max-width: 100%;
+  min-width: 0;
+}
+.lad-toast {
+  position: fixed;
+  z-index: 150;
+  left: 50%;
+  bottom: 150px;
+  transform: translateX(-50%);
+  width: min(440px, calc(100% - 32px));
+}
+.lad-mobile-navigation,
+.queue-dismiss,
+.lad-orbit .mobile-queue-button {
+  display: none;
+}
+@media (min-width: 1600px) {
+  .lad-orbit .workspace {
+    max-width: 1800px;
+    width: 100%;
+    margin-inline: auto;
+  }
+  .lad-orbit .sidebar {
+    width: 232px;
+  }
+  .lad-orbit .queue-panel {
+    width: 316px;
+  }
+}
+@media (max-width: 1199px) {
+  .lad-orbit .workspace {
+    padding-inline: 16px;
+    gap: 20px;
+  }
+  .lad-orbit .sidebar {
+    width: 188px;
+  }
+  .lad-orbit .queue-panel {
+    position: fixed;
+    right: 20px;
+    top: 72px;
+    bottom: 142px;
+    width: 320px;
+    margin: 0;
+    z-index: 42;
+    box-shadow: 0 20px 80px #0009;
+  }
+  .queue-dismiss {
+    display: block;
+    position: fixed;
+    inset: 52px 0 128px;
+    z-index: 41;
+    background: #0008;
+  }
+  .lad-orbit .page-content {
+    padding-inline: 28px;
+  }
+  .lad-orbit .player-dock > .player {
+    grid-template-columns: minmax(170px, 1fr) minmax(230px, 1.2fr) auto;
+    gap: 14px;
+    margin-inline: 16px;
+    padding-inline: 16px;
+  }
+  .lad-orbit .volume-control {
+    display: none;
+  }
+  .lad-orbit .welcome-visual {
+    display: none;
+  }
+}
+@media (max-width: 760px) {
+  .lad-orbit .app-shell {
+    min-height: 0;
+    --player-clearance: 204px;
+  }
+  .lad-orbit .titlebar {
+    height: 44px;
+  }
+  .lad-orbit .titlebar-label {
+    font-size: 10px;
+  }
+  .lad-orbit .demo-badge {
+    right: 12px;
+    font-size: 8px;
+    padding: 4px 6px;
+  }
+  .lad-orbit .workspace {
+    padding: 0;
+    gap: 0;
+  }
+  .lad-orbit .sidebar {
+    display: none;
+  }
+  .lad-orbit .main {
+    border: 0;
+    border-radius: 0;
+  }
+  .lad-orbit .mobile-queue-button {
+    display: inline-flex;
+    width: 36px;
+    height: 44px;
+    min-height: 44px;
+    margin-left: -6px;
+  }
+  .lad-orbit .main-header {
+    height: 56px;
+    padding: 0 16px;
+  }
+  .lad-orbit .main-header > div {
+    gap: 2px;
+    min-width: 0;
+  }
+  .lad-orbit .header-location {
+    font-size: 11px;
+    white-space: nowrap;
+  }
+  .lad-orbit .device-selector {
+    max-width: 126px;
+    font-size: 10px;
+    padding: 0 10px;
+    height: 36px;
+    gap: 6px;
+  }
+  .lad-orbit .device-selector > svg {
+    width: 15px;
+  }
+  .lad-orbit .page-content {
+    padding: 22px 16px calc(var(--player-clearance) + 20px);
+  }
+  .lad-orbit .page-content.page-wave {
+    margin-top: -112px;
+    padding-top: 112px;
+  }
+  .lad-orbit .page-heading h1 {
+    font-size: 28px;
+    letter-spacing: -1px;
+  }
+  .lad-orbit .page-heading {
+    margin-bottom: 24px;
+  }
+  .lad-orbit .wave-home {
+    min-height: 550px;
+    padding: 18px 0 30px;
+    display: block;
+  }
+  .lad-orbit .wave-heading h1 {
+    font-size: 28px;
+  }
+  .lad-orbit .wave-now-playing {
+    display: flex;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    gap: 16px;
+    margin-top: 24px;
+  }
+  .lad-orbit .wave-now-playing > .art {
+    width: 200px;
+    height: 200px;
+    border-radius: 24px;
+  }
+  .lad-orbit .wave-track-meta {
+    width: 100%;
+    text-align: center;
+  }
+  .lad-orbit .wave-track-meta strong {
+    font-size: 18px;
+  }
+  .lad-orbit .wave-lyrics {
+    font-size: 13px;
+    line-height: 1.7;
+    width: 100%;
+    text-wrap: balance;
+  }
+  .lad-orbit .wave-home-controls {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+  }
+  .lad-orbit .wave-home-controls .orbit-button {
+    font-size: 12px;
+    padding-inline: 14px;
+    min-height: 44px;
+  }
+  .lad-orbit .section-title {
+    flex-wrap: wrap;
+  }
+  .lad-orbit .section-title h2 {
+    font-size: 17px;
+  }
+  .lad-orbit .card-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+  }
+  .lad-orbit .track-row {
+    gap: 8px;
+    height: 68px;
+    padding: 8px 0;
+  }
+  .lad-orbit .track-row .art-xs {
+    width: 40px;
+    height: 40px;
+  }
+  .lad-orbit .track-number {
+    width: 12px;
+  }
+  .lad-orbit .track-album,
+  .lad-orbit .track-duration,
+  .lad-orbit .track-like {
+    display: none !important;
+  }
+  .lad-orbit .track-name strong {
+    font-size: 12px;
+  }
+  .lad-orbit .track-name small {
+    font-size: 10px;
+  }
+  .lad-orbit .track-row > .icon-button {
+    width: 44px;
+    height: 44px;
+    min-height: 44px;
+  }
+  .lad-orbit .lad-mobile-navigation {
+    display: block;
+    position: fixed;
+    z-index: 40;
+    bottom: 10px;
+    left: 12px;
+    right: 12px;
+    pointer-events: auto;
+  }
+  .lad-mobile-navigation .orbit-tabbar {
+    min-height: 64px;
+    border-radius: 24px;
+    padding: 4px;
+    backdrop-filter: blur(16px);
+  }
+  .lad-mobile-navigation .orbit-tab {
+    gap: 4px;
+    padding: 5px 0;
+    min-width: 0;
+    min-height: 54px;
+  }
+  .lad-mobile-navigation .orbit-tab__label {
+    font-size: 9px;
+  }
+  .lad-mobile-navigation .orbit-tab__icon svg {
+    width: 21px;
+    height: 21px;
+  }
+  .lad-mobile-navigation .orbit-tabbar__lens {
+    top: 4px;
+    bottom: 4px;
+  }
+  .lad-orbit .player-dock {
+    height: 116px;
+    bottom: 84px;
+    z-index: 30;
+  }
+  .lad-orbit .player-dock > .player {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: 48px 28px;
+    align-items: center;
+    gap: 4px 8px;
+    height: 104px;
+    margin: 0 12px;
+    padding: 12px;
+    border-radius: 24px;
+  }
+  .lad-orbit .player-track {
+    grid-column: 1;
+    grid-row: 1;
+    gap: 10px;
+  }
+  .lad-orbit .player-track .art-sm {
+    height: 42px;
+    width: 42px;
+    border-radius: 11px;
+  }
+  .lad-orbit .player-track-name strong {
+    font-size: 12px;
+  }
+  .lad-orbit .player-track-name small {
+    font-size: 10px;
+  }
+  .lad-orbit .player-track > .icon-button {
+    display: none;
+  }
+  .lad-orbit .player-center {
+    display: contents;
+  }
+  .lad-orbit .player-controls {
+    grid-column: 2;
+    grid-row: 1;
+    gap: 2px;
+  }
+  .lad-orbit .player-controls > .icon-button {
+    display: none;
+  }
+  .lad-orbit .player-controls > .icon-button:nth-of-type(4) {
+    display: flex;
+    width: 38px;
+    height: 44px;
+    min-height: 44px;
+  }
+  .lad-orbit .main-play {
+    width: 44px;
+    height: 44px;
+    min-height: 44px;
+  }
+  .lad-orbit .progress-row {
+    grid-column: 1/-1;
+    grid-row: 2;
+    align-self: center;
+  }
+  .lad-orbit .player-right {
+    display: none;
+  }
+  .lad-orbit .queue-panel {
+    left: 8px;
+    right: 8px;
+    top: 60px;
+    bottom: 90px;
+    width: auto;
+    padding: 16px 12px;
+    z-index: 62;
+  }
+  .queue-dismiss {
+    inset: 0;
+    z-index: 61;
+  }
+  .lad-orbit .queue-panel .queue-row {
+    height: 68px;
+  }
+  .lad-orbit .queue-panel .queue-grip {
+    width: 36px;
+    min-height: 44px;
+    display: flex;
+    justify-content: center;
+  }
+  .lad-orbit .queue-panel .queue-header .icon-button {
+    width: 44px;
+    height: 44px;
+    min-height: 44px;
+  }
+  .lad-orbit .queue-track-time {
+    display: block;
+  }
+  .lad-orbit .settings-section {
+    padding: 18px 16px;
+    border-radius: 22px;
+  }
+  .lad-orbit .settings-section h2 {
+    font-size: 16px;
+  }
+  .lad-orbit .setting-row {
+    gap: 14px;
+    padding: 16px 0;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .lad-orbit .setting-row > div:first-child {
+    min-width: 0;
+    flex: 1 1 168px;
+  }
+  .lad-orbit .setting-row p {
+    font-size: 11px;
+    line-height: 1.6;
+  }
+  .lad-orbit .setting-row .orbit-button {
+    font-size: 12px;
+  }
+  .lad-orbit .orbit-segmented {
+    max-width: 100%;
+  }
+  .lad-orbit .orbit-segmented button {
+    font-size: 11px;
+    padding-inline: 10px;
+  }
+  .lad-orbit .settings-page select {
+    max-width: 100%;
+    font-size: 12px;
+  }
+  .lad-orbit .interface-scale-control {
+    max-width: 100%;
+    gap: 6px;
+  }
+  .lad-orbit .interface-scale-control select {
+    min-width: 0;
+    flex: 1;
+    width: 140px;
+  }
+  .lad-orbit .audio-page-heading {
+    flex-wrap: wrap;
+    gap: 18px;
+  }
+  .lad-orbit .audio-page-heading p {
+    font-size: 12px;
+  }
+  .lad-orbit .audio-profile-grid,
+  .lad-orbit .audio-preset-grid,
+  .lad-orbit .audio-two-columns {
+    grid-template-columns: 1fr;
+  }
+  .lad-orbit .audio-tabs-orbit {
+    width: 100%;
+  }
+  .lad-orbit .audio-tabs-orbit .orbit-tabbar {
+    min-height: 54px;
+  }
+  .lad-orbit .audio-tabs-orbit .orbit-tab {
+    flex-direction: row;
+    font-size: 12px;
+  }
+  .lad-orbit .audio-live {
+    display: none;
+  }
+  .lad-orbit .audio-hero-card,
+  .lad-orbit .audio-settings-section {
+    padding: 18px 16px;
+  }
+  .lad-orbit .eq-bands {
+    overflow: auto;
+  }
+  .lad-orbit .collection-group-grid {
+    grid-template-columns: 1fr;
+  }
+  .lad-orbit .collection-browser-heading {
+    gap: 14px;
+  }
+  .lad-orbit .collection-browser-heading .collection-source {
+    max-width: 100%;
+  }
+  .lad-orbit .welcome {
+    padding: 24px 0;
+    min-height: 0;
+  }
+  .lad-orbit .welcome h1 {
+    font-size: 34px;
+    letter-spacing: -1.2px;
+  }
+  .lad-orbit .welcome-copy {
+    width: 100%;
+    max-width: 100%;
+  }
+  .lad-orbit .welcome-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .lad-orbit .welcome-actions > .orbit-button {
+    width: 100%;
+  }
+  .lad-orbit .welcome-features {
+    grid-template-columns: 1fr;
+  }
+  .lad-orbit .lyrics-heading {
+    gap: 10px;
+  }
+  .lad-orbit .lyrics-heading h1 {
+    font-size: 25px;
+  }
+  .lad-orbit .lyric-line {
+    font-size: 22px;
+    line-height: 1.45;
+  }
+  .lad-orbit .lyric-lines {
+    padding-inline: 0;
+  }
+  .lad-orbit .page-content.page-lyrics {
+    padding: 20px 16px 0;
+  }
+  .lad-toast {
+    bottom: 210px;
+  }
+  .orbit-dialog {
+    padding: 20px 16px;
+    border-radius: 24px;
+    width: calc(100% - 24px);
+    max-height: calc(100dvh - 24px);
+  }
+  .orbit-dialog__head h2 {
+    font-size: 19px;
+  }
+  .orbit-dialog .device-option {
+    padding: 14px;
+    gap: 10px;
+  }
+  .orbit-dialog .device-icon {
+    width: 36px;
+    height: 36px;
+  }
+  .orbit-dialog .device-option strong {
+    font-size: 12px;
+  }
+  .orbit-dialog .device-option small {
+    font-size: 10px;
+  }
+  .orbit-dialog .modal-footer .orbit-button {
+    width: 100%;
+    min-height: 48px;
+    white-space: normal;
+  }
+}
+
+.lad-toggle input {
+  padding: 0 !important;
+  border: 0 !important;
+  margin: 0;
+  pointer-events: none;
+}
+@media (max-width: 760px) {
+  .lad-orbit .shortcut-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .lad-orbit .shortcut-grid > div {
+    min-width: 0;
+    gap: 12px;
+  }
+  .lad-orbit .equalizer-card {
+    padding: 18px 12px;
+  }
+  .lad-orbit .equalizer-toolbar,
+  .lad-orbit .equalizer-actions {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .lad-orbit .equalizer-bands {
+    max-width: 100%;
+    overflow-x: auto;
+    grid-template-columns: repeat(10, 48px);
+    padding-bottom: 12px;
+  }
+  .lad-orbit .eq-summary {
+    flex-wrap: wrap;
+    gap: 8px;
+    font-size: 10px;
+  }
+  .lad-orbit .audio-preset-select {
+    max-width: 100%;
+  }
+}
+
+.lad-orbit .icon-text-button {
+  font-size: 12px;
+  color: var(--orbit-muted);
+}
+.lad-orbit .icon-text-button.primary {
+  color: var(--orbit-on-accent);
+}
+.lad-orbit .audio-back-link {
+  font-size: 12px;
+}
+
+/* Preserve Lad's glass over scrolling content, using Orbit surface roles. */
+:root[data-transparency="true"] :is(.lad-orbit .queue-panel, .orbit-dialog) {
+  background: var(--orbit-glass);
+  backdrop-filter: blur(18px) saturate(1.12);
+}
+:root[data-transparency="true"] .lad-orbit .device-selector {
+  background: var(--orbit-glass);
+  backdrop-filter: blur(14px);
+}
+:root[data-transparency="false"]
+  :is(
+    .lad-orbit .player-dock > .player,
+    .lad-orbit .queue-panel,
+    .lad-orbit .device-selector,
+    .orbit-dialog,
+    .lad-mobile-navigation .orbit-tabbar
+  ) {
+  background: var(--orbit-surface);
+  backdrop-filter: none;
+}
+:root[data-transparency="false"] .orbit-dialog__overlay {
+  backdrop-filter: none;
+}
+:root[data-transparency="false"] .lad-orbit .player-wash {
+  display: none;
+}

@@ -1,17 +1,20 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { useEffect, useRef, useState } from "react";
 import { duration } from "./ui";
+import { Scrubber } from "@kiridey/orbit-ui";
 
 export function TrackProgress({
   position,
   length,
   resetKey,
   seek,
+  playing = false,
 }: {
   position: number;
   length: number;
   resetKey: string;
   seek: (value: number) => void;
+  playing?: boolean;
 }) {
   const [preview, setPreview] = useState<number | null>(null);
   const dragging = useRef(false);
@@ -43,38 +46,30 @@ export function TrackProgress({
     };
   }, []);
   return (
-    <div className="progress-row">
-      <span>{duration(preview ?? position)}</span>
-      <input
-        aria-label="Позиция трека"
-        type="range"
-        min="0"
-        max={length || 1}
-        step="0.1"
-        value={preview ?? position}
+    <div
+      className="progress-row"
+      onPointerDownCapture={() => {
+        dragging.current = true;
+      }}
+      onPointerUpCapture={finish}
+      onPointerCancelCapture={cancel}
+      onBlurCapture={cancel}
+    >
+      <Scrubber
+        key={resetKey}
+        label="Позиция трека"
+        time={preview ?? position}
+        duration={length}
+        playing={playing}
         disabled={!length}
-        onPointerDown={(e) => {
-          dragging.current = true;
-          try {
-            e.currentTarget.setPointerCapture(e.pointerId);
-          } catch {}
-        }}
-        onChange={(e) => {
-          const value = Number(e.target.value);
+        onSeek={(value) => {
           if (dragging.current) {
             desired.current = value;
             setPreview(value);
-          } else {
-            // Keyboard and accessibility changes have no pointerup to finish them.
-            onSeek.current(value);
-          }
+          } else onSeek.current(value);
         }}
-        onPointerUp={finish}
-        onPointerCancel={cancel}
-        onLostPointerCapture={cancel}
-        onBlur={cancel}
       />
-      <span>{duration(length)}</span>
+      <span className="progress-total">{duration(length)}</span>
     </div>
   );
 }

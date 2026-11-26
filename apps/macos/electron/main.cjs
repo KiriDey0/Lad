@@ -19,6 +19,7 @@ const path = require("node:path");
 const readline = require("node:readline");
 const { isYandexUrl } = require("./auth-policy.cjs");
 const { NowPlayingBridge } = require("./now-playing.cjs");
+if (!process.env.LAD_USER_DATA) process.env.LAD_USER_DATA = path.join(app.getPath("appData"), "lad-orbit-preview");
 app.commandLine.appendSwitch("autoplay-policy", "no-user-gesture-required");
 protocol.registerSchemesAsPrivileged([{scheme:"lad-audio",privileges:{standard:true,secure:true,supportFetchAPI:true,corsEnabled:true,stream:true}}]);
 const waveStreams=new (require("./wave-stream.cjs").WaveStreams)();
@@ -339,9 +340,9 @@ function buildWindow() {
   } catch {}
   window = new BrowserWindow({
     ...bounds,
-    minWidth: 1024,
-    minHeight: 700,
-    title: "Лад · Музыка на Станции",
+    minWidth: 320,
+    minHeight: 540,
+    title: "Лад Orbit · Музыка там, где ты",
     backgroundColor: "#0C0D0F",
     titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "default",
     trafficLightPosition: { x: 22, y: 22 },
@@ -351,7 +352,7 @@ function buildWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: true,
-      zoomFactor: 0.85,
+      zoomFactor: 1,
     },
   });
   window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
@@ -397,7 +398,7 @@ app.whenReady().then(() => {
   });
   nowPlaying.start();
   readWavePower = require("./wave-power.cjs").installWavePower({powerMonitor, ipcMain, getWindow: () => window, readSaving: async () => (await rpc("powerStatus")).saving});
-  app.setName("Лад");
+  app.setName("Лад Orbit");
   if (process.env.LAD_USER_DATA)
     app.setPath("userData", process.env.LAD_USER_DATA);
   if (process.env.LAD_USER_DATA)
@@ -417,7 +418,7 @@ app.whenReady().then(() => {
   });
   ipcMain.handle("lad:updates", async (event, action) => {
     if(event.sender !== window?.webContents || !["state","check","download","cancel","install"].includes(action))throw Error("Действие недоступно");
-    if(action === "install" && !app.isPackaged)throw Error("Установка доступна в собранном приложении");
+    if(action !== "state") throw Error("Это отдельная тестовая сборка Orbit. Обновления основного Лада устанавливаются из основного приложения.");
     return updater.action(action);
   });
   if(process.env.LAD_UPDATE_ACK) {

@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { useState, type ButtonHTMLAttributes, type ReactNode } from "react";
-import {
-  AudioLines,
-  Music2,
-  type LucideIcon,
-  LoaderCircle,
-} from "lucide-react";
+import { AudioLines, Music2, type LucideIcon } from "lucide-react";
 import clsx from "clsx";
+import {
+  Button as OrbitButton,
+  EmptyState,
+  SkeletonList,
+} from "@kiridey/orbit-ui";
 import type { Track, Card } from "../types";
 export function Button({
   icon: Icon,
@@ -22,22 +22,15 @@ export function Button({
   loading?: boolean;
 }) {
   return (
-    <button
-      className={clsx("orbit-button", `button-${variant}`, className)}
+    <OrbitButton
       {...props}
-      disabled={props.disabled || loading}
+      className={clsx("lad-button", className)}
+      variant={variant}
+      loading={loading}
+      leading={Icon && <Icon size={20} />}
     >
-      {(Icon || loading) && (
-        <span className="icon-compartment">
-          {loading ? (
-            <LoaderCircle size={20} className="animate-spin" />
-          ) : (
-            Icon && <Icon size={22} />
-          )}
-        </span>
-      )}
-      <span>{children}</span>
-    </button>
+      {children}
+    </OrbitButton>
   );
 }
 export function IconButton({
@@ -52,17 +45,20 @@ export function IconButton({
   active?: boolean;
 }) {
   return (
-    <button
+    <OrbitButton
       {...props}
+      iconOnly
+      variant={active ? "tonal" : "ghost"}
       aria-label={label}
       title={label}
       aria-pressed={active === undefined ? undefined : active}
       className={clsx("icon-button", active && "icon-active", className)}
     >
       <Icon size={20} />
-    </button>
+    </OrbitButton>
   );
 }
+
 export function Art({
   item,
   size = "md",
@@ -111,27 +107,19 @@ export function Empty({
 }) {
   return (
     <div className="empty-state">
-      <span className="empty-icon">
-        <Icon size={28} />
-      </span>
-      <h3>{title}</h3>
-      {children && <p>{children}</p>}
-      {action}
+      <EmptyState
+        title={title}
+        description={children}
+        icon={<Icon size={28} />}
+        action={action}
+      />
     </div>
   );
 }
 export function Skeleton() {
-  return (
-    <div
-      className="flex animate-pulse flex-col gap-4 py-8"
-      aria-label="Загрузка"
-    >
-      {[0, 1, 2, 3].map((x) => (
-        <div key={x} className="h-16 rounded-2xl bg-(--surface)" />
-      ))}
-    </div>
-  );
+  return <SkeletonList rows={4} label="Загрузка" />;
 }
+
 export function duration(value: number) {
   if (!Number.isFinite(value)) return "0:00";
   return `${Math.floor(value / 60)}:${String(Math.floor(value % 60)).padStart(2, "0")}`;

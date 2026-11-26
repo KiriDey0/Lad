@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """Build the local desktop app, including its standalone Python sidecar."""
 from pathlib import Path
+import json
 import os
 import subprocess
 import sys
@@ -35,6 +36,7 @@ run(NPM, 'exec', 'electron-builder', '--', '--mac' if sys.platform == 'darwin' e
 if sys.platform == 'darwin':
     # identity=null skips electron-builder signing entirely. The linker's signature
     # on the Electron executable does not seal the finished app's resources.
-    bundle = ROOT / 'release/mac-arm64/Лад.app'
+    product = json.loads((ROOT / 'package.json').read_text())['build']['productName']
+    bundle = ROOT / 'release/mac-arm64' / f'{product}.app'
     run('/usr/bin/codesign', '--force', '--deep', '--sign', '-', bundle)
     run('/usr/bin/codesign', '--verify', '--deep', '--strict', bundle)

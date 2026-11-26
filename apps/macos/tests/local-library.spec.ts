@@ -13,7 +13,7 @@ test('local folder, playback, synced text and playlists work without an account'
   const root=path.resolve(__dirname,'..');
   const python=process.env.LAD_PYTHON || path.join(root,'.venv/bin/python');
   execFileSync(python,['-c',`import wave,math,struct,sys\nfrom pathlib import Path\nfrom mutagen.wave import WAVE\nfrom mutagen.id3 import TIT2,TPE1,TALB,USLT\np=Path(sys.argv[1])/'nested'/'qa.wav'\nwith wave.open(str(p),'wb') as w:\n w.setnchannels(1);w.setsampwidth(2);w.setframerate(8000);w.writeframes(b''.join(struct.pack('<h',int(250*math.sin(i*.2))) for i in range(8000*12)))\na=WAVE(p);a.add_tags();a.tags.add(TIT2(encoding=3,text='Local QA'));a.tags.add(TPE1(encoding=3,text='Test Artist'));a.tags.add(TALB(encoding=3,text='Test Album'));a.tags.add(USLT(encoding=3,lang='eng',text='[00:00.00]First line\\n[00:03.00]Second line'));a.save()`,music]);
-  const app=await _electron.launch({args:[root],env:{...process.env,LAD_USER_DATA:path.join(privateRoot,'profile'),LAD_PYTHON:python}});
+  const app=await _electron.launch({executablePath:process.env.LAD_TEST_EXE||undefined,args:process.env.LAD_TEST_EXE?[]:[root],env:{...process.env,LAD_USER_DATA:path.join(privateRoot,'profile'),LAD_PYTHON:python}});
   try {
     const page=await app.firstWindow();
     await expect.poll(()=>page.evaluate(async()=>{try{await window.lad!.rpc('snapshot');return true}catch{return false}})).toBe(true);
