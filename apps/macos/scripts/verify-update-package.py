@@ -8,6 +8,7 @@ import signal
 import subprocess
 import sys
 import tempfile
+import time
 
 archive = Path(sys.argv[1]).resolve()
 version = json.loads((Path(__file__).resolve().parents[1] / 'package.json').read_text())['version']
@@ -43,11 +44,20 @@ with tempfile.TemporaryDirectory(prefix='lad packaged update ') as temporary:
         raise
     finally:
         # Only processes inside this temporary QA installation are touched.
-        processes = subprocess.check_output(['/bin/ps', '-axo', 'pid=,command='], text=True)
-        for line in processes.splitlines():
-            fields = line.strip().split(None, 1)
-            if len(fields) == 2 and (str(app) in fields[1] or str(app).replace('/var/', '/private/var/', 1) in fields[1]):
-                try:
-                    os.kill(int(fields[0]), signal.SIGTERM)
-                except ProcessLookupError:
-                    pass
+        def running():
+            processes = subprocess.check_output(['/bin/ps', '-axo', 'pid=,stat=,command='], text=True)
+            result = []
+            for line in processes.splitlines():
+                fields = line.strip().split(None, 2)
+                if len(fields) == 3 and not fields[1].startswith('Z') and (str(app) in fields[2] or str(app).replace('/var/', '/private/var/', 1) in fields[2]):
+                    result.append(int(fields[0]))
+            return result
+        # Electron may still write cache files after SIGTERM. Wait before rmtree.
+        for stop in (signal.SIGTERM, signal.SIGKILL):
+            for pid in running():
+                try: os.kill(pid, stop)
+                except ProcessLookupError: pass
+            deadline = time.monotonic() + 5
+            while running() and time.monotonic() < deadline:
+                time.sleep(.1)
+        assert not running(), 'QA application did not stop before profile cleanup'

@@ -18,7 +18,7 @@ test("decoded PCM remains identical at 0%, 10% and 100% listening volume", async
     const root = path.resolve(__dirname, "..");
     const bundle = buildSync({
       stdin: {
-        contents: `import {attachWaveAudio,setWaveVolume,sampleWaveAudio,resetWaveAudio,setWaveAnalysisEnabled} from ${JSON.stringify(path.join(root, "src/wave/audio.ts"))};window.waveTest={attachWaveAudio,setWaveVolume,sampleWaveAudio,resetWaveAudio,setWaveAnalysisEnabled};`,
+        contents: `import {attachWaveAudio,setWaveVolume,sampleWaveAudio,resetWaveAudio,setWaveAnalysisEnabled,setWaveAudioSettings} from ${JSON.stringify(path.join(root, "src/wave/audio.ts"))};window.waveTest={attachWaveAudio,setWaveVolume,sampleWaveAudio,resetWaveAudio,setWaveAnalysisEnabled,setWaveAudioSettings};`,
         resolveDir: root,
       },
       bundle: true,
@@ -29,8 +29,15 @@ test("decoded PCM remains identical at 0%, 10% and 100% listening volume", async
       const api = (window as any).waveTest;
       const NativeContext = window.AudioContext;
       let monitor: AnalyserNode;
+      let decoded: AnalyserNode;
       // Observe actual output after listening gain, then mute it downstream.
       window.AudioContext = class extends NativeContext {
+        constructor() { super({sampleRate:48000}); }
+        createAnalyser() {
+          const node = super.createAnalyser();
+          if (!decoded) decoded = node;
+          return node;
+        }
         get destination() {
           if (!monitor) {
             monitor = this.createAnalyser();
@@ -72,12 +79,15 @@ test("decoded PCM remains identical at 0%, 10% and 100% listening volume", async
       );
       // Runner scheduling must not let the fixture end before the final samples.
       audio.loop = true;
+      api.setWaveAudioSettings({enabled:false,profile:'mac',preset:'flat',gains:Array(10).fill(0),preamp:0,limiter:false,loudness:false,stereoWidth:100,reverb:false});
       api.setWaveVolume(audio, 0.1);
       await Promise.all([
         api.attachWaveAudio(audio),
         api.attachWaveAudio(audio),
       ]);
       await audio.play();
+      // Five complete periods avoid phase/latency bias between the two analysers.
+      const frames = 1920;
       const output = [];
       for (const volume of [0.1, 1, 0]) {
         api.setWaveVolume(audio, volume);
@@ -87,12 +97,16 @@ test("decoded PCM remains identical at 0%, 10% and 100% listening volume", async
           await new Promise((r) => setTimeout(r, 16));
           feature = api.sampleWaveAudio(1 / 60);
         }
-        const pcm = new Float32Array(2048);
+        const pcm = new Float32Array(frames);
         monitor!.getFloatTimeDomainData(pcm);
         const rms = Math.sqrt(
           pcm.reduce((sum, x) => sum + x * x, 0) / pcm.length,
         );
+        const raw = new Float32Array(frames);
+        decoded!.getFloatTimeDomainData(raw);
+        const decodedRms = Math.sqrt(raw.reduce((sum,x)=>sum+x*x,0)/raw.length);
         output.push({
+          decodedRms,
           volume,
           rms,
           bass: feature.bass,
@@ -101,30 +115,35 @@ test("decoded PCM remains identical at 0%, 10% and 100% listening volume", async
       }
       api.setWaveVolume(audio, 0.1);
       await new Promise((r) => setTimeout(r, 120));
+      const prior = new Float32Array(frames);
+      monitor!.getFloatTimeDomainData(prior);
+      const priorRms = Math.sqrt(prior.reduce((sum,x)=>sum+x*x,0)/prior.length);
       api.setWaveAnalysisEnabled(false);
       await new Promise((r) => setTimeout(r, 150));
-      const bypassed = new Float32Array(2048);
+      const bypassed = new Float32Array(frames);
       monitor!.getFloatTimeDomainData(bypassed);
       const bypassRms = Math.sqrt(
         bypassed.reduce((sum, x) => sum + x * x, 0) / bypassed.length,
       );
       api.setWaveAnalysisEnabled(true);
       await new Promise((r) => setTimeout(r, 150));
-      const resumed = new Float32Array(2048);
+      const resumed = new Float32Array(frames);
       monitor!.getFloatTimeDomainData(resumed);
       const resumedRms = Math.sqrt(
         resumed.reduce((sum, x) => sum + x * x, 0) / resumed.length,
       );
-      if (bypassRms < 0.005 || Math.abs(bypassRms - resumedRms) > 0.002)
-        throw Error("FFT bypass changed audible output");
+      if (bypassRms < 0.005 || Math.abs(bypassRms - priorRms) > 0.002 || Math.abs(bypassRms - resumedRms) > 0.002)
+        throw Error(`FFT bypass changed audible output: before=${priorRms}, bypass=${bypassRms}, resumed=${resumedRms}`);
       audio.pause();
       URL.revokeObjectURL(audio.src);
       return output;
     });
     expect(result[0].bass).toBeGreaterThan(0.1);
     for (const row of result) {
-      expect(Math.abs(row.bass - result[0].bass)).toBeLessThan(0.015);
+      expect(Math.abs(row.decodedRms - result[0].decodedRms)).toBeLessThan(0.003);
+      expect(row.bass).toBeGreaterThan(0.05);
       expect(row.elementVolume).toBe(1);
+      expect(Math.abs(row.rms - row.decodedRms * row.volume)).toBeLessThan(0.003);
     }
     expect(result[1].rms / result[0].rms).toBeCloseTo(10, 0);
     expect(result[2].rms).toBeLessThan(0.00001);

@@ -29,12 +29,17 @@ const graphs = new WeakMap<HTMLAudioElement, AudioGraph>();
 let audioSettings: AudioSettings | null = null;
 const frequencies = [31.5, 63, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
 
+// Only the analyser input is switched; the audible DSP chain is connected once.
 function reconnectGraph(graph: AudioGraph) {
   let chain: AudioNode = graph.source;
   if (graph.analysing) chain = chain.connect(graph.analyser);
-  chain = chain.connect(graph.preamp);
+  chain.connect(graph.preamp);
+}
+
+function connectDspGraph(graph: AudioGraph) {
+  let chain: AudioNode = graph.preamp;
   graph.filters.forEach((filter) => { chain = chain.connect(filter); });
-  chain = chain.connect(graph.loudLow).connect(graph.loudHigh).connect(graph.splitter);
+  chain.connect(graph.loudLow).connect(graph.loudHigh).connect(graph.splitter);
   graph.splitter.connect(graph.widthGains[0], 0);
   graph.splitter.connect(graph.widthGains[1], 1);
   graph.splitter.connect(graph.widthGains[2], 0);
@@ -45,28 +50,27 @@ function reconnectGraph(graph: AudioGraph) {
   graph.widthGains[3].connect(graph.merger, 0, 1);
   graph.merger.connect(graph.dryGain).connect(graph.mix);
   graph.merger.connect(graph.convolver).connect(graph.wetGain).connect(graph.mix);
-  graph.mix.connect(graph.limiter).connect(graph.output);
+  graph.mix.connect(graph.limiter).connect(graph.output).connect(graph.context.destination);
 }
 
 function applySettings(graph: AudioGraph) {
-  if (!audioSettings) return;
   const now = graph.context.currentTime;
-  const enabled = audioSettings.enabled;
-  graph.preamp.gain.setTargetAtTime(enabled ? 10 ** (audioSettings.preamp / 20) : 1, now, 0.015);
+  const enabled = audioSettings?.enabled === true;
+  graph.preamp.gain.setTargetAtTime(enabled ? 10 ** (audioSettings!.preamp / 20) : 1, now, 0.015);
   graph.filters.forEach((filter, index) => {
     filter.gain.setTargetAtTime(enabled ? audioSettings!.gains[index] : 0, now, 0.015);
   });
-  graph.loudLow.gain.setTargetAtTime(enabled && audioSettings.loudness ? 3 : 0, now, 0.03);
-  graph.loudHigh.gain.setTargetAtTime(enabled && audioSettings.loudness ? 2 : 0, now, 0.03);
-  const width = enabled ? Math.max(0, Math.min(1.5, audioSettings.stereoWidth / 100)) : 1;
+  graph.loudLow.gain.setTargetAtTime(enabled && audioSettings?.loudness ? 3 : 0, now, 0.03);
+  graph.loudHigh.gain.setTargetAtTime(enabled && audioSettings?.loudness ? 2 : 0, now, 0.03);
+  const width = enabled ? Math.max(0, Math.min(1.5, audioSettings!.stereoWidth / 100)) : 1;
   [0.5 * (1 + width), 0.5 * (1 - width), 0.5 * (1 - width), 0.5 * (1 + width)].forEach((value, index) => {
     graph.widthGains[index].gain.setTargetAtTime(value, now, 0.03);
   });
   graph.dryGain.gain.setTargetAtTime(1, now, 0.03);
-  graph.wetGain.gain.setTargetAtTime(enabled && audioSettings.reverb ? 0.18 : 0, now, 0.03);
-  graph.limiter.threshold.setTargetAtTime(audioSettings.limiter && enabled ? -2 : 0, now, 0.015);
-  graph.limiter.knee.setTargetAtTime(audioSettings.limiter && enabled ? 8 : 0, now, 0.015);
-  graph.limiter.ratio.setTargetAtTime(audioSettings.limiter && enabled ? 8 : 1, now, 0.015);
+  graph.wetGain.gain.setTargetAtTime(enabled && audioSettings?.reverb ? 0.18 : 0, now, 0.03);
+  graph.limiter.threshold.setTargetAtTime(audioSettings?.limiter && enabled ? -2 : 0, now, 0.015);
+  graph.limiter.knee.setTargetAtTime(audioSettings?.limiter && enabled ? 8 : 0, now, 0.015);
+  graph.limiter.ratio.setTargetAtTime(audioSettings?.limiter && enabled ? 8 : 1, now, 0.015);
   graph.limiter.attack.setTargetAtTime(0.003, now, 0.015);
   graph.limiter.release.setTargetAtTime(0.08, now, 0.015);
 }
@@ -117,11 +121,17 @@ export async function attachWaveAudio(audio: HTMLAudioElement) {
       const loudHigh = context.createBiquadFilter();
       loudHigh.type = "highshelf";
       loudHigh.frequency.value = 8000;
+      // Upmix mono as speakers before splitting, so both output channels survive.
+      loudHigh.channelCount = 2;
+      loudHigh.channelCountMode = "explicit";
       const splitter = context.createChannelSplitter(2);
       const merger = context.createChannelMerger(2);
-      const widthGains = [0, 1, 2, 3].map(() => context.createGain());
+      const widthGains = [1, 0, 0, 1].map(value => {
+        const gain = context.createGain(); gain.gain.value = value; return gain;
+      });
       const dryGain = context.createGain();
       const wetGain = context.createGain();
+      wetGain.gain.value = 0;
       const mix = context.createGain();
       const convolver = context.createConvolver();
       const impulse = context.createBuffer(2, Math.floor(context.sampleRate * 0.9), context.sampleRate);
@@ -131,14 +141,10 @@ export async function attachWaveAudio(audio: HTMLAudioElement) {
       }
       convolver.buffer = impulse;
       const limiter = context.createDynamicsCompressor();
+      limiter.threshold.value = 0;
+      limiter.ratio.value = 1;
       const output = context.createGain();
       output.gain.value = volumes.get(audio) ?? audio.volume;
-      let chain: AudioNode = source;
-      if (analysisEnabled) chain = chain.connect(analyser);
-      chain = chain.connect(preamp);
-      filters.forEach((filter) => { chain = chain.connect(filter); });
-      chain.connect(limiter).connect(output);
-      output.connect(context.destination);
       audio.volume = 1;
       graph = {
         context,
@@ -161,6 +167,8 @@ export async function attachWaveAudio(audio: HTMLAudioElement) {
         data: new Float32Array(analyser.frequencyBinCount),
       };
       graphs.set(audio, graph);
+      connectDspGraph(graph);
+      reconnectGraph(graph);
       applySettings(graph);
     }
   }
