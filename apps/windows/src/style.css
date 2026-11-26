@@ -724,29 +724,6 @@ kbd {
   .queue-row:hover {
     background: var(--raised);
   }
-  .queue-drop-before,
-  .queue-drop-after {
-    opacity: 1;
-  }
-  .queue-drop-before::before,
-  .queue-drop-after::after {
-    content: "";
-    position: absolute;
-    z-index: 2;
-    left: 8px;
-    right: 8px;
-    height: 2px;
-    border-radius: 2px;
-    background: #fff;
-    box-shadow: 0 0 0 1px #0005;
-    pointer-events: none;
-  }
-  .queue-drop-before::before {
-    top: -3px;
-  }
-  .queue-drop-after::after {
-    bottom: -3px;
-  }
   .queue-current {
     background: var(--tonal);
   }
@@ -754,11 +731,12 @@ kbd {
     opacity: 0.55;
   }
   .queue-grip {
-    @apply -ml-1 hidden shrink-0;
+    @apply -ml-1 flex shrink-0;
+    opacity: .35;
     color: var(--muted);
   }
-  .queue-row:hover .queue-grip {
-    @apply flex;
+  .queue-row:hover .queue-grip, .queue-grip:focus-visible {
+    opacity: 1;
   }
   .queue-track {
     @apply min-w-0 flex-1 text-left;
@@ -1327,6 +1305,130 @@ kbd {
     @apply mb-4 text-xs leading-6;
     color: var(--muted);
   }
+  .audio-settings-page {
+    @apply mx-auto max-w-[980px] pb-28;
+  }
+  .audio-page-heading {
+    @apply flex items-start justify-between gap-8;
+  }
+  .audio-page-heading p {
+    @apply mt-3 max-w-[620px] text-sm leading-6;
+    color: var(--muted);
+  }
+  .audio-master-toggle {
+    @apply flex shrink-0 items-center gap-3 rounded-2xl border px-4 py-3 text-xs;
+    border-color: var(--border);
+    background: var(--surface);
+  }
+  .audio-tabs {
+    @apply mt-7 flex w-fit gap-1 rounded-2xl border p-1;
+    border-color: var(--border);
+    background: var(--surface);
+  }
+  .audio-tabs button {
+    @apply flex h-10 items-center gap-2 rounded-xl px-5 text-xs;
+    color: var(--muted);
+  }
+  .audio-tabs button.active {
+    background: var(--tonal);
+    color: var(--text);
+    box-shadow: inset 0 0 0 1px var(--border);
+  }
+  .audio-hero-card,
+  .equalizer-card {
+    @apply mt-6 rounded-[28px] border p-6;
+    border-color: var(--border);
+    background: linear-gradient(135deg, var(--surface), var(--raised));
+  }
+  .audio-hero-top {
+    @apply flex items-center gap-4;
+  }
+  .audio-icon-box,
+  .audio-profile-icon,
+  .audio-control-icon {
+    @apply flex shrink-0 items-center justify-center rounded-2xl;
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+  .audio-icon-box { @apply size-12; }
+  .audio-hero-top h2 { @apply mt-1 text-2xl font-semibold; }
+  .audio-hero-top p { @apply mt-1 text-xs; color: var(--muted); }
+  .audio-live { @apply ml-auto flex items-center gap-2 text-xs; color: var(--success); }
+  .audio-live span { @apply size-2 rounded-full; background: var(--success); box-shadow: 0 0 0 5px #accebc18; }
+  .audio-meter { @apply mt-7; }
+  .audio-meter-scale { @apply flex justify-between text-[10px] tabular-nums; color: var(--muted); }
+  .audio-meter-track { @apply mt-2 h-2 overflow-hidden rounded-full; background: var(--bg); }
+  .audio-meter-fill { @apply h-full rounded-full; background: linear-gradient(90deg, var(--accent), var(--success)); transition: width .2s; }
+  .audio-meter-caption { @apply mt-3 flex justify-between text-xs; color: var(--muted); }
+  .audio-meter-caption strong { color: var(--text); }
+  .audio-settings-section { @apply mt-8; }
+  .audio-settings-section > .section-title { @apply mb-4; }
+  .audio-profile-grid { @apply grid grid-cols-2 gap-3; }
+  .audio-profile-card {
+    @apply flex min-h-[78px] items-center gap-3 rounded-2xl border p-4 text-left;
+    border-color: var(--border);
+    background: var(--surface);
+    color: var(--text);
+  }
+  .audio-profile-card:hover, .audio-profile-card.active { border-color: var(--accent); background: var(--tonal); }
+  .audio-profile-card > span:nth-child(2) { @apply min-w-0 flex-1; }
+  .audio-profile-card strong { @apply block text-sm; }
+  .audio-profile-card small { @apply mt-1 block text-xs; color: var(--muted); }
+  .audio-profile-card.active > svg { color: var(--success); }
+  .audio-profile-icon { @apply size-9 rounded-xl; }
+  .audio-preset-grid { @apply grid grid-cols-4 gap-3; }
+  .audio-preset-card { @apply relative min-h-[142px] rounded-2xl border p-4 text-left; border-color: var(--border); background: var(--surface); color: var(--text); }
+  .audio-preset-card:hover, .audio-preset-card.active { border-color: var(--accent); background: var(--tonal); }
+  .audio-preset-card > svg { @apply absolute right-3 top-3; color: var(--success); }
+  .audio-preset-card strong { @apply mt-3 block text-sm; }
+  .audio-preset-card small { @apply mt-1 block text-[11px] leading-4; color: var(--muted); }
+  .audio-preset-graph { @apply flex h-9 items-end gap-1; }
+  .audio-preset-graph i { @apply block w-1.5 rounded-full; background: var(--accent); opacity: .75; }
+  .text-action { @apply flex items-center gap-1 text-xs; color: var(--muted); }
+  .text-action:hover { color: var(--text); }
+  .audio-two-columns { @apply grid grid-cols-2 gap-4; }
+  .audio-control-card { @apply rounded-2xl border p-5; border-color: var(--border); background: var(--surface); }
+  .audio-control-heading { @apply flex items-center gap-3; }
+  .audio-control-icon { @apply size-9 rounded-xl; }
+  .audio-control-heading strong, .audio-control-heading small { @apply block; }
+  .audio-control-heading strong { @apply text-sm; }
+  .audio-control-heading small { @apply mt-1 text-xs; color: var(--muted); }
+  .audio-slider-row { @apply mt-6; }
+  .audio-slider-label { @apply mb-2 flex justify-between text-xs; }
+  .audio-slider-label strong, .audio-value { color: var(--accent); }
+  .audio-slider-row input, .audio-control-card > input { @apply w-full; }
+  .audio-inline-toggle { @apply mt-5 flex items-center justify-between gap-4; }
+  .audio-inline-toggle strong, .audio-inline-toggle small { @apply block; }
+  .audio-inline-toggle strong { @apply text-xs; }
+  .audio-inline-toggle small { @apply mt-1 max-w-[300px] text-[11px] leading-4; color: var(--muted); }
+  .audio-note { @apply mt-5 flex items-start gap-3 rounded-2xl border p-4 text-xs leading-5; border-color: var(--border); background: var(--surface); color: var(--muted); }
+  .audio-note > svg { @apply mt-0.5 shrink-0; color: var(--success); }
+  .audio-back-link { @apply mb-5 flex items-center gap-1 text-xs; color: var(--muted); }
+  .audio-back-link:hover { color: var(--text); }
+  .audio-preset-select { @apply flex shrink-0 flex-col gap-2 text-xs; color: var(--muted); }
+  .audio-preset-select select { @apply min-w-[180px]; }
+  .equalizer-toolbar { @apply flex items-center justify-between gap-5; }
+  .equalizer-toolbar strong, .equalizer-toolbar small { @apply block; }
+  .equalizer-toolbar strong { @apply text-base; }
+  .equalizer-toolbar small { @apply mt-1 text-xs; color: var(--muted); }
+  .equalizer-actions { @apply flex items-center gap-2; }
+  .icon-text-button { @apply flex h-9 items-center gap-2 rounded-xl px-3 text-xs; color: var(--muted); background: var(--surface); }
+  .icon-text-button:hover { color: var(--text); background: var(--tonal); }
+  .icon-text-button.primary { background: var(--accent); color: var(--on-accent); }
+  .eq-scale { @apply mt-8 flex justify-between text-[10px] tabular-nums; color: var(--muted); }
+  .equalizer-bands { @apply mt-3 flex h-[310px] items-stretch justify-between gap-3; }
+  .eq-band { @apply relative flex min-w-0 flex-1 flex-col items-center; }
+  .eq-value { @apply h-5 text-[11px] tabular-nums; color: var(--accent); }
+  .eq-rail { @apply relative mt-2 w-10 flex-1; }
+  .eq-rail::before { content: ""; @apply absolute left-1/2 top-0 h-full w-1 -translate-x-1/2 rounded-full; background: var(--raised); }
+  .eq-zero { @apply absolute left-0 right-0 top-1/2 h-px; background: var(--border); }
+  .eq-active { @apply absolute left-1/2 w-1 -translate-x-1/2 rounded-full; background: var(--accent); }
+  .eq-band .eq-range { @apply absolute inset-0 h-full w-full opacity-0; writing-mode: vertical-lr; direction: rtl; cursor: ns-resize; }
+  .eq-band .eq-number { @apply relative z-10 h-7 w-[54px] rounded-lg border px-1 text-center text-[10px] tabular-nums; border-color: var(--border); background: var(--surface); color: var(--accent); }
+  .eq-band strong { @apply mt-3 text-xs; }
+  .eq-band small { @apply text-[10px]; color: var(--muted); }
+  .eq-summary { @apply mt-5 flex items-center justify-between border-t pt-4 text-xs; border-color: var(--border); color: var(--muted); }
+  .eq-summary span:first-child { @apply flex items-center gap-2; color: var(--accent); }
   .toast {
     @apply fixed left-1/2 bottom-[132px] z-[60] flex max-w-[620px] -translate-x-1/2 items-center gap-3 rounded-2xl border py-2 pl-4 pr-2 text-xs leading-5;
     background: var(--raised);
@@ -1963,10 +2065,6 @@ kbd {
   }
 }
 
-/* Native Window Controls Overlay stays outside web hit targets at every zoom. */
-.titlebar[data-platform="win32"] { padding-inline: 18px 174px; }
-.titlebar[data-platform="win32"] .demo-badge { right: 184px; }
-
 /* Content continues behind the floating glass player; only side rails reserve its space. */
 @layer components {
   .app-shell {
@@ -2039,17 +2137,18 @@ kbd {
     min-height: 680px;
     padding: 32px 24px 40px;
     background: transparent;
-    overflow: hidden;
+    overflow: visible;
     border-radius: 28px;
   }
   .wave-scene {
     position: absolute;
-    inset: 0;
+    inset: -160px 0 auto;
     width: 100%;
-    height: 620px;
+    height: 780px;
+    --wave-top-bleed: 160px;
     pointer-events: none;
     z-index: -1;
-    mask-image: linear-gradient(#000 85%, transparent);
+    mask-image: linear-gradient(#000 calc(100% - 93px), transparent);
   }
   .wave-heading {
     text-align: center;
@@ -2313,3 +2412,35 @@ kbd {
 
 .local-field {display:flex;flex-direction:column;gap:10px;margin-bottom:18px;color:var(--muted);}
 .local-field input,.local-field select {border:1px solid var(--border);background:var(--surface);color:var(--text);padding:12px 14px;border-radius:12px;width:100%;}
+
+/* Compact release history: header/footer stay put, only the notes scroll. */
+.release-history-modal {
+  width: min(100%, 560px);
+  max-width: 560px;
+  height: min(640px, calc(100dvh - 64px));
+}
+.release-history-modal .modal-scroll { flex: 1; }
+.release-history-modal .modal-footer .orbit-button { width: 100%; }
+.history-item { padding: 20px 0; border-bottom: 1px solid var(--border); }
+.history-item:first-child { padding-top: 0; }
+.history-item:last-child { border-bottom: 0; padding-bottom: 0; }
+.history-item h3 { font-size: 16px; font-weight: 600; line-height: 1.5; }
+.history-item time { display: block; margin-top: 4px; font-size: 12px; color: var(--muted); }
+.release-notes { margin-top: 14px; font-size: 13px; line-height: 1.65; color: var(--muted); overflow-wrap: anywhere; }
+.release-notes > * + * { margin-top: 12px; }
+.release-notes p { white-space: pre-line; }
+.release-notes ul { list-style: disc; padding-left: 18px; }
+.release-notes li + li { margin-top: 6px; }
+.history-status { font-size: 13px; line-height: 1.65; color: var(--muted); }
+.history-status .orbit-button { margin-top: 16px; }
+
+/* A drag owns its floating row; list rows make actual space for its placeholder. */
+.queue-scroll { position: relative; overscroll-behavior: contain; overflow-anchor: none; }
+.queue-row { user-select: none; }
+.queue-row.queue-placeholder { visibility: hidden; }
+.queue-row.queue-floating { z-index: 90; pointer-events: none; margin: 0; border-radius: 14px; background: var(--raised, #282b31); box-shadow: 0 12px 32px #0009; opacity: .98; }
+.queue-grip { cursor: grab; }
+.queue-reordering, .queue-reordering * { cursor: grabbing !important; }
+
+.page-content.page-wave { margin-top: -160px; padding-top: 160px; }
+.main-header { position: relative; z-index: 2; }

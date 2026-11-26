@@ -53,3 +53,34 @@ async def test_content_filter_change_cancels_inflight_start(engine):
     await asyncio.gather(task, return_exceptions=True)
     assert engine.block_explicit
     assert not any(kind == 'local' and data.get('action') == 'load' and not data.get('paused') for kind,data in engine.events)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('stage', ['feedback', 'report', 'stream'])
+async def test_selecting_an_occurrence_survives_shuffle_during_async_start(engine, monkeypatch, stage):
+    engine.queue.replace([tr(i) for i in range(1, 6)], 0)
+    selected = engine.queue.tracks[-1]['queueEntryId']
+    entered, release = asyncio.Event(), asyncio.Event()
+    async def immediate_stream(_): return 'https://cdn.example/fixture.mp3'
+    async def gate(*args, **kwargs):
+        entered.set(); await release.wait()
+        return 'https://cdn.example/fixture.mp3' if stage == 'stream' else None
+    async def noop(*args, **kwargs): pass
+    engine.stream = immediate_stream
+    monkeypatch.setattr('core.random.shuffle', lambda values: values.reverse())
+    if stage == 'feedback':
+        engine.radio = {'id': 'test'}
+        engine.radio_feedback = gate
+        engine.topup_radio = noop
+    elif stage == 'report': engine.report_listen = gate
+    else: engine.stream = gate
+    task = asyncio.create_task(engine.rpc('queue', {'action':'jump', 'entryId':selected}))
+    try:
+        await asyncio.wait_for(entered.wait(), 2)
+        await engine.control('shuffle', True)
+    finally:
+        release.set()
+        await asyncio.wait_for(task, 2)
+    assert engine.playback['track']['queueEntryId'] == selected
+    assert engine.queue.current['queueEntryId'] == selected
+    assert engine.queue.index == 1

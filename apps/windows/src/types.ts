@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 export interface Track {
+  queueEntryId?: string;
   source?: "local";
   folderId?: string;
   fileName?: string;
@@ -74,6 +75,29 @@ export interface State {
   hasMusicSession: boolean;
   feedbackError?: string | null;
 }
+export interface AudioPreset {
+  id: string;
+  name: string;
+  description: string;
+  gains: number[];
+}
+export interface AudioProfile {
+  id: "mac" | "headphones" | "bluetooth" | "station";
+  name: string;
+  detail: string;
+  icon: "monitor" | "headphones" | "bluetooth" | "speaker";
+}
+export interface AudioSettings {
+  enabled: boolean;
+  profile: AudioProfile["id"];
+  preset: string;
+  gains: number[];
+  preamp: number;
+  limiter: boolean;
+  loudness: boolean;
+  stereoWidth: number;
+  reverb: boolean;
+}
 export interface Lyrics {
   synced: boolean;
   lines: { time: number | null; text: string }[];
@@ -98,7 +122,13 @@ export interface LadEvent {
   event: string;
   data: any;
 }
+export interface ReleaseHistoryEntry {
+  version: string;
+  date: string;
+  notes: string;
+}
 export interface Bridge {
+  releaseHistory?: () => Promise<ReleaseHistoryEntry[]>;
   wavePower?: (request?: {mode: "auto" | "eco" | "smooth"; active: boolean; pressure?: number}) => Promise<{ fps: number }>;
   localFiles?(
     action: "add" | "restore" | "locate" | "lyrics" | "reveal",

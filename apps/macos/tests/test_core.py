@@ -32,10 +32,10 @@ def test_move_duplicate_tracks_keeps_exact_current_occurrence():
 def test_shuffle_restores_duplicates_without_replaying_prefix():
     q = Queue(); q.replace([tr(1), tr(2), tr(1), tr(3)], 0)
     q.shuffle(True)
-    assert q.tracks[0] == tr(1)
+    assert {k:v for k,v in q.tracks[0].items() if k != 'queueEntryId'} == tr(1)
     assert sorted(t['id'] for t in q.tracks) == ['1', '1', '2', '3']
     q.shuffle(False)
-    assert q.tracks == [tr(1), tr(2), tr(1), tr(3)]
+    assert [{k:v for k,v in t.items() if k != 'queueEntryId'} for t in q.tracks] == [tr(1), tr(2), tr(1), tr(3)]
 
 
 def test_repeat_one_only_applies_to_automatic_next():
@@ -59,3 +59,40 @@ def test_added_tracks_are_copied_not_shared_with_catalog():
 
 def test_track_key_ignores_album_context():
     assert track_key('123:456') == '123'
+
+
+def test_each_duplicate_occurrence_has_a_stable_identity():
+    same = tr('D')
+    q = Queue(); q.replace([tr('A'), same, tr('F'), tr('A'), same], 0)
+    entries = [t['queueEntryId'] for t in q.tracks]
+    assert len(set(entries)) == 5
+    last = entries[4]
+    q.move(1, 2)  # An open menu must survive other queue edits.
+    q.remove(q.entry_index(last))
+    assert [t['id'] for t in q.tracks] == ['A', 'F', 'D', 'A']
+    assert entries[1] in [t['queueEntryId'] for t in q.tracks]
+    with pytest.raises(ValueError): q.entry_index(last)
+    assert 'queueEntryId' not in same
+
+
+def test_adding_a_queue_track_creates_a_new_occurrence_and_restore_keeps_ids():
+    q = Queue(); q.replace([tr('A')])
+    first = q.current['queueEntryId']
+    q.add([q.current, q.current])
+    ids = [t['queueEntryId'] for t in q.tracks]
+    assert len(set(ids)) == 3 and ids[0] == first
+    restored = Queue(tracks=q.snapshot()['tracks'])
+    assert [t['queueEntryId'] for t in restored.snapshot()['tracks']] == ids
+    restored.shuffle(True); restored.shuffle(False)
+    assert [t['queueEntryId'] for t in restored.tracks] == ids
+
+
+def test_unshuffle_keeps_refreshed_metadata_and_never_reinserts_played_duplicates():
+    q = Queue(); q.replace([tr('A'), tr('D'), tr('F'), tr('A'), tr('D')], 1)
+    original = [t['queueEntryId'] for t in q.tracks]
+    q.shuffle(True)
+    q.tracks = [dict(t, liked=True, title='refreshed') for t in q.tracks]
+    q.shuffle(False)
+    assert [t['queueEntryId'] for t in q.tracks] == original
+    assert q.index == 1 and q.current['queueEntryId'] == original[1]
+    assert all(t['liked'] and t['title'] == 'refreshed' for t in q.tracks)

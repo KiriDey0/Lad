@@ -115,7 +115,7 @@ export function WaveScene({
       schedule();
     };
     wake.current = resume;
-    const renderer = new WaveRenderer(el, resume);
+    const renderer = new WaveRenderer(el, resume, parseFloat(getComputedStyle(el).getPropertyValue("--wave-top-bleed")) || 0);
     const power = (value: { fps: number }) => {
       fps.current = [20, 30, 60].includes(value.fps) ? value.fps : 30;
       resume();

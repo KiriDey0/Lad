@@ -72,6 +72,12 @@ class Storage(private val context: Context) {
             prefs.getBoolean("syncVolume", false),
             prefs.getFloat("waveIntensity", 100f).let { if(it.isFinite())it.coerceIn(0f,100f)else 100f },
             prefs.getFloat("waveSmoothing", 50f).let { if(it.isFinite())it.coerceIn(0f,100f)else 50f },
+            LockScreenSettings.parse(prefs.getString("lockScreen", null)),
+            prefs.getBoolean("audioEnabled", true),
+            prefs.getString("audioPreset", "warm") ?: "warm",
+            prefs.getFloat("audioPreampDb", -1f),
+            runCatching { JSONArray(prefs.getString("audioBands", "") ?: "").let { (0 until it.length()).map { n -> it.optDouble(n, 0.0).toFloat() } }.takeIf { it.size == 10 } }.getOrNull()
+                ?: Settings().audioBands,
         )
 
     fun settings(s: Settings) {
@@ -87,6 +93,11 @@ class Storage(private val context: Context) {
             .putFloat("waveIntensity", s.waveIntensity)
             .putFloat("waveSmoothing", s.waveSmoothing)
             .putLong("lyricOffset", s.lyricOffsetMs)
+            .putString("lockScreen", s.lockScreen.json().toString())
+            .putBoolean("audioEnabled", s.audioEnabled)
+            .putString("audioPreset", s.audioPreset)
+            .putFloat("audioPreampDb", s.audioPreampDb)
+            .putString("audioBands", JSONArray(s.audioBands).toString())
             .apply()
     }
 

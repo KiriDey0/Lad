@@ -1,6 +1,6 @@
 {
   "name": "lad-music",
-  "version": "0.5.4",
+  "version": "0.6.3",
   "private": true,
   "description": "Клиент Яндекс Музыки для Яндекс Станции",
   "main": "electron/main.cjs",
@@ -66,6 +66,10 @@
       {
         "from": "public/icon.png",
         "to": "icon.png"
+      },
+      {
+        "from": "native/lad-nowplaying",
+        "to": "native/lad-nowplaying"
       }
     ],
     "mac": {

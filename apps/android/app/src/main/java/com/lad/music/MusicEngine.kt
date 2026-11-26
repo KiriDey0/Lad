@@ -14,8 +14,14 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.json.*
 
+internal const val PREVIOUS_RESTART_THRESHOLD_MS = 5_000L
+
+internal fun previousPressRestarts(positionMs: Long): Boolean =
+    positionMs > PREVIOUS_RESTART_THRESHOLD_MS
+
 class LadApplication : Application() {
     val updates by lazy { AppUpdates(this) }
+    val lockArtwork by lazy { LockArtworkRepository(this) }
     lateinit var engine: MusicEngine
 
     override fun onCreate() {
@@ -84,6 +90,7 @@ class MusicEngine(
             )
             setHandleAudioBecomingNoisy(true)
         }
+    private val audioProfile = com.lad.music.wave.AudioProfileEffect()
     private val mutable = MutableStateFlow(MusicState(settings = storage.settings()))
     val state = mutable.asStateFlow()
     val uiState =
@@ -160,7 +167,10 @@ class MusicEngine(
     }
 
     private fun update(block: (MusicState) -> MusicState) {
-        mutable.update(block)
+        mutable.update { old ->
+            val next = block(old)
+            if (next.queue === old.queue) next else next.copy(queue = queueEntries(next.queue))
+        }
     }
 
     fun notice(message: String) {
@@ -185,6 +195,11 @@ class MusicEngine(
     init {
         player.addListener(
             object : Player.Listener {
+                override fun onAudioSessionIdChanged(audioSessionId: Int) {
+                    audioProfile.attach(audioSessionId)
+                    val a = state.value.settings
+                    audioProfile.apply(a.audioEnabled, a.audioPreampDb, a.audioBands)
+                }
                 override fun onEvents(p: Player, events: Player.Events) {
                     if (state.value.output == "phone" && !state.value.demo)
                         update {
@@ -408,6 +423,7 @@ class MusicEngine(
         }
         val wasSync = state.value.settings.syncVolume
         storage.settings(value)
+        audioProfile.apply(value.audioEnabled, value.audioPreampDb, value.audioBands)
         if (value.syncVolume && !wasSync && state.value.output == "phone" && !state.value.demo)
             update { it.copy(volume = deviceVolume()) }
         player.volume = if (value.syncVolume && !state.value.demo) 1f else state.value.volume
@@ -442,7 +458,7 @@ class MusicEngine(
         check(!(s.settings.blockExplicit && fresh.explicit)) {
             "Трек 18+ пропущен: включён фильтр контента"
         }
-        return fresh
+        return fresh.copy(queueEntryId = track.queueEntryId)
     }
 
     private suspend fun start(index: Int, position: Long = 0, paused: Boolean = false) {
@@ -450,7 +466,7 @@ class MusicEngine(
         val old = state.value
         val t = checked(old.queue.getOrNull(index) ?: throw IllegalArgumentException("Выбери трек"))
         requireOperation(epoch)
-        if (old.queue.map { it.id } != state.value.queue.map { it.id })
+        if (old.queue.map { it.queueEntryId } != state.value.queue.map { it.queueEntryId })
             throw CancellationException("Очередь изменилась")
         metadata[t.id] = t
         foreground()
@@ -638,6 +654,18 @@ class MusicEngine(
                     !acceptsCoverSelection(s, coverSelection.first, coverSelection.second)
             )
                 return@playbackLock
+            // The first previous press after five seconds restarts the current
+            // track; a second press within the first five seconds changes track.
+            if (direction < 0 && !automatic && coverSelection == null && previousPressRestarts(s.positionMs)) {
+                if (s.demo) demoAt = SystemClock.elapsedRealtime()
+                else if (s.output == "station") {
+                    station?.command(JSONObject().put("command", "rewind").put("position", 0))
+                    stationBase = 0
+                    stationAt = SystemClock.elapsedRealtime()
+                } else player.seekTo(0)
+                update { it.copy(positionMs = 0) }
+                return@playbackLock
+            }
             if (s.output == "station" && !s.owned) {
                 check(!s.settings.blockExplicit) { "Фильтр 18+ включён. Выбери трек через Лад." }
                 station?.command(JSONObject().put("command", if (direction > 0) "next" else "prev"))
@@ -718,19 +746,25 @@ class MusicEngine(
         }
     }
 
-    suspend fun jump(index: Int) = playbackLock {
+    suspend fun jumpEntry(entryId: String) = jump(-1, entryId)
+
+    suspend fun jump(index: Int, entryId: String? = null) = playbackLock {
+        var selectedIndex = entryId?.let { queueEntryIndex(state.value.queue, it) } ?: index
+        if (selectedIndex !in state.value.queue.indices) return@playbackLock
         val epoch = operationEpoch
         val old = state.value
         val context = radio
-        if (context != null && !old.demo && old.index != index)
+        if (context != null && !old.demo && old.index != selectedIndex)
             runCatching { context.report("skip", old.track, old.positionMs / 1000) }
         requireOperation(epoch)
-        start(index)
-        if (context != null && !old.demo && state.value.queue.size - index < 3) {
+        if (entryId != null) selectedIndex = queueEntryIndex(state.value.queue, entryId)
+        if (selectedIndex !in state.value.queue.indices) return@playbackLock
+        start(selectedIndex)
+        if (context != null && !old.demo && state.value.queue.size - selectedIndex < 3) {
             runCatching {
                     val additions =
                         context.replenish(
-                            state.value.queue.drop(index),
+                            state.value.queue.drop(selectedIndex),
                             state.value.track?.id.orEmpty(),
                             state.value.settings.blockExplicit,
                             isCurrent = { radio === context && state.value.owned && operationEpoch == epoch },
@@ -829,11 +863,31 @@ class MusicEngine(
         check(eligible.isNotEmpty()) { "Нет доступных треков с учётом фильтра" }
         check(s.queue.size + eligible.size <= 5000) { "Очередь вмещает до 5000 треков" }
         val position = if (next) (s.index + 1).coerceAtLeast(0) else s.queue.size
-        val q = s.queue.toMutableList().apply { addAll(position, eligible) }
+        val q = insertQueueEntries(s.queue, eligible, position)
         originalQueue = null
         update { it.copy(queue = q, shuffle = false) }
         persist()
         notice(if (next) "Будет играть следующим" else "Добавлено в очередь")
+    }
+
+    fun moveEntry(entryId: String, beforeEntryId: String?) {
+        val q = state.value.queue
+        val from = queueEntryIndex(q, entryId)
+        if (from < 0) return
+        val rest = q.filter { it.queueEntryId != entryId }
+        val to = if (beforeEntryId == null) rest.size else queueEntryIndex(rest, beforeEntryId)
+        if (to >= 0 && from != to) move(from, to)
+    }
+
+    fun moveEntryBy(entryId: String, delta: Int) {
+        val q = state.value.queue
+        val from = queueEntryIndex(q, entryId)
+        if (from >= 0 && from + delta in q.indices) move(from, from + delta)
+    }
+
+    fun removeEntry(entryId: String) {
+        val index = queueEntryIndex(state.value.queue, entryId)
+        if (index >= 0) remove(index)
     }
 
     fun move(from: Int, to: Int) {

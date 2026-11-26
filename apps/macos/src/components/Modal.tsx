@@ -9,12 +9,14 @@ export function Modal({
   close,
   children,
   footer,
+  className,
 }: {
   title: string;
   subtitle?: string;
   close: () => void;
   children: ReactNode;
   footer?: ReactNode;
+  className?: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -34,7 +36,7 @@ export function Modal({
       if (e.key !== "Tab") return;
       const items = [
         ...target!.querySelectorAll<HTMLElement>(
-          "button:not([disabled]),input:not([disabled]),a,select",
+          "button:not([disabled]),input:not([disabled]),a,select,[tabindex=\"0\"]",
         ),
       ];
       const i = items.indexOf(document.activeElement as HTMLElement);
@@ -61,7 +63,7 @@ export function Modal({
       }}
     >
       <div
-        className={clsx("modal", footer && "modal-with-footer")}
+        className={clsx("modal", footer && "modal-with-footer", className)}
         role="dialog"
         aria-modal="true"
         aria-label={title}
@@ -74,7 +76,7 @@ export function Modal({
           </div>
           <IconButton icon={X} label="Закрыть окно" onClick={close} />
         </div>
-        {footer ? <div className="modal-scroll">{children}</div> : children}
+        {footer ? <div className="modal-scroll" tabIndex={0}>{children}</div> : children}
         {footer && <div className="modal-footer">{footer}</div>}
       </div>
     </div>

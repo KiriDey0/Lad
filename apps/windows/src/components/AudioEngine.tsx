@@ -1,14 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { useEffect, useRef } from "react";
-import { attachWaveAudio, resetWaveAudio, setWaveVolume } from "../wave/audio";
+import { attachWaveAudio, resetWaveAudio, setWaveAudioSettings, setWaveVolume } from "../wave/audio";
 import { bridge } from "../bridge";
-import type { State, Track } from "../types";
+import type { AudioSettings, State } from "../types";
 export function AudioEngine({
   state,
   notice,
+  audioSettings,
 }: {
   state: State;
   notice: (text: string) => void;
+  audioSettings: AudioSettings;
 }) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const generation = useRef(0);
@@ -17,6 +19,7 @@ export function AudioEngine({
     position: 0,
     paused: true,
   });
+  useEffect(() => setWaveAudioSettings(audioSettings), [audioSettings]);
   useEffect(() => {
     const audio = audioRef.current!;
     const report = () => {

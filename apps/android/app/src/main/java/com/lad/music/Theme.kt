@@ -10,6 +10,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalConfiguration
+import android.content.res.Configuration
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.text.font.*
@@ -51,7 +54,7 @@ fun LadTheme(settings: Settings, content: @Composable () -> Unit) {
             if (tinted) lerp(Color(0xFF282B31), accent, .08f) else Color(0xFF282B31),
             lerp(Color(0xFF282B31), accent, .08f),
             accent,
-            scale = settings.scale,
+            scale = 1f,
         )
     val base = Typography()
     fun style(s: androidx.compose.ui.text.TextStyle) = s.copy(fontFamily = Golos)
@@ -70,7 +73,18 @@ fun LadTheme(settings: Settings, content: @Composable () -> Unit) {
             labelMedium = style(base.labelMedium),
             labelSmall = style(base.labelSmall),
         )
-    CompositionLocalProvider(LocalPalette provides p) {
+    val density = LocalDensity.current
+    val factor = settings.scale.takeIf { it.isFinite() }?.coerceIn(.85f, 1.2f) ?: 1f
+    val configuration = Configuration(LocalConfiguration.current).apply {
+        screenWidthDp = (screenWidthDp / factor).toInt()
+        screenHeightDp = (screenHeightDp / factor).toInt()
+    }
+    CompositionLocalProvider(
+        LocalPalette provides p,
+        LocalDensity provides Density(density.density * factor, density.fontScale),
+        LocalConfiguration provides configuration,
+        LocalMinimumInteractiveComponentSize provides (48f / factor.coerceAtMost(1f)).dp,
+    ) {
         MaterialTheme(
             colorScheme =
                 darkColorScheme(
@@ -125,7 +139,9 @@ fun Glass(
                 style =
                     HazeStyle(
                         backgroundColor = p.bg,
-                        tint = HazeTint(p.surface.copy(alpha = if (popup) .75f else .76f)),
+                        // Keep the artwork/background readable through the surface. The old
+                        // 76% tint made the card look like a flat opaque rectangle on phones.
+                        tint = HazeTint(p.surface.copy(alpha = if (popup) .62f else .56f)),
                         blurRadius = 14.dp,
                         noiseFactor = 0f,
                         fallbackTint = HazeTint(p.surface),
@@ -136,7 +152,10 @@ fun Glass(
             }
         } else Modifier.background(p.surface)
     Box(
-        modifier.clip(shape).then(material).border(1.dp, Color.White.copy(alpha = .188f), shape),
+        modifier
+            .clip(shape)
+            .then(material)
+            .border(1.dp, Color.White.copy(alpha = .22f), shape),
         content = content,
     )
 }

@@ -70,6 +70,8 @@ test("decoded PCM remains identical at 0%, 10% and 100% listening volume", async
       const audio = new Audio(
         URL.createObjectURL(new Blob([data], { type: "audio/wav" })),
       );
+      // Runner scheduling must not let the fixture end before the final samples.
+      audio.loop = true;
       api.setWaveVolume(audio, 0.1);
       await Promise.all([
         api.attachWaveAudio(audio),

@@ -370,11 +370,14 @@ class App:
         epoch = self.operation_epoch
         if not 0 <= index < len(self.queue.tracks):
             raise ValueError('Выбери трек в очереди.')
+        self.queue.ensure_entries()
+        entry_id = self.queue.tracks[index]['queueEntryId']
         await self.report_listen()
         self.require_operation(epoch)
+        index = self.queue.entry_index(entry_id)
         t = self.queue.tracks[index]
         if local_id(t.get('id')):
-            t = self.local_library.track(t['id'], self.local_media.cover, require=True)
+            t = dict(self.local_library.track(t['id'], self.local_media.cover, require=True), queueEntryId=t.get('queueEntryId', ''))
             self.queue.tracks[index] = t
         await self.check_content(t)
         self.require_operation(epoch)
@@ -396,6 +399,7 @@ class App:
             else:
                 station_state = await self.station.play_track(t['id'], position, paused)
             self.require_operation(epoch)
+        index = self.queue.entry_index(entry_id)
         self.queue.index, self.queue.owned = index, True
         self.generation += 1
         self.play_id = str(uuid.uuid4())
@@ -491,6 +495,8 @@ class App:
 
     async def control(self, action, value=None):
         if action in ('next', 'previous'):
+            if action == 'previous' and not self.demo and self.current_position() > 5:
+                return await self.control('seek', 0)
             return await self.advance(1 if action == 'next' else -1)
         if action == 'toggle':
             action = 'pause' if self.playback['playing'] else 'play'
@@ -776,6 +782,7 @@ class App:
                     emit('notice', {'message': 'Системная громкость недоступна. Синхронизация выключена.'})
             q = saved.get('queue') or {}
             self.queue.tracks = q.get('tracks', [])
+            self.queue.ensure_entries()
             self.queue.original = self.queue.tracks.copy()
             self.queue.index = min(max(-1, int(q.get('index', -1))), len(self.queue.tracks) - 1)
             self.queue.repeat = q.get('repeat', 'off')
@@ -985,23 +992,40 @@ class App:
             async with self.lock:
                 action = p['action']
                 if action == 'jump':
-                    index = int(p['index'])
+                    self.require_operation(epoch)
+                    self.queue.ensure_entries()
+                    index = self.queue.entry_index(p['entryId']) if p.get('entryId') else int(p['index'])
                     if not 0 <= index < len(self.queue.tracks):
                         raise ValueError('Выбери трек в очереди.')
+                    entry_id = self.queue.tracks[index]['queueEntryId']
                     if self.radio and self.queue.current and index != self.queue.index and not self.demo:
                         await self.radio_feedback('skip', self.queue.current, radio=dict(self.radio),
                             played=self.current_position() if self.output == 'station' else self.total_played)
-                    # Selecting an occurrence changes position within the same Wave, not its source.
-                    await self.start_track(index)
+                    self.require_operation(epoch)
+                    # Resolve again after network waits: shuffle can move this occurrence.
+                    await self.start_track(self.queue.entry_index(entry_id))
+                    index = self.queue.index
                     if self.radio and index >= len(self.queue.tracks) - 2 and not self.demo:
                         try:
                             await self.topup_radio()
                         except Exception:
                             emit('notice', {'message': 'Не удалось пополнить Мою волну. Текущий трек продолжает играть; «Следующий» повторит запрос.'})
                 elif action == 'move':
-                    self.queue.move(int(p['from']), int(p['to']))
+                    if p.get('entryId'):
+                        from_ = self.queue.entry_index(p['entryId'])
+                        if 'beforeEntryId' in p:
+                            rest = [t for t in self.queue.tracks if t['queueEntryId'] != p['entryId']]
+                            before = p['beforeEntryId']
+                            to = len(rest) if before is None else next((i for i, t in enumerate(rest) if t['queueEntryId'] == before), -1)
+                        else:
+                            to = from_ + int(p.get('delta', 0))
+                        if not 0 <= to < len(self.queue.tracks):
+                            raise ValueError('Очередь изменилась. Выбери место ещё раз.')
+                        self.queue.move(from_, to)
+                    else:
+                        self.queue.move(int(p['from']), int(p['to']))
                 elif action == 'remove':
-                    self.queue.remove(int(p['index']))
+                    self.queue.remove(self.queue.entry_index(p['entryId']) if p.get('entryId') else int(p['index']))
                 elif action == 'add':
                     tracks = p['tracks']
                     if len(self.queue.tracks) + len(tracks) > 5000 or any(not re_valid_track(t, self.demo) for t in tracks):

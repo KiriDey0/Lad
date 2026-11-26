@@ -212,6 +212,9 @@ fun TrackRow(
 ) {
     val p = LocalPalette.current
     val haptic = LocalHapticFeedback.current
+    val current = if (track.queueEntryId.isNotBlank())
+        state.owned && state.queue.getOrNull(state.index)?.queueEntryId == track.queueEntryId
+        else state.owned && state.track?.id == track.id
     val disabled = !track.available || (state.settings.blockExplicit && track.explicit)
     Row(
         modifier
@@ -219,7 +222,7 @@ fun TrackRow(
             .heightIn(min = 68.dp)
             .clip(RoundedCornerShape(16.dp))
             .background(
-                if (state.track?.id == track.id && state.owned) p.tonal else Color.Transparent
+                if (current) p.tonal else Color.Transparent
             )
             .padding(horizontal = 8.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -242,7 +245,7 @@ fun TrackRow(
         ) {
             Box {
                 Artwork(track.cover, track.title, 44.dp)
-                if (state.track?.id == track.id && state.playing)
+                if (current && state.playing)
                     Icon(
                         Icons.Outlined.GraphicEq,
                         "Играет",
@@ -509,6 +512,10 @@ private fun HomeLyric(engine: MusicEngine, lyrics: Lyrics, offset: Long, onClick
 @Composable
 fun MiniPlayer(s: MusicState, engine: MusicEngine, openNow: () -> Unit, menu: (Track) -> Unit) {
     val t = s.track ?: return
+    val app = LocalContext.current.applicationContext as LadApplication
+    val artwork by produceState<LockArtwork?>(null, t.cover) {
+        value = app.lockArtwork.load(t.cover)
+    }
     val swipe = rememberTrackSwipe(s, engine)
     Glass(
         Modifier.fillMaxWidth()
@@ -526,6 +533,20 @@ fun MiniPlayer(s: MusicState, engine: MusicEngine, openNow: () -> Unit, menu: (T
         s.settings.glass,
         shape = RoundedCornerShape(20.dp),
     ) {
+        // Reuse the small pre-blurred artwork prepared for the lock screen. This keeps
+        // the mini-player visibly translucent even when the page behind it is dark,
+        // without adding a live blur pass to the hot UI path.
+        artwork?.let {
+            Image(
+                bitmap = it.backdrop.asImageBitmap(),
+                contentDescription = null,
+                modifier = Modifier.matchParentSize(),
+                contentScale = ContentScale.Crop,
+                alpha = .34f,
+                filterQuality = FilterQuality.Low,
+            )
+            Box(Modifier.matchParentSize().background(Color.Black.copy(alpha = .22f)))
+        }
         Row(
             Modifier.fillMaxWidth().padding(10.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -679,6 +700,7 @@ fun LadApp(engine: MusicEngine) {
         overlayParent = null
     }
     var trackMenu by remember { mutableStateOf<Track?>(null) }
+    var menuEntryId by remember { mutableStateOf<String?>(null) }
     var localPlaylistTrack by remember { mutableStateOf<Track?>(null) }
     var localPlaylistTitle by remember { mutableStateOf("") }
 
@@ -1461,7 +1483,7 @@ fun LadApp(engine: MusicEngine) {
                                             engine,
                                             { dismissOverlay() },
                                             ::open,
-                                            { trackMenu = it },
+                                            { track -> menuEntryId = track.queueEntryId; trackMenu = track },
                                         )
                                 }
                             }
@@ -1539,7 +1561,11 @@ fun LadApp(engine: MusicEngine) {
                                 !blocked,
                                 play = {
                                     trackMenu = null
-                                    run { engine.play(listOf(t), 0, "Выбранный трек") }
+                                    run {
+                                        val entry = menuEntryId?.takeIf { overlay == "queue" && it == t.queueEntryId }
+                                        if (entry != null) engine.jumpEntry(entry)
+                                        else engine.play(listOf(t), 0, "Выбранный трек")
+                                    }
                                 },
                                 next = {
                                     trackMenu = null
@@ -1588,11 +1614,12 @@ fun LadApp(engine: MusicEngine) {
                                 trackMenu = null
                                 engine.notice("Ссылка скопирована")
                             }
-                            val qi = s.queue.indexOfFirst { it === t }
+                            val entryId = menuEntryId?.takeIf { it == t.queueEntryId }
+                            val qi = entryId?.let { queueEntryIndex(s.queue, it) } ?: -1
                             if (overlay == "queue" && qi >= 0) {
                                 MenuItem("Поднять в очереди", Icons.Outlined.ArrowUpward, qi > 0) {
                                     trackMenu = null
-                                    engine.move(qi, qi - 1)
+                                    engine.moveEntryBy(entryId!!, -1)
                                 }
                                 MenuItem(
                                     "Опустить в очереди",
@@ -1600,7 +1627,7 @@ fun LadApp(engine: MusicEngine) {
                                     qi < s.queue.lastIndex,
                                 ) {
                                     trackMenu = null
-                                    engine.move(qi, qi + 1)
+                                    engine.moveEntryBy(entryId!!, 1)
                                 }
                                 MenuItem(
                                     "Удалить из очереди",
@@ -1608,7 +1635,7 @@ fun LadApp(engine: MusicEngine) {
                                     !(s.owned && qi == s.index),
                                 ) {
                                     trackMenu = null
-                                    run { engine.remove(qi) }
+                                    run { engine.removeEntry(entryId!!) }
                                 }
                             }
                         }

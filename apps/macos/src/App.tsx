@@ -1,3 +1,4 @@
+import { QueuePanel } from "./components/QueuePanel";
 import {Modal} from "./components/Modal";
 import {
   deviceTitle,
@@ -85,6 +86,7 @@ import {
   duration,
 } from "./components/ui";
 import { AudioEngine } from "./components/AudioEngine";
+import { AudioSettingsPage, EqualizerPage } from "./components/AudioSettingsPages";
 import { ExplicitBadge } from "./components/ExplicitBadge";
 import {
   TrackActionsProvider,
@@ -101,9 +103,11 @@ import {
 import { usePinnedCollections, collectionKey } from "./usePinnedCollections";
 import { TrackProgress } from "./components/TrackProgress";
 import { loadTheme, applyTheme, defaultTheme, type Theme } from "./theme";
+import { loadAudioSettings, saveAudioSettings } from "./audioSettings";
+import type { AudioSettings } from "./types";
 
 type Page =
-  "home" | "search" | "collection" | "liked" | "now" | "settings" | "detail";
+  "home" | "search" | "collection" | "liked" | "now" | "settings" | "audio" | "equalizer" | "detail";
 type Content = {
   cards: Card[];
   tracks: Track[];
@@ -141,10 +145,15 @@ export default function App() {
   } | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [theme, setTheme] = useState<Theme>(loadTheme);
+  const [audioSettings, setAudioSettings] = useState<AudioSettings>(loadAudioSettings);
   const searchRef = useRef<HTMLInputElement>(null);
   const requestId = useRef(0);
   const stateRef = useRef(state);
   stateRef.current = state;
+  const updateAudioSettings = useCallback((value: AudioSettings) => {
+    setAudioSettings(value);
+    saveAudioSettings(value);
+  }, []);
   const notice = useCallback((message: string) => setToast(message), []);
   const pins = usePinnedCollections(
     scope,
@@ -472,7 +481,7 @@ export default function App() {
         }}
       >
         <div className="app-shell">
-          <AudioEngine state={state} notice={notice} />
+          <AudioEngine state={state} notice={notice} audioSettings={audioSettings} />
           <div className="titlebar" data-platform={bridge.platform}>
             <div className="titlebar-label">
               Лад <span>·</span> Музыка там, где ты
@@ -618,6 +627,8 @@ export default function App() {
                         liked: "Мне нравится",
                         now: "Сейчас играет",
                         settings: "Настройки",
+                        audio: "Звук",
+                        equalizer: "Эквалайзер",
                         detail:
                           detail?.type === "artist"
                             ? "Исполнитель"
@@ -662,10 +673,13 @@ export default function App() {
                 className={clsx(
                   "page-content",
                   page === "now" && "page-lyrics",
+                  page === "home" && "page-wave",
                 )}
               >
                 {!authenticated &&
                 page !== "settings" &&
+                page !== "audio" &&
+                page !== "equalizer" &&
                 page !== "collection" &&
                 !(page === "now" && current?.source === "local") &&
                 !(page === "detail" && detail?.id.startsWith("local-")) ? (
@@ -686,9 +700,26 @@ export default function App() {
                     onTheme={setTheme}
                     onLogin={() => setModal("login")}
                     onDevices={() => setModal("devices")}
+                    onAudio={() => nav("audio")}
                     onLogout={() => {
                       void act("logout").then(() => setPage("home"));
                     }}
+                  />
+                ) : page === "audio" ? (
+                  <AudioSettingsPage
+                    state={state}
+                    settings={audioSettings}
+                    onChange={updateAudioSettings}
+                    onTab={(tab) => nav(tab === "overview" ? "audio" : "equalizer")}
+                    notice={notice}
+                  />
+                ) : page === "equalizer" ? (
+                  <EqualizerPage
+                    state={state}
+                    settings={audioSettings}
+                    onChange={updateAudioSettings}
+                    onTab={(tab) => nav(tab === "overview" ? "audio" : "equalizer")}
+                    notice={notice}
                   />
                 ) : page === "collection" ? (
                   <CollectionBrowser
@@ -1713,182 +1744,6 @@ function Player({
     </div>
   );
 }
-function QueuePanel({
-  state,
-  act,
-  close,
-}: {
-  state: State;
-  act: Act;
-  close: () => void;
-}) {
-  const actions = useTrackActions();
-  const [drag, setDrag] = useState<number | null>(null);
-  const [dropSlot, setDropSlot] = useState<number | null>(null);
-  const q = state.queue;
-  const insertion =
-    drag !== null && dropSlot !== drag && dropSlot !== drag + 1
-      ? dropSlot
-      : null;
-  return (
-    <aside className="queue-panel">
-      <div className="queue-header">
-        <h2>
-          Очередь <span>{q.tracks.length || ""}</span>
-        </h2>
-        <IconButton icon={X} label="Скрыть очередь" onClick={close} />
-      </div>
-      <div className="queue-source">
-        <span>
-          {q.owned
-            ? q.source
-            : q.tracks.length
-              ? "Сохранённая очередь Лад"
-              : "Пока ничего не выбрано"}
-        </span>
-        {q.tracks.length > 0 && (
-          <IconButton
-            icon={Trash2}
-            label="Очистить следующие треки"
-            onClick={() => void act("queue", { action: "clear" })}
-          />
-        )}
-      </div>
-      {state.output === "station" && !q.owned && state.playback.track && (
-        <div className="inline-note">
-          <Info size={16} />
-          <span>
-            Музыку включили вне «Лада». Станция не передаёт полный список своей
-            очереди. Сохранённую очередь можно запустить снова.
-          </span>
-        </div>
-      )}
-      <div
-        className="queue-scroll"
-        onDragOver={(e) => {
-          if (drag === null) return;
-          e.preventDefault();
-          e.dataTransfer.dropEffect = "move";
-          const rows =
-            e.currentTarget.querySelectorAll<HTMLElement>(".queue-row");
-          const index = [...rows].findIndex((row) => {
-            const rect = row.getBoundingClientRect();
-            return e.clientY < rect.top + rect.height / 2;
-          });
-          setDropSlot(index === -1 ? q.tracks.length : index);
-        }}
-        onDragLeave={(e) => {
-          if (!e.currentTarget.contains(e.relatedTarget as Node | null))
-            setDropSlot(null);
-        }}
-        onDrop={(e) => {
-          e.preventDefault();
-          if (drag !== null && dropSlot !== null) {
-            const to = dropSlot > drag ? dropSlot - 1 : dropSlot;
-            if (drag !== to)
-              void act("queue", { action: "move", from: drag, to });
-          }
-          setDrag(null);
-          setDropSlot(null);
-        }}
-      >
-        {!q.tracks.length ? (
-          <Empty icon={ListMusic} title="Поставь что-нибудь">
-            Найди трек или открой плейлист — очередь будет здесь.
-          </Empty>
-        ) : (
-          q.tracks.map((t, i) => (
-            <div
-              key={`${t.id}:${i}`}
-              onContextMenu={(e) =>
-                actions.menu(
-                  e,
-                  t,
-                  () => void act("queue", { action: "jump", index: i }),
-                  i,
-                )
-              }
-              draggable
-              onDragStart={(e) => {
-                setDrag(i);
-                setDropSlot(null);
-                e.dataTransfer.effectAllowed = "move";
-                e.dataTransfer.setData("text/plain", String(i));
-              }}
-              onDragEnd={() => {
-                setDrag(null);
-                setDropSlot(null);
-              }}
-              className={clsx(
-                "queue-row",
-                q.index === i && q.owned && "queue-current",
-                i < q.index && q.owned && "queue-played",
-                drag === i && "opacity-40",
-                insertion === i && "queue-drop-before",
-                insertion === q.tracks.length &&
-                  i === q.tracks.length - 1 &&
-                  "queue-drop-after",
-              )}
-            >
-              <span className="queue-grip" aria-hidden="true">
-                <GripVertical size={14} />
-              </span>
-              <button
-                className="queue-art-play"
-                disabled={
-                  t.available === false || (state.blockExplicit && t.explicit)
-                }
-                onClick={() => void act("queue", { action: "jump", index: i })}
-                aria-label={`Включить ${t.title} из очереди`}
-              >
-                <Art item={t} size="xs" />
-                <Play size={16} />
-              </button>
-              <div className="queue-track">
-                <TrackMetadata track={t} />
-              </div>
-              {q.index === i && q.owned ? (
-                <AudioLines className="queue-playing" size={17} />
-              ) : (
-                <span className="queue-track-time">{duration(t.duration)}</span>
-              )}
-              <div className="queue-actions">
-                <IconButton
-                  icon={ArrowUp}
-                  label={`Поднять ${t.title}`}
-                  disabled={i === 0}
-                  onClick={() =>
-                    void act("queue", { action: "move", from: i, to: i - 1 })
-                  }
-                />
-                <IconButton
-                  icon={ArrowDown}
-                  label={`Опустить ${t.title}`}
-                  disabled={i === q.tracks.length - 1}
-                  onClick={() =>
-                    void act("queue", { action: "move", from: i, to: i + 1 })
-                  }
-                />
-                <IconButton
-                  icon={X}
-                  label={`Удалить ${t.title} из очереди`}
-                  disabled={q.index === i && q.owned}
-                  onClick={() =>
-                    void act("queue", { action: "remove", index: i })
-                  }
-                />
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-      <div className="queue-bottom">
-        <GripVertical size={15} />
-        <span>Перетаскивай треки, меняй порядок</span>
-      </div>
-    </aside>
-  );
-}
 function LyricsPage({
   track,
   state,
@@ -2721,6 +2576,7 @@ function SettingsPage({
   onTheme,
   onLogin,
   onDevices,
+  onAudio,
   onLogout,
 }: {
   state: State;
@@ -2729,6 +2585,7 @@ function SettingsPage({
   onTheme: (theme: Theme) => void;
   onLogin: () => void;
   onDevices: () => void;
+  onAudio: () => void;
   onLogout: () => void;
 }) {
   const update = (value: Partial<Theme>) => onTheme({ ...theme, ...value });
@@ -2790,6 +2647,13 @@ function SettingsPage({
           >
             <span aria-hidden="true" />
           </button>
+        </div>
+        <div className="setting-row">
+          <div>
+            <strong>Профиль звука</strong>
+            <p>Пресеты, 10-полосный эквалайзер, dB-предусиление и защита пиков для каждого выхода.</p>
+          </div>
+          <Button icon={SlidersHorizontal} variant="secondary" onClick={onAudio}>Настроить</Button>
         </div>
       </section>
       <section className="settings-section">

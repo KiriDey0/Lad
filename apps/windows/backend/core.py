@@ -4,6 +4,7 @@ from __future__ import annotations
 import copy
 import random
 import re
+import uuid
 from dataclasses import dataclass, field
 
 
@@ -47,7 +48,24 @@ class Queue:
     shuffled: bool = False
     original: list[dict] = field(default_factory=list)
 
+    def ensure_entries(self):
+        seen = set()
+        for i, track in enumerate(self.tracks):
+            entry = track.get('queueEntryId')
+            if not isinstance(entry, str) or not entry or entry in seen:
+                entry = str(uuid.uuid4())
+                self.tracks[i] = dict(track, queueEntryId=entry)
+            seen.add(entry)
+
+    def entry_index(self, entry_id: str) -> int:
+        self.ensure_entries()
+        index = next((i for i, t in enumerate(self.tracks) if t['queueEntryId'] == entry_id), -1)
+        if index < 0:
+            raise ValueError('Трек уже удалён из очереди.')
+        return index
+
     def snapshot(self) -> dict:
+        self.ensure_entries()
         return copy.deepcopy({'tracks': self.tracks, 'index': self.index, 'source': self.source,
                               'owned': self.owned, 'repeat': self.repeat, 'shuffled': self.shuffled})
 
@@ -59,7 +77,9 @@ class Queue:
         if not tracks or not 0 <= index < len(tracks):
             raise ValueError('В очереди нет доступных треков.')
         self.tracks = copy.deepcopy(tracks)
-        self.original = copy.deepcopy(tracks)
+        # New additions always get a fresh identity, even if copied from this queue.
+        self.tracks = [dict(t, queueEntryId=str(uuid.uuid4())) for t in self.tracks]
+        self.original = copy.deepcopy(self.tracks)
         self.index, self.source, self.owned, self.shuffled = index, source, True, False
 
     def next_index(self, direction: int = 1, automatic: bool = False) -> int | None:
@@ -74,7 +94,8 @@ class Queue:
 
     def add(self, tracks: list[dict], next_: bool = False):
         start = max(0, self.index + 1) if next_ else len(self.tracks)
-        self.tracks[start:start] = copy.deepcopy(tracks)
+        self.ensure_entries()
+        self.tracks[start:start] = [dict(copy.deepcopy(t), queueEntryId=str(uuid.uuid4())) for t in tracks]
         self.original = copy.deepcopy(self.tracks)
 
     def remove(self, index: int):
@@ -100,18 +121,17 @@ class Queue:
     def shuffle(self, enabled: bool):
         if enabled == self.shuffled:
             return
+        self.ensure_entries()
         if enabled:
             self.original = copy.deepcopy(self.tracks)
             tail = self.tracks[self.index + 1:]
             random.shuffle(tail)
             self.tracks[self.index + 1:] = tail
         else:
-            # Preserve the played prefix, including duplicate track occurrences.
-            rest = self.original.copy()
-            for played in self.tracks[:self.index + 1]:
-                try:
-                    rest.remove(played)
-                except ValueError:
-                    pass
-            self.tracks[self.index + 1:] = rest
+            # Metadata can change while shuffled. Match occurrences by identity,
+            # keep the played prefix, and retain live metadata in the restored tail.
+            played = {t['queueEntryId'] for t in self.tracks[:self.index + 1]}
+            live = {t['queueEntryId']: t for t in self.tracks[self.index + 1:]}
+            self.tracks[self.index + 1:] = [live[t['queueEntryId']] for t in self.original
+                                          if t['queueEntryId'] not in played and t['queueEntryId'] in live]
         self.shuffled = enabled

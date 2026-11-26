@@ -14,6 +14,12 @@ NPM = 'npm.cmd' if os.name == 'nt' else 'npm'
 def run(*args):
     subprocess.run([str(a) for a in args], cwd=ROOT, check=True)
 
+if sys.platform == 'darwin':
+    native = ROOT / 'native'
+    native.mkdir(exist_ok=True)
+    run('swiftc', '-O', '-framework', 'AppKit', '-framework', 'MediaPlayer',
+        native / 'lad-nowplaying.swift', '-o', native / 'lad-nowplaying')
+
 if not PYTHON.exists():
     venv.create(ENV, with_pip=True)
 run(PYTHON, '-m', 'pip', 'install', '-r', ROOT / 'backend/requirements.txt', 'pyinstaller==6.22.3')
@@ -26,3 +32,9 @@ run(PYTHON, '-m', 'PyInstaller', '--noconfirm', '--clean', '--name', 'lad-backen
     '--collect-all', 'mutagen', '--collect-all', 'PIL', '--collect-all', 'miniaudio',
     '--hidden-import', '_miniaudio', '--hidden-import', '_cffi_backend', ROOT / 'backend/app.py')
 run(NPM, 'exec', 'electron-builder', '--', '--mac' if sys.platform == 'darwin' else '--win', 'dir')
+if sys.platform == 'darwin':
+    # identity=null skips electron-builder signing entirely. The linker's signature
+    # on the Electron executable does not seal the finished app's resources.
+    bundle = ROOT / 'release/mac-arm64/Лад.app'
+    run('/usr/bin/codesign', '--force', '--deep', '--sign', '-', bundle)
+    run('/usr/bin/codesign', '--verify', '--deep', '--strict', bundle)

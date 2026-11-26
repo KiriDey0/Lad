@@ -27,6 +27,7 @@ test.beforeAll(async () => {
   });
   page = await app.firstWindow();
   await page.waitForLoadState("domcontentloaded");
+  await page.evaluate(() => window.lad!.rpc("snapshot"));
   const paths = await app.evaluate(({ app }) => ({
     data: app.getPath("userData"),
     session: app.getPath("sessionData"),
@@ -125,36 +126,19 @@ test("welcome, demo, queue, synced lyrics and keyboard transport", async () => {
   const beforeDrag = await page
     .locator(".queue-track strong")
     .allTextContents();
-  const dataTransfer = await page.evaluateHandle(() => new DataTransfer());
-  await page
-    .locator(".queue-row")
-    .first()
-    .dispatchEvent("dragstart", { dataTransfer });
-  const target = await page.locator(".queue-row").nth(2).boundingBox();
-  await page
-    .locator(".queue-row")
-    .nth(2)
-    .dispatchEvent("dragover", {
-      dataTransfer,
-      clientY: target!.y + target!.height - 2,
-    });
-  await expect(page.locator(".queue-row").nth(3)).toHaveClass(
-    /queue-drop-before/,
-  );
-  expect(
-    await page
-      .locator(".queue-drop-before")
-      .evaluate((el) => getComputedStyle(el, "::before").backgroundColor),
-  ).toBe("rgb(255, 255, 255)");
-  await page
-    .locator(".queue-row")
-    .nth(2)
-    .dispatchEvent("drop", { dataTransfer });
+  const handle = (await page.locator(".queue-row").first().locator(".queue-grip").boundingBox())!;
+  const target = (await page.locator(".queue-row").nth(2).boundingBox())!;
+  await page.mouse.move(handle.x + 5, handle.y + 5);
+  await page.mouse.down();
+  await page.mouse.move(handle.x + 5, target.y + target.height / 2, { steps: 12 });
+  await expect(page.locator(".queue-floating")).toBeVisible();
+  await expect(page.locator(".queue-placeholder")).toHaveCount(1);
+  await page.mouse.up();
   const expectedDrag = [...beforeDrag];
   expectedDrag.splice(2, 0, expectedDrag.splice(0, 1)[0]);
   await expect(page.locator(".queue-track strong")).toHaveText(expectedDrag);
   await expect(
-    page.locator(".queue-drop-before, .queue-drop-after"),
+    page.locator(".queue-floating, .queue-placeholder"),
   ).toHaveCount(0);
 });
 test("catalog search, collection, add next and no layout overflow", async () => {
@@ -396,6 +380,7 @@ test("collection pinning, album likes and batch queue actions", async () => {
   });
   page = await app.firstWindow();
   await page.waitForLoadState("domcontentloaded");
+  await page.evaluate(() => window.lad!.rpc("snapshot"));
   await app.evaluate(({ BrowserWindow }) =>
     BrowserWindow.getAllWindows()[0].hide(),
   );
@@ -751,7 +736,7 @@ test("backend exit is reported without crashing or hanging RPC", async () => {
             "-NoProfile",
             "-NonInteractive",
             "-Command",
-            `(Get-CimInstance Win32_Process -Filter 'ParentProcessId = ${pid}' | Where-Object { $_.Name -eq 'lad-backend.exe' }).ProcessId`,
+            `(Get-CimInstance Win32_Process -Filter 'ParentProcessId = ${pid}' | Where-Object { $_.Name -match '^(python[0-9.w]*|lad-backend)\\.exe$' }).ProcessId`,
           ],
           { encoding: "utf8" },
         )
@@ -761,7 +746,7 @@ test("backend exit is reported without crashing or hanging RPC", async () => {
           .split("\n")
           .filter((line) => {
             const parts = line.trim().split(/\s+/, 3);
-            return Number(parts[1]) === pid && /python|lad-backend/.test(line);
+            return Number(parts[1]) === pid && /python|lad-backend/i.test(line);
           })
           .map((line) => line.trim().split(/\s+/)[0])
           .join("\n");
