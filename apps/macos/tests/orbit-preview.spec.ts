@@ -10,6 +10,22 @@ import path from "node:path";
 const root = path.resolve(__dirname, "..");
 const shots = path.resolve(root, "../../work/orbit-preview");
 fs.mkdirSync(shots, { recursive: true });
+async function unboxed(page: Page, selector: string) {
+  const elements = page.locator(selector);
+  expect(await elements.count()).toBeGreaterThan(0);
+  for (const element of await elements.all()) {
+    const style = await element.evaluate((el) => {
+      const css = getComputedStyle(el);
+      return [
+        css.backgroundColor,
+        css.backgroundImage,
+        css.borderLeftWidth,
+        css.borderRadius,
+      ];
+    });
+    expect(style).toEqual(["rgba(0, 0, 0, 0)", "none", "0px", "0px"]);
+  }
+}
 async function noOverflow(page: Page) {
   const sizes = await page.evaluate(() => ({
     width: innerWidth,
@@ -76,6 +92,13 @@ for (const width of [1440, 320])
       await expect(
         page.getByRole("heading", { name: "Первый свет", exact: true }),
       ).toBeVisible();
+      await expect(page.locator(".lyric-active")).toHaveCSS(
+        "font-weight",
+        "700",
+      );
+      await expect(
+        page.locator(".lyric-line:not(.lyric-active)").first(),
+      ).toHaveCSS("font-weight", "500");
       await page.screenshot({ path: path.join(shots, `lyrics-${width}.png`) });
       const navigate = async (label: string) => {
         if (width < 760)
@@ -85,6 +108,22 @@ for (const width of [1440, 320])
       };
       await navigate("Для тебя");
       await expect(page.locator(".wave-home")).toBeVisible();
+      await unboxed(page, ".wave-home");
+      expect(
+        await page
+          .locator(".wave-home")
+          .evaluate((el) => getComputedStyle(el, "::before").content),
+      ).toBe("none");
+      if (width >= 760) {
+        await expect(page.locator(".device-selector")).toHaveCSS(
+          "column-gap",
+          "6px",
+        );
+        await expect(page.locator(".device-selector")).toHaveCSS(
+          "padding-right",
+          "10px",
+        );
+      }
       await noOverflow(page);
       if (width < 760) {
         await expect
@@ -190,6 +229,22 @@ for (const width of [1440, 320])
       await expect(
         page.getByRole("heading", { name: "Коллекция", exact: true }),
       ).toBeVisible();
+      const favorites = page.locator(".liked-preview");
+      await expect(favorites.locator(".track-play").first()).toBeVisible();
+      await expect(favorites.locator(".track-number")).toHaveCount(0);
+      await expect(favorites.locator(".track-play-icon").first()).toBeVisible();
+      const favoriteTitle = await favorites
+        .locator(".track-name strong")
+        .first()
+        .innerText();
+      await favorites.locator(".track-play").first().click();
+      await expect
+        .poll(
+          async () =>
+            (await page.evaluate(() => window.lad!.rpc("snapshot"))).playback
+              .track?.title,
+        )
+        .toBe(favoriteTitle);
       await noOverflow(page);
       await page.screenshot({
         path: path.join(shots, `collection-${width}.png`),
@@ -199,6 +254,7 @@ for (const width of [1440, 320])
         page.getByRole("heading", { name: "Настройки", exact: true }),
       ).toBeVisible();
       await noOverflow(page);
+      await unboxed(page, ".settings-section");
       await page
         .getByRole("switch", { name: "Не воспроизводить 18+", exact: true })
         .locator("..")
@@ -222,8 +278,8 @@ for (const width of [1440, 320])
           provider: getComputedStyle(document.querySelector(".lad-orbit")!)
             .backgroundColor,
           surface: getComputedStyle(
-            document.querySelector(".settings-section")!,
-          ).backgroundColor,
+            document.querySelector(".lad-orbit")!,
+          ).getPropertyValue("--orbit-surface"),
           accent:
             document.documentElement.style.getPropertyValue("--orbit-accent"),
         }));
@@ -391,12 +447,14 @@ for (const width of [1440, 320])
         page.getByRole("heading", { name: "Профиль звука", exact: true }),
       ).toBeVisible();
       await noOverflow(page);
+      await unboxed(page, ".audio-hero-card, .audio-settings-section");
       await page.screenshot({ path: path.join(shots, `audio-${width}.png`) });
       await page.getByRole("tab", { name: "Эквалайзер", exact: true }).click();
       await noOverflow(page);
       await expect(
         page.getByRole("tabpanel", { name: "Эквалайзер", exact: true }),
       ).toBeVisible();
+      await unboxed(page, ".equalizer-card, .audio-settings-section");
       const gain = page.getByRole("spinbutton", {
         name: "31.5 Hz значение",
         exact: true,

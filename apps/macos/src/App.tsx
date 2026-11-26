@@ -723,6 +723,7 @@ export default function App() {
                           )}
                     </span>
                     <span
+                      aria-hidden="true"
                       className={clsx(
                         "status-dot",
                         (state.output === "local" ||
@@ -1560,7 +1561,9 @@ function TrackList({
                   <AudioLines size={16} />
                 ) : (
                   <>
-                    <span className="track-number">{index + 1}</span>
+                    {!compact && (
+                      <span className="track-number">{index + 1}</span>
+                    )}
                     <Play size={16} className="track-play-icon" />
                   </>
                 )}

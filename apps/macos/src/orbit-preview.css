@@ -154,7 +154,7 @@ body {
   border-radius: 999px;
   background: var(--orbit-surface);
   border: 1px solid var(--orbit-line);
-  padding: 0 14px;
+  padding: 0 10px;
   font-size: 11px;
 }
 .lad-orbit .device-selector > span:not(.status-dot) {
@@ -451,11 +451,14 @@ body {
   margin: 0 auto;
 }
 .lad-orbit .settings-section {
-  border: 1px solid var(--orbit-line);
-  border-radius: 24px;
-  background: var(--orbit-surface);
-  padding: 24px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 24px 0;
   margin-bottom: 16px;
+}
+.lad-orbit .settings-section ~ .settings-section {
+  border-top: 1px solid var(--orbit-line);
 }
 .lad-orbit .settings-section > h2 {
   font-size: 17px;
@@ -483,12 +486,24 @@ body {
   max-width: 380px;
   margin-bottom: 24px;
 }
-.lad-orbit .audio-hero-card,
-.lad-orbit .audio-settings-section,
 .lad-orbit .collection-group {
   background: var(--orbit-surface);
   border: 1px solid var(--orbit-line);
   border-radius: 24px;
+}
+.lad-orbit .audio-hero-card,
+.lad-orbit .audio-settings-section,
+.lad-orbit .equalizer-card {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 24px 0;
+}
+.lad-orbit .audio-settings-section {
+  border-top: 1px solid var(--orbit-line);
+}
+.lad-orbit .compact-tracks .track-play-icon {
+  display: block;
 }
 .lad-orbit .audio-preset-card,
 .lad-orbit .audio-profile-card {
@@ -921,8 +936,7 @@ body {
     display: block;
   }
   .lad-orbit .settings-section {
-    padding: 18px 16px;
-    border-radius: 22px;
+    padding: 18px 0;
   }
   .lad-orbit .settings-section h2 {
     font-size: 16px;
@@ -991,7 +1005,7 @@ body {
   }
   .lad-orbit .audio-hero-card,
   .lad-orbit .audio-settings-section {
-    padding: 18px 16px;
+    padding: 18px 0;
   }
   .lad-orbit .eq-bands {
     overflow: auto;
@@ -1092,7 +1106,7 @@ body {
     gap: 12px;
   }
   .lad-orbit .equalizer-card {
-    padding: 18px 12px;
+    padding: 18px 0;
   }
   .lad-orbit .equalizer-toolbar,
   .lad-orbit .equalizer-actions {
@@ -1389,7 +1403,7 @@ body {
   flex: none;
 }
 
-/* Settings cards share one spacing rule, including the preview information card. */
+/* Settings sections share spacing, including the preview information section. */
 .lad-orbit .settings-page {
   display: flex;
   flex-direction: column;
@@ -1494,7 +1508,7 @@ body {
 }
 .lad-orbit .lyric-line {
   font-size: 28px;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1.45;
   letter-spacing: -0.5px;
 }
@@ -1513,7 +1527,7 @@ body {
   gap: 16px;
 }
 .lad-orbit .settings-section {
-  padding: 24px;
+  padding: 24px 0;
 }
 .lad-orbit .settings-section > h2,
 .lad-orbit .settings-section .section-title h2 {
@@ -1572,7 +1586,7 @@ body {
   min-width: 32px;
   background: transparent;
 }
-/* The hero is a bounded card. Canvas alone can escape it; the controls stay above the dock. */
+/* Only the canvas escapes the hero; its controls stay above the dock. */
 .lad-orbit .wave-home {
   --wave-card-height: min(680px, calc(100dvh - 300px));
   height: var(--wave-card-height);
@@ -1587,16 +1601,8 @@ body {
   position: relative;
   isolation: auto;
   background: transparent;
-  border: 1px solid var(--orbit-rim);
-  border-radius: 24px;
-}
-.lad-orbit .wave-home::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: var(--orbit-surface);
-  border-radius: inherit;
-  z-index: -1;
+  border: 0;
+  border-radius: 0;
 }
 .lad-orbit .wave-home > :not(.wave-scene-anchor) {
   position: relative;
@@ -1715,14 +1721,14 @@ body {
   }
   .lad-orbit .lyric-line {
     font-size: 24px;
-    font-weight: 600;
+    font-weight: 500;
   }
   .lad-orbit .lyric-line.lyric-active {
     font-size: 26px;
     font-weight: 700;
   }
   .lad-orbit .settings-section {
-    padding: 20px 16px;
+    padding: 20px 0;
   }
   .lad-orbit .setting-row > div:first-child {
     flex: 1 1 220px;
@@ -1759,7 +1765,10 @@ body {
   font-size: 13px;
   font-weight: 500;
   line-height: 18px;
-  gap: 8px;
+  gap: 6px;
+}
+.lad-orbit .device-selector > .status-dot {
+  margin-left: 0;
 }
 .lad-orbit .now-meta {
   font-size: 12px;
