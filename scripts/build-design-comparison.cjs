@@ -48,9 +48,8 @@ fs.writeFileSync(path.join(directory, "index.html"), html);
           .evaluateAll((images) =>
             Promise.all(images.map((image) => image.decode())),
           );
-        await page.screenshot({
+        await page.locator("article").screenshot({
           path: path.join(directory, "pairs", `${spec.id}-${id}.png`),
-          fullPage: true,
         });
       }
     await page.goto("file://" + path.join(directory, "index.html"));
