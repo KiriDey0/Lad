@@ -583,6 +583,8 @@ for (const width of [1440, 320])
           escapedIcons,
           `settings icons at ${percent}% / ${width}px`,
         ).toEqual([]);
+        // Capture after the 150 ms control transition reaches the compositor.
+        await page.waitForTimeout(200);
         const capture = await app.evaluate(async ({ BrowserWindow }) =>
           (await BrowserWindow.getAllWindows()[0].webContents.capturePage())
             .toPNG()
