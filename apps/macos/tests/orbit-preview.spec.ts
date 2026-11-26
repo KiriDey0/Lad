@@ -214,6 +214,54 @@ for (const width of [1440, 320])
         .getByRole("switch", { name: "Не воспроизводить 18+", exact: true })
         .locator("..")
         .click();
+      const palette = () =>
+        page.evaluate(() => ({
+          background: getComputedStyle(document.querySelector(".app-shell")!)
+            .backgroundColor,
+          body: getComputedStyle(document.body).backgroundColor,
+          provider: getComputedStyle(document.querySelector(".lad-orbit")!)
+            .backgroundColor,
+          surface: getComputedStyle(
+            document.querySelector(".settings-section")!,
+          ).backgroundColor,
+          accent:
+            document.documentElement.style.getPropertyValue("--orbit-accent"),
+        }));
+      const dark = page.getByRole("radio", { name: "Dark", exact: true });
+      const oled = page.getByRole("radio", { name: "OLED", exact: true });
+      const coloring = page.getByRole("combobox", {
+        name: "Окраска интерфейса",
+        exact: true,
+      });
+      const originalDark = await palette();
+      for (const mode of ["default", "accent", "tinted"]) {
+        await coloring.selectOption(mode);
+        await dark.click();
+        const graphite = await palette();
+        expect(graphite.background).not.toBe("rgb(0, 0, 0)");
+        expect(graphite.body).toBe(graphite.background);
+        expect(graphite.provider).toBe(graphite.background);
+        if (mode === "default")
+          await page.screenshot({
+            path: path.join(shots, `dark-${width}.png`),
+          });
+        await oled.click();
+        await expect
+          .poll(async () => (await palette()).background)
+          .toBe("rgb(0, 0, 0)");
+        const black = await palette();
+        expect(black.body).toBe("rgb(0, 0, 0)");
+        expect(black.provider).toBe("rgb(0, 0, 0)");
+        expect(black.surface).not.toBe(graphite.surface);
+        if (mode === "default")
+          await page.screenshot({
+            path: path.join(shots, `oled-${width}.png`),
+          });
+        await dark.click();
+        await expect.poll(palette).toEqual(graphite);
+      }
+      await coloring.selectOption("default");
+      await expect.poll(palette).toEqual(originalDark);
       const glass = page.getByRole("switch", {
         name: "Прозрачность",
         exact: true,

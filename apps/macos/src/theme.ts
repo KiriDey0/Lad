@@ -46,14 +46,44 @@ export function loadTheme(): Theme {
     return defaultTheme;
   }
 }
+// Orbit's resolver returns palette deltas; reset every color it can change.
+const orbitColorDefaults: Record<string, string> = {
+  "--orbit-canvas": "#000000",
+  "--orbit-surface": "#131417",
+  "--orbit-field": "#16171a",
+  "--orbit-raised": "#202227",
+  "--orbit-elevated": "#282b32",
+  "--orbit-accent": "#bfcaf5",
+  "--orbit-hover": "#cfd8ff",
+  "--orbit-pressed": "#a4b1e4",
+  "--orbit-tonal": "#292f46",
+  "--orbit-on-tonal": "#dce4ff",
+  "--orbit-row-selected": "#222631",
+};
 export function orbitTokens(theme: Theme): CSSProperties {
-  return {
-    ...resolveOrbitTheme({
+  const colors: Record<string, string> = {
+    ...orbitColorDefaults,
+    ...(resolveOrbitTheme({
       style: "orbit",
       base: theme.base,
       colorMode: theme.mode,
       seed: theme.seed,
-    }).resolvedTokens,
+    }).resolvedTokens as Record<string, string>),
+  };
+  // Keep OLED truly black in every color mode, and Dark visibly graphite.
+  colors["--orbit-canvas"] =
+    theme.base === "oled"
+      ? "#000000"
+      : theme.mode === "tinted"
+        ? `color-mix(in srgb,#111318 85%,${colors["--orbit-tonal"]} 15%)`
+        : "#111318";
+  if (theme.base === "dark") {
+    for (const role of ["surface", "field", "raised", "elevated"])
+      colors[`--orbit-${role}`] =
+        `color-mix(in srgb,${colors[`--orbit-${role}`]} 94%,white 6%)`;
+  }
+  return {
+    ...colors,
     "--orbit-glass": "color-mix(in srgb,var(--orbit-elevated) 64%,transparent)",
     "--orbit-mobile-glass":
       "color-mix(in srgb,var(--orbit-elevated) 72%,transparent)",
