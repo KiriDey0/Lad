@@ -99,7 +99,11 @@ export function QueuePanel({ state, act, close }: { state: State; act: Act; clos
     };
     const up = (e: PointerEvent) => { if (active.current?.pointer === e.pointerId) finishRef.current(true); };
     const cancel = (e: PointerEvent) => { if (active.current?.pointer === e.pointerId) finishRef.current(false); };
-    const leave = (e: PointerEvent) => { if (e.relatedTarget === null) cancel(e); };
+    const leave = (e: PointerEvent) => {
+      // Reordering can also emit pointerout with a null relatedTarget inside the
+      // viewport. Only a real departure from the window cancels the gesture.
+      if (e.relatedTarget === null && (e.clientX < 0 || e.clientY < 0 || e.clientX >= innerWidth || e.clientY >= innerHeight)) cancel(e);
+    };
     window.addEventListener("pointermove", move, { capture: true, passive: false });
     window.addEventListener("pointerup", up, true);
     window.addEventListener("pointercancel", cancel, true);

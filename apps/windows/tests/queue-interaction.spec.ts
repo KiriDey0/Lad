@@ -75,6 +75,7 @@ test('drag survives stationary edge autoscroll, makes a row-sized gap, and moves
   await expect(page.locator('.queue-floating')).toBeVisible();
   await page.locator('.queue-placeholder .queue-grip').dispatchEvent('lostpointercapture', {pointerId:1,bubbles:true});
   await scroll.evaluate(el => el.releasePointerCapture(1));
+  await page.locator('.queue-placeholder .queue-grip').dispatchEvent('pointerout', {pointerId:1,bubbles:true,relatedTarget:null,clientX:box.x+5,clientY:box.y+5});
   await expect(page.locator('.queue-floating')).toBeVisible();
   const list = (await scroll.boundingBox())!;
   await page.mouse.move(box.x + box.width/2, list.y + list.height - 8, {steps: 8});
