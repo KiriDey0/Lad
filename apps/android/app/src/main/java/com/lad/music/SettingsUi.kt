@@ -275,7 +275,7 @@ fun SettingsView(
                         }
                         engine.settings(settings.copy(audioPreset = id, audioBands = gains))
                     },
-                    label = { Text(title, maxLines = 1) },
+                    label = title,
                 )
             }
         }
@@ -404,7 +404,7 @@ private fun AudioEqualizerDialog(settings: Settings, engine: MusicEngine, close:
                                 drafts = gains.map { formatAudioGain(it) }.toMutableList()
                                 engine.settings(settings.copy(audioPreset = id, audioBands = gains))
                             },
-                            label = { Text(title, maxLines = 1) },
+                            label = title,
                         )
                     }
                 }

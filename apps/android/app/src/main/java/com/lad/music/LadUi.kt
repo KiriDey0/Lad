@@ -595,7 +595,7 @@ private fun WavePreferencesPane(s: MusicState, engine: MusicEngine, dismiss: () 
                         onClick = {
                             value = value!!.copy(selected = value!!.selected + (g.key to v.value))
                         },
-                        label = { Text(v.name) },
+                        label = v.name,
                     )
                 }
             }
@@ -1406,7 +1406,7 @@ fun LadApp(engine: MusicEngine, restartInterface: () -> Unit) {
                                                     searchType = key
                                                     page = 0
                                                 },
-                                                label = { Text(label) },
+                                                label = label,
                                             )
                                         }
                                     }

@@ -107,18 +107,16 @@ fun CollectionView(
                 ChoiceChip(
                     !likedGroup,
                     { group(false) },
-                    label = {
-                        Label("Вы собрали · ${library.ownPlaylists.size + 1}", 12, maxLines = 1)
-                    },
+                    label = "Вы собрали · ${library.ownPlaylists.size + 1}",
+                    classicLabelSize = 12,
                 )
             }
             item {
                 ChoiceChip(
                     likedGroup,
                     { group(true) },
-                    label = {
-                        Label("Вам понравились · ${library.likedPlaylists.size}", 12, maxLines = 1)
-                    },
+                    label = "Вам понравились · ${library.likedPlaylists.size}",
+                    classicLabelSize = 12,
                 )
             }
         }

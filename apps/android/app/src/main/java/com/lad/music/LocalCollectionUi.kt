@@ -17,7 +17,7 @@ import androidx.compose.ui.unit.dp
 @Composable fun CollectionSources(source:String,select:(String)->Unit,engine:MusicEngine) {
     LazyRow(horizontalArrangement=Arrangement.spacedBy(8.dp),contentPadding=PaddingValues(vertical=4.dp)) {
         items(listOf("all" to "Всё","yandex" to "Яндекс Музыка","local" to "На устройстве")) { (id,title)->
-            ChoiceChip(source==id,{select(id)},label={Label(title,12,maxLines=1)})
+            ChoiceChip(source == id, { select(id) }, title, classicLabelSize = 12)
         }
         item {Tool(Icons.Outlined.CreateNewFolder,"Добавить папку",onClick={engine.requestLocalFolder()})}
     }
