@@ -3,8 +3,15 @@
 """Guard desktop adapter parity while all four apps share the approved wave models."""
 from pathlib import Path
 root=Path(__file__).resolve().parents[1]
-for name in ('src/wave/WaveScene.tsx','src/wave/audio.ts','src/wave/renderer.ts','electron/wave-power.cjs','electron/wave-budget.cjs','src/wave/remote.ts','electron/wave-stream.cjs'):
+for name in ('src/wave/audio.ts','src/wave/renderer.ts','electron/wave-power.cjs','electron/wave-budget.cjs','src/wave/remote.ts','electron/wave-stream.cjs'):
  assert (root/'apps/macos'/name).read_bytes()==(root/'apps/windows'/name).read_bytes(),name
+# Windows keeps its Classic renderer at src/ and puts the Orbit renderer one level deeper.
+for name in ('WaveScene.tsx', 'audio.ts', 'remote.ts'):
+ macos = (root/'apps/macos/src/wave'/name).read_text()
+ windows = (root/'apps/windows/src/orbit/wave'/name).read_text()
+ windows = windows.replace('../../../../../shared/', '../../../../shared/')
+ windows = windows.replace('../../wave/renderer', './renderer')
+ assert macos == windows, name
 for platform in ('android','tv'):
  assert '../../../shared/wave-native/src/main/java' in (root/'apps'/platform/'app/build.gradle.kts').read_text()
  assert 'waveIntensity: Float = 100f' in (root/'apps'/platform/'app/src/main/java/com/lad/music/Models.kt').read_text()
