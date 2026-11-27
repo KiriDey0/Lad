@@ -13,6 +13,7 @@ import {
   Button as OrbitButton,
 } from "@kiridey/orbit-ui";
 import { AccentColorPicker } from "./components/AccentColorPicker";
+import { MobileDock } from "./components/MobileDock";
 import { QueuePanel } from "./components/QueuePanel";
 import { Modal } from "./components/Modal";
 import {
@@ -1155,56 +1156,63 @@ export default function App() {
                   />
                 )}
             </div>
-            <div
-              className="lad-mobile-navigation"
-              onClick={(event) => {
-                const link = (
-                  event.target as HTMLElement
-                ).closest<HTMLAnchorElement>('a[href^="#"]');
-                if (link && !event.defaultPrevented) {
-                  event.preventDefault();
-                  nav(link.hash.slice(1) as Page);
-                }
-              }}
+            <MobileDock
+              state={state}
+              act={act}
+              onOpen={() => nav("now")}
+              onLike={() => current && void toggleLike(current)}
             >
-              <TabBar
-                label="Разделы Лада"
-                value={
-                  page === "audio" || page === "equalizer"
-                    ? "settings"
-                    : ["now", "detail", "liked"].includes(page)
-                      ? "home"
-                      : page
-                }
-                onValueChange={(value) => nav(value as Page)}
-                items={[
-                  {
-                    value: "home",
-                    label: "Для тебя",
-                    icon: <Disc3 />,
-                    href: "#home",
-                  },
-                  {
-                    value: "search",
-                    label: "Поиск",
-                    icon: <Search />,
-                    href: "#search",
-                  },
-                  {
-                    value: "collection",
-                    label: "Коллекция",
-                    icon: <Library />,
-                    href: "#collection",
-                  },
-                  {
-                    value: "settings",
-                    label: "Настройки",
-                    icon: <Settings />,
-                    href: "#settings",
-                  },
-                ]}
-              />
-            </div>
+              <div
+                className="lad-mobile-navigation"
+                onClick={(event) => {
+                  const link = (
+                    event.target as HTMLElement
+                  ).closest<HTMLAnchorElement>('a[href^="#"]');
+                  if (link && !event.defaultPrevented) {
+                    event.preventDefault();
+                    nav(link.hash.slice(1) as Page);
+                  }
+                }}
+              >
+                <TabBar
+                  label="Разделы Лада"
+                  value={
+                    page === "audio" || page === "equalizer"
+                      ? "settings"
+                      : ["now", "detail", "liked"].includes(page)
+                        ? "home"
+                        : page
+                  }
+                  onValueChange={(value) => nav(value as Page)}
+                  items={[
+                    {
+                      value: "home",
+                      label: "Для тебя",
+                      icon: <Disc3 />,
+                      href: "#home",
+                    },
+                    {
+                      value: "search",
+                      label: "Поиск",
+                      icon: <Search />,
+                      href: "#search",
+                    },
+                    {
+                      value: "collection",
+                      label: "Коллекция",
+                      icon: <Library />,
+                      href: "#collection",
+                    },
+                    {
+                      value: "settings",
+                      label: "Настройки",
+                      icon: <Settings />,
+                      href: "#settings",
+                    },
+                  ]}
+                />
+              </div>
+            </MobileDock>
             {queueOpen &&
               (authenticated ||
                 !!current?.source ||

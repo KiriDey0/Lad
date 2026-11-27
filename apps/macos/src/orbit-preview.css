@@ -808,103 +808,6 @@ body {
     height: 44px;
     min-height: 44px;
   }
-  .lad-orbit .lad-mobile-navigation {
-    display: block;
-    position: fixed;
-    z-index: 40;
-    bottom: 10px;
-    left: 12px;
-    right: 12px;
-    pointer-events: auto;
-  }
-  .lad-mobile-navigation .orbit-tabbar {
-    min-height: 64px;
-    border-radius: 24px;
-    padding: 4px;
-    backdrop-filter: blur(16px);
-  }
-  .lad-mobile-navigation .orbit-tab {
-    gap: 4px;
-    padding: 5px 0;
-    min-width: 0;
-    min-height: 54px;
-  }
-  .lad-mobile-navigation .orbit-tab__label {
-    font-size: 9px;
-  }
-  .lad-mobile-navigation .orbit-tab__icon svg {
-    width: 21px;
-    height: 21px;
-  }
-  .lad-mobile-navigation .orbit-tabbar__lens {
-    top: 4px;
-    bottom: 4px;
-  }
-  .lad-orbit .player-dock {
-    height: 116px;
-    bottom: 84px;
-    z-index: 30;
-  }
-  .lad-orbit .player-dock > .player {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-rows: 48px 28px;
-    align-items: center;
-    gap: 4px 8px;
-    height: 104px;
-    margin: 0 12px;
-    padding: 12px;
-    border-radius: 24px;
-  }
-  .lad-orbit .player-track {
-    grid-column: 1;
-    grid-row: 1;
-    gap: 10px;
-  }
-  .lad-orbit .player-track .art-sm {
-    height: 42px;
-    width: 42px;
-    border-radius: 11px;
-  }
-  .lad-orbit .player-track-name strong {
-    font-size: 12px;
-  }
-  .lad-orbit .player-track-name small {
-    font-size: 10px;
-  }
-  .lad-orbit .player-track > .icon-button {
-    display: none;
-  }
-  .lad-orbit .player-center {
-    display: contents;
-  }
-  .lad-orbit .player-controls {
-    grid-column: 2;
-    grid-row: 1;
-    gap: 2px;
-  }
-  .lad-orbit .player-controls > .icon-button {
-    display: none;
-  }
-  .lad-orbit .player-controls > .icon-button:nth-of-type(4) {
-    display: flex;
-    width: 38px;
-    height: 44px;
-    min-height: 44px;
-  }
-  .lad-orbit .main-play {
-    width: 44px;
-    height: 44px;
-    min-height: 44px;
-  }
-  .lad-orbit .progress-row {
-    grid-column: 1/-1;
-    grid-row: 2;
-    align-self: center;
-  }
-  .lad-orbit .player-right {
-    display: none;
-  }
   .lad-orbit .queue-panel {
     left: 8px;
     right: 8px;
@@ -1830,4 +1733,208 @@ body {
 .lad-orbit .now-meta {
   font-size: 12px;
   line-height: 18px;
+}
+
+/* A compact player sits above the glass navigation capsule. */
+.mobile-dock {
+  display: none;
+}
+@media (max-width: 760px) {
+  .lad-orbit {
+    --player-clearance: calc(150px + env(safe-area-inset-bottom, 0px));
+  }
+  .lad-orbit > .player-dock,
+  .lad-orbit .player-dock {
+    display: none;
+  }
+  .lad-orbit .mobile-dock {
+    display: block;
+    position: fixed;
+    inset: auto 0 0;
+    z-index: 40;
+    padding: 8px 0 max(8px, env(safe-area-inset-bottom, 0px));
+    background: transparent;
+    isolation: isolate;
+  }
+  .lad-orbit .mobile-dock .lad-mobile-navigation {
+    position: relative;
+    inset: auto;
+    display: block;
+    padding: 6px 12px 0;
+    z-index: auto;
+  }
+  .lad-orbit .mobile-dock .orbit-tabbar {
+    background: var(--orbit-mobile-glass);
+    border: 1px solid var(--orbit-rim);
+    box-shadow: inset 0 1px 0 #ffffff05;
+    border-radius: 999px;
+    backdrop-filter: blur(18px) saturate(1.12);
+    min-height: 60px;
+    padding: 3px;
+    gap: 4px;
+  }
+  .lad-orbit .mobile-dock .orbit-tab {
+    flex: 1 1 0;
+    flex-direction: column;
+    padding: 6px 0;
+    gap: 4px;
+    min-height: 52px;
+    min-width: 0;
+    border-radius: 999px;
+    font-size: 10px;
+  }
+  .lad-orbit .mobile-dock .orbit-tab__label {
+    position: static;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip-path: none;
+    font-size: 10px;
+    line-height: 14px;
+  }
+  .lad-orbit .mobile-dock .orbit-tabbar__lens {
+    top: 3px;
+    bottom: 3px;
+  }
+  .lad-orbit .mobile-dock .orbit-tabbar__lens > span {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    align-self: center;
+    border-radius: 999px;
+    background: var(--orbit-tonal);
+  }
+  .mobile-player-viewport {
+    overflow: hidden;
+    touch-action: pan-y;
+    user-select: none;
+    -webkit-user-select: none;
+    width: 100%;
+    outline-offset: -2px;
+  }
+  .mobile-player-strip {
+    --swipe-x: 0px;
+    display: flex;
+    gap: 8px;
+    width: 100%;
+    transform: translate3d(calc(40px - 100% + var(--swipe-x)), 0, 0);
+  }
+  .mobile-player-viewport[data-phase="settling"] .mobile-player-strip {
+    transition: transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  .mobile-track-card {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    gap: 0;
+    flex: 0 0 calc(100% - 32px);
+    min-width: 0;
+    height: 56px;
+    padding: 5px 7px;
+    border-radius: 20px;
+    background: color-mix(
+      in srgb,
+      var(--mobile-card-color) 19%,
+      var(--orbit-canvas)
+    );
+    border: 1px solid var(--orbit-rim);
+    backdrop-filter: blur(16px);
+    color: var(--orbit-text);
+  }
+  .mobile-track-fill {
+    position: absolute;
+    inset: 0 auto 0 0;
+    z-index: -1;
+    background: color-mix(in srgb, var(--mobile-card-color) 16%, transparent);
+    pointer-events: none;
+  }
+  .mobile-track-open {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+    text-align: left;
+    height: 46px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    touch-action: pan-y;
+    cursor: pointer;
+  }
+  .mobile-track-open .art-sm,
+  .mobile-idle-art {
+    width: 36px;
+    height: 36px;
+    border-radius: 9px;
+    flex: none;
+  }
+  .mobile-idle-art {
+    display: grid;
+    place-items: center;
+    background: var(--orbit-raised);
+  }
+  .mobile-track-open img {
+    pointer-events: none;
+    -webkit-user-drag: none;
+  }
+  .mobile-track-name {
+    min-width: 0;
+    flex: 1;
+  }
+  .mobile-track-name strong,
+  .mobile-track-name small {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .mobile-track-name strong {
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 19px;
+  }
+  .mobile-track-name small {
+    font-size: 11px;
+    line-height: 17px;
+    color: var(--orbit-muted);
+  }
+  .lad-orbit .mobile-track-card .icon-button {
+    width: 40px;
+    min-width: 40px;
+    height: 44px;
+    min-height: 44px;
+    padding: 0;
+    background: transparent;
+    color: inherit;
+  }
+  .mobile-track-card .mobile-like svg {
+    width: 21px;
+    height: 21px;
+  }
+  .mobile-track-card .mobile-like[aria-pressed="true"] svg {
+    fill: currentColor;
+  }
+  .mobile-track-card .mobile-play svg {
+    width: 24px;
+    height: 24px;
+    fill: currentColor;
+  }
+  .mobile-track-card[data-current="false"] {
+    pointer-events: none;
+  }
+  .mobile-track-card[data-empty="true"][data-current="false"] {
+    visibility: hidden;
+  }
+  .lad-orbit .queue-panel {
+    bottom: calc(156px + env(safe-area-inset-bottom, 0px));
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mobile-player-strip {
+    transition: none !important;
+  }
 }

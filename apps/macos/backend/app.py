@@ -1066,9 +1066,12 @@ class App:
                     self.demo_albums.append({**p.get('card', {}), 'id': p['id'], 'type': 'album'})
                 return True
             if method == 'like':
-                for t in DEMO_TRACKS:
+                for t in [*DEMO_TRACKS, *self.queue.tracks]:
                     if t['id'] == p['id']:
                         t['liked'] = p['liked']
+                if (self.playback.get('track') or {}).get('id') == p['id']:
+                    self.playback['track']['liked'] = p['liked']
+                self.publish(True)
                 return True
             if method == 'wave':
                 self.queue.replace(DEMO_TRACKS, 0, 'Моя волна · пример')

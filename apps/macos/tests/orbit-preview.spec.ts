@@ -193,31 +193,36 @@ for (const width of [1440, 320])
       });
       await page.locator(".page-content").evaluate((el) => (el.scrollTop = 0));
 
-      await page.locator(".player .main-play").click();
-      await expect(page.locator(".player .main-play")).toHaveAttribute(
-        "aria-label",
-        "Пауза",
-      );
-      await expect(page.locator(".orbit-scrubber")).toHaveAttribute(
-        "data-playing",
-        "true",
-      );
-      await page.locator(".player .main-play").click();
-      const position = page.getByRole("slider", {
-        name: "Позиция трека",
-        exact: true,
-      });
-      await position.focus();
-      await page.keyboard.press("Home");
-      await page.keyboard.press("ArrowRight");
-      await expect
-        .poll(async () =>
-          Math.round(
-            (await page.evaluate(() => window.lad!.rpc("snapshot"))).playback
-              .position,
-          ),
-        )
-        .toBe(5);
+      const playButton =
+        width < 760
+          ? page.locator('.mobile-track-card[data-current="true"] .mobile-play')
+          : page.locator(".player .main-play");
+      await playButton.click();
+      await expect(playButton).toHaveAttribute("aria-label", "Пауза");
+      if (width >= 760)
+        await expect(page.locator(".orbit-scrubber")).toHaveAttribute(
+          "data-playing",
+          "true",
+        );
+      await playButton.click();
+      if (width >= 760) {
+        const position = page.getByRole("slider", {
+          name: "Позиция трека",
+          exact: true,
+        });
+        await position.focus();
+        await page.keyboard.press("Home");
+        await page.keyboard.press("ArrowRight");
+        await expect
+          .poll(async () =>
+            Math.round(
+              (await page.evaluate(() => window.lad!.rpc("snapshot"))).playback
+                .position,
+            ),
+          )
+          .toBe(5);
+      } else
+        await expect(page.locator(".mobile-track-fill").nth(1)).toBeVisible();
       await navigate("Поиск");
       await page
         .getByRole("searchbox", { name: "Поиск музыки", exact: true })
@@ -895,7 +900,12 @@ for (const size of [
       await nav("Для тебя");
       const geometry = await page.locator(".wave-home").evaluate((card) => {
         const hero = card.getBoundingClientRect();
-        const dock = document.querySelector(".player")!.getBoundingClientRect();
+        const mobile = document.querySelector(".mobile-dock")!;
+        const dock = (
+          getComputedStyle(mobile).display !== "none"
+            ? mobile
+            : document.querySelector(".player")!
+        ).getBoundingClientRect();
         const header = document
           .querySelector(".main-header")!
           .getBoundingClientRect();
