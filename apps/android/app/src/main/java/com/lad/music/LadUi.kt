@@ -11,8 +11,14 @@ import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.*
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.*
 import androidx.compose.foundation.shape.*
@@ -42,6 +48,7 @@ import dev.chrisbanes.haze.HazeState
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
+import kotlin.math.roundToInt
 
 private data class BrowseEntry(val card: Card?, val artistView: String?, val page: Int, val liked: Boolean)
 
@@ -295,42 +302,128 @@ fun CardRow(cards: List<Card>, open: (Card) -> Unit, menu: (Card) -> Unit) {
     }
 }
 
+private val OrbitNavPadding = 5.dp
+private val OrbitNavTabHeight = 54.dp
+
 @Composable
 fun NavBar(selected: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier) {
+    if (LocalOrbitDesign.current) {
+        OrbitNavBar(selected, onSelect, modifier)
+        return
+    }
     val p = LocalPalette.current
-    val orbit = LocalOrbitDesign.current
     Row(
-        modifier.fillMaxWidth().padding(if (orbit) 4.dp else 6.dp).height(48.dp),
+        modifier.fillMaxWidth().padding(6.dp).height(48.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        destinations.forEachIndexed { i, d ->
-            val selection by
-                animateColorAsState(
-                    if (i == selected) p.tonal else Color.Transparent,
-                    tween(160),
-                    label = "navigation selection",
-                )
+        destinations.forEachIndexed { index, destination ->
+            val selection by animateColorAsState(
+                if (index == selected) p.tonal else Color.Transparent,
+                tween(160),
+                label = "navigation selection",
+            )
             Box(
-                Modifier.weight(1f)
-                    .fillMaxHeight()
-                    .clip(if (orbit) CircleShape else RoundedCornerShape(18.dp))
-                    .background(selection)
-                    .clickable { onSelect(i) }
+                Modifier.weight(1f).fillMaxHeight()
+                    .clip(RoundedCornerShape(18.dp)).background(selection)
+                    .clickable { onSelect(index) }
                     .semantics {
-                        contentDescription = d.label
-                        this.selected = i == selected
+                        contentDescription = destination.label
+                        this.selected = index == selected
                     },
                 contentAlignment = Alignment.Center,
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(
-                        d.icon,
-                        null,
-                        Modifier.size(if (orbit) 19.dp else 24.dp),
-                        tint = if (i == selected) p.accent else p.muted,
-                    )
-                    if (orbit) Label(d.label, 9, if (i == selected) p.accent else p.muted, maxLines = 1)
+                Icon(
+                    destination.icon,
+                    null,
+                    Modifier.size(24.dp),
+                    tint = if (index == selected) p.accent else Color(0xFFD2D8E0),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun OrbitNavBar(selected: Int, onSelect: (Int) -> Unit, modifier: Modifier) {
+    val p = LocalPalette.current
+    val density = LocalDensity.current
+    val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+    val select by rememberUpdatedState(onSelect)
+    val activeTab by rememberUpdatedState(selected)
+    val gap = 4.dp
+    var dragSlot by remember { mutableStateOf<Float?>(null) }
+    val highlight by animateFloatAsState(
+        targetValue = dragSlot ?: selected.toFloat(),
+        animationSpec = if (dragSlot != null) snap() else spring(dampingRatio = .86f, stiffness = 500f),
+        label = "navigation highlight",
+    )
+    BoxWithConstraints(
+        modifier.fillMaxWidth().padding(OrbitNavPadding).height(OrbitNavTabHeight)
+            .selectableGroup(),
+    ) {
+        val count = destinations.size
+        val tabWidth = ((maxWidth - gap * (count - 1)) / count).coerceAtLeast(1.dp)
+        val stride = tabWidth + gap
+        val stridePx = with(density) { stride.toPx() }
+        val halfTabPx = with(density) { tabWidth.toPx() / 2f }
+        val lastSlot = (count - 1).toFloat()
+        Box(
+            Modifier.fillMaxSize().pointerInput(stridePx, halfTabPx, rtl) {
+                fun track(x: Float) {
+                    val fromStart = if (rtl) size.width - x else x
+                    dragSlot = ((fromStart - halfTabPx) / stridePx).coerceIn(0f, lastSlot)
+                }
+                detectHorizontalDragGestures(
+                    onDragStart = { track(it.x) },
+                    onHorizontalDrag = { change, _ -> track(change.position.x) },
+                    onDragCancel = { dragSlot = null },
+                    onDragEnd = {
+                        val target = dragSlot?.roundToInt()
+                        dragSlot = null
+                        if (target != null && target != activeTab) select(target)
+                    },
+                )
+            },
+        ) {
+            Box(
+                Modifier.offset { IntOffset((highlight * stridePx).roundToInt(), 0) }
+                    .width(tabWidth)
+                    .fillMaxHeight()
+                    .background(p.tonal, CircleShape),
+            )
+            Row(
+                Modifier.fillMaxSize(),
+                horizontalArrangement = Arrangement.spacedBy(gap),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                destinations.forEachIndexed { index, destination ->
+                    val active = index == selected
+                    val color = if (active) p.accent else p.muted
+                    Box(
+                        Modifier.weight(1f).fillMaxHeight()
+                            .clip(CircleShape)
+                            .selectable(selected = active, role = Role.Tab, onClick = { onSelect(index) })
+                            .semantics { contentDescription = destination.label },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(3.dp),
+                        ) {
+                            Icon(destination.icon, null, Modifier.size(21.dp), tint = color)
+                            Text(
+                                destination.label,
+                                color = color,
+                                fontSize = 10.sp,
+                                lineHeight = 13.sp,
+                                fontFamily = Golos,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                style = TextStyle(platformStyle = PlatformTextStyle(includeFontPadding = false)),
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -1127,7 +1220,7 @@ fun LadApp(engine: MusicEngine, restartInterface: () -> Unit) {
                         if (ime) 16.dp
                         else if (landscape) if (s.track != null) 98.dp else 16.dp
                         else
-                            60.dp +
+                            (if (orbit) OrbitNavTabHeight + OrbitNavPadding * 2 else 60.dp) +
                                 (if (s.track != null) 84.dp else 0.dp) +
                                 28.dp +
                                 WindowInsets.navigationBars
