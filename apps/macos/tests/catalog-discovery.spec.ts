@@ -92,7 +92,65 @@ for (const width of [1440, 390])
               .source,
         )
         .toBe("Лад Session");
+      await expect(
+        page.locator(".artist-popular-tracks .artist-track-row"),
+      ).toHaveCount(5);
+      await expect(page.locator(".artist-page .track-number")).toHaveCount(0);
+      await expect(
+        page.locator(".artist-popular-albums .music-card"),
+      ).toHaveCount(9);
+      await page
+        .getByRole("button", { name: "Популярные треки", exact: true })
+        .click();
+      await expect(
+        page.getByRole("heading", { name: "Треки · Лад Session", exact: true }),
+      ).toBeVisible();
+      await expect(
+        page.locator(".artist-all-tracks .artist-track-row"),
+      ).toHaveCount(50);
+      await page
+        .getByRole("button", { name: "Показать ещё треки", exact: true })
+        .click();
+      await expect(
+        page.locator(".artist-all-tracks .artist-track-row"),
+      ).toHaveCount(62);
+      await page
+        .getByRole("button", { name: "К исполнителю", exact: true })
+        .click();
+      await expect(
+        page.locator(".artist-popular-tracks .artist-track-row"),
+      ).toHaveCount(5);
       await capture("discovery-artist");
+      if (width < 761) {
+        const gallery = page.locator(".artist-album-carousel");
+        await gallery.evaluate((el) => el.scrollIntoView({ block: "center" }));
+        const box = (await gallery.boundingBox())!;
+        const session = await page.context().newCDPSession(page);
+        await session.send("Emulation.setTouchEmulationEnabled", {
+          enabled: true,
+          maxTouchPoints: 1,
+        });
+        const y = box.y + 40,
+          start = box.x + box.width * 0.8;
+        await session.send("Input.dispatchTouchEvent", {
+          type: "touchStart",
+          touchPoints: [{ x: start, y }],
+        });
+        for (let step = 1; step <= 6; step++) {
+          await session.send("Input.dispatchTouchEvent", {
+            type: "touchMove",
+            touchPoints: [{ x: start - step * box.width * 0.08, y }],
+          });
+          await page.waitForTimeout(20);
+        }
+        await session.send("Input.dispatchTouchEvent", {
+          type: "touchEnd",
+          touchPoints: [],
+        });
+        await expect
+          .poll(() => gallery.evaluate((el) => el.scrollLeft))
+          .toBeGreaterThan(40);
+      }
       await page
         .getByRole("button", { name: "Популярные альбомы", exact: true })
         .click();
@@ -106,7 +164,7 @@ for (const width of [1440, 390])
         .getByRole("button", { name: "К исполнителю", exact: true })
         .click();
       // The context menu also supplies dislike on mobile, without widening the thin mini-player.
-      const first = page.locator(".artist-page .track-row").first();
+      const first = page.locator(".artist-page .artist-track-row").first();
       const id = (await page.evaluate(() => window.lad!.rpc("snapshot")))
         .playback.track.id;
       await first.click({ button: "right" });
@@ -152,10 +210,9 @@ test("like has plain states and deliberate heartbeat / unlike shake, reduced mot
       const s = await window.lad!.rpc("snapshot");
       await window.lad!.rpc("like", { id: s.playback.track.id, liked: false });
     });
-    await expect(page.locator(".player-track > .like-button")).toHaveAttribute(
-      "aria-pressed",
-      "false",
-    );
+    await expect(
+      page.locator(".player-feedback-row > .like-button"),
+    ).toHaveAttribute("aria-pressed", "false");
     await page.evaluate(() => {
       const original = Element.prototype.animate;
       (window as any).heartAnimations = [];
@@ -167,7 +224,7 @@ test("like has plain states and deliberate heartbeat / unlike shake, reduced mot
         return original.apply(this, args);
       };
     });
-    const heart = page.locator(".player-track > .like-button");
+    const heart = page.locator(".player-feedback-row > .like-button");
     expect(await page.evaluate(() => (window as any).heartAnimations)).toEqual(
       [],
     );
@@ -270,6 +327,143 @@ test("dislike pagination keeps server offsets after unresolved tracks and removi
     await expect(
       page.getByRole("button", { name: "Показать ещё", exact: true }),
     ).toHaveCount(0);
+  } finally {
+    await app.close();
+    fs.rmSync(profile, { recursive: true, force: true });
+  }
+});
+
+test("artist overview has six albums in one horizontal row and preserves the gallery on return", async () => {
+  const { app, page, profile } = await launch(1680);
+  try {
+    await page.getByRole("button", { name: "Для тебя", exact: true }).click();
+    await page.locator(".release-artist").first().click();
+    await expect(
+      page.locator(".artist-popular-tracks .artist-track-row"),
+    ).toHaveCount(5);
+    const title = page.locator(".artist-popular-albums .artist-section-title");
+    await expect(title).toHaveCSS("font-size", "28px");
+    const gallery = page.locator(".artist-album-carousel");
+    await gallery.scrollIntoViewIfNeeded();
+    await expect(gallery.locator(".music-card")).toHaveCount(9);
+    const boxes = await gallery.evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      return {
+        visible: Array.from(el.children).filter((c) => {
+          const a = c.getBoundingClientRect();
+          return a.left >= r.left - 1 && a.right <= r.right + 1;
+        }).length,
+        tops: Array.from(el.children).map((c) => c.getBoundingClientRect().top),
+        width: el.clientWidth,
+        scroll: el.scrollWidth,
+      };
+    });
+    expect(boxes.visible).toBe(6);
+    expect(Math.max(...boxes.tops) - Math.min(...boxes.tops)).toBeLessThan(1);
+    expect(boxes.scroll).toBeGreaterThan(boxes.width);
+    await gallery.hover();
+    await page.mouse.wheel(400, 0);
+    await expect
+      .poll(() => gallery.evaluate((el) => el.scrollLeft))
+      .toBeGreaterThan(100);
+    await gallery.evaluate((el) => {
+      el.style.scrollSnapType = "none";
+      el.scrollLeft = 0;
+    });
+    await page.keyboard.down("Shift");
+    await page.mouse.wheel(0, 350);
+    await page.keyboard.up("Shift");
+    await expect
+      .poll(() => gallery.evaluate((el) => el.scrollLeft))
+      .toBeGreaterThan(100);
+    const saved = await gallery.evaluate((el) => el.scrollLeft);
+    await page
+      .getByRole("button", { name: "Популярные альбомы", exact: true })
+      .click();
+    await expect(page.locator(".artist-discography h1")).toBeVisible();
+    await page
+      .getByRole("button", { name: "К исполнителю", exact: true })
+      .click();
+    await expect
+      .poll(() =>
+        page.locator(".artist-album-carousel").evaluate((el) => el.scrollLeft),
+      )
+      .toBeGreaterThan(saved - 25);
+  } finally {
+    await app.close();
+    fs.rmSync(profile, { recursive: true, force: true });
+  }
+});
+
+test("collection uses large favorite artists in a gallery and a separated dislike tile", async () => {
+  const { app, page, profile } = await launch(1440);
+  try {
+    const state = await page.evaluate(() => window.lad!.rpc("snapshot"));
+    await app.evaluate(({ ipcMain }, state) => {
+      ipcMain.removeHandler("orbit:rpc");
+      ipcMain.handle("orbit:rpc", (_event, method) => {
+        if (method === "library")
+          return {
+            playlists: [],
+            albums: [],
+            artists: Array.from({ length: 12 }, (_, i) => ({
+              id: `artist-${i}`,
+              type: "artist",
+              title: `Любимый артист ${i}`,
+              art: i % 6,
+            })),
+          };
+        if (method === "localSummary")
+          return { folders: [], total: 0, scanning: false };
+        if (method === "localBrowse") return { cards: [], tracks: [] };
+        if (["liked", "localLiked"].includes(method))
+          return { tracks: [], total: 0 };
+        if (method === "dislikes")
+          return { tracks: [], total: 0, nextOffset: 0 };
+        return state;
+      });
+    }, state);
+    await page.getByRole("button", { name: "Коллекция", exact: true }).click();
+    const gallery = page.locator(".collection-artist-grid.horizontal-gallery");
+    await expect(gallery.locator(".music-card")).toHaveCount(12);
+    await gallery.scrollIntoViewIfNeeded();
+    const geometry = await gallery.evaluate((el) => {
+      const cards = Array.from(el.children).map((c) =>
+        c.getBoundingClientRect(),
+      );
+      return {
+        tops: cards.map((c) => c.top),
+        art: el.querySelector(".art")!.clientWidth,
+      };
+    });
+    expect(
+      Math.max(...geometry.tops) - Math.min(...geometry.tops),
+    ).toBeLessThan(1);
+    expect(geometry.art).toBeGreaterThan(150);
+    await expect(
+      page.getByRole("heading", { name: "Любимые исполнители", exact: true }),
+    ).toHaveCSS("font-size", "28px");
+    await gallery.hover();
+    await page.mouse.wheel(500, 0);
+    await expect
+      .poll(() => gallery.evaluate((el) => el.scrollLeft))
+      .toBeGreaterThan(100);
+    await expect(page.locator(".dislikes-entry .collection-group")).toHaveCount(
+      1,
+    );
+    const gap = await page
+      .getByRole("heading", { name: "В коллекции", exact: true })
+      .evaluate(
+        (el) =>
+          document
+            .querySelector(".collection-group-grid")!
+            .getBoundingClientRect().top - el.getBoundingClientRect().bottom,
+      );
+    expect(gap).toBeGreaterThanOrEqual(24);
+    await page.locator(".dislikes-entry .collection-group").click();
+    await expect(
+      page.getByRole("heading", { name: "Мои дизлайки", exact: true }),
+    ).toBeVisible();
   } finally {
     await app.close();
     fs.rmSync(profile, { recursive: true, force: true });

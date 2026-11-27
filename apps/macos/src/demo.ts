@@ -166,11 +166,34 @@ export function browserBridge(): Bridge {
             title: "Лад Session",
             artist: { id: "demo-artist", type: "artist", title: "Лад Session" },
             tracks: demoTracks,
-            albums: [{ ...cards[0], type: "album", year: 2026 }],
+            albums: Array.from({ length: 9 }, (_, i) => ({
+              ...cards[i % 4],
+              id: `demo-album-${i}`,
+              type: "album",
+              title: `Альбом ${i + 1}`,
+              year: 2026 - i,
+            })),
             followed,
             listeners: null,
           };
           break;
+        case "artistTracks": {
+          const allTracks = [
+            ...demoTracks,
+            ...Array.from({ length: 56 }, (_, i) => ({
+              ...demoTracks[i % 6],
+              id: `demo-${i + demoTracks.length}`,
+              title: `Ещё один трек ${i + 1}`,
+            })),
+          ];
+          const page = Math.max(0, Number(p.page) || 0);
+          out = {
+            tracks: allTracks.slice(page * 50, (page + 1) * 50),
+            page,
+            hasMore: (page + 1) * 50 < allTracks.length,
+          };
+          break;
+        }
         case "artistAlbums":
           out = {
             albums: [{ ...cards[0], type: "album", year: 2026 }],

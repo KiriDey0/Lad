@@ -1061,8 +1061,13 @@ class App:
                     'basis': 'Пример новых релизов · без данных аккаунта'}
             if method == 'artist':
                 return {'title': 'Лад Session', 'artist': {'id': 'demo-artist', 'type': 'artist', 'title': 'Лад Session'},
-                        'tracks': DEMO_TRACKS, 'albums': [{**demo_cards()[0], 'type': 'album', 'year': 2026}],
+                        'tracks': DEMO_TRACKS, 'albums': [{**demo_cards()[i % 4], 'id': f'demo-album-{i}', 'type': 'album', 'title': f'Альбом {i + 1}', 'year': 2026 - i} for i in range(9)],
                         'followed': self.demo_followed, 'listeners': None}
+            if method == 'artistTracks':
+                all_tracks = DEMO_TRACKS + [{**DEMO_TRACKS[i % len(DEMO_TRACKS)], 'id': f'demo-{i + len(DEMO_TRACKS)}',
+                    'title': f'Ещё один трек {i + 1}'} for i in range(56)]
+                page = max(0, int(p.get('page', 0)))
+                return {'tracks': all_tracks[page * 50:(page + 1) * 50], 'page': page, 'hasMore': (page + 1) * 50 < len(all_tracks)}
             if method == 'artistAlbums':
                 return {'albums': [{**demo_cards()[0], 'type': 'album', 'year': 2026}], 'page': 0, 'hasMore': False}
             if method == 'artistLike':
@@ -1137,6 +1142,8 @@ class App:
             return await self.music.releases()
         if method == 'artist':
             return await self.music.artist_info(p['id'])
+        if method == 'artistTracks':
+            return await self.music.artist_tracks(p['id'], max(0, int(p.get('page', 0))))
         if method == 'artistAlbums':
             return await self.music.artist_albums(p['id'], max(0, int(p.get('page', 0))))
         if method == 'artistLike':

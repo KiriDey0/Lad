@@ -99,7 +99,7 @@ class Music:
 
     async def artist_info(self, id_):
         info, ranked, followed = await asyncio.gather(self.client.artists_brief_info(id_),
-            self.client.artists_direct_albums(id_, page_size=8, sort_by='rating'),
+            self.client.artists_direct_albums(id_, page_size=9, sort_by='rating'),
             self.client.users_likes_artists(), return_exceptions=True)
         if isinstance(info, Exception):
             raise info
@@ -108,10 +108,18 @@ class Music:
         a = info.artist
         return {'artist': artist(a), 'title': a.name,
                 'tracks': await self.ratings([track(t) for t in info.popular_tracks or []]),
-                'albums': [] if isinstance(ranked, Exception) else [album(x) for x in (ranked.albums if ranked else [])],
+                'albums': [] if isinstance(ranked, Exception) else [album(x) for x in (ranked.albums if ranked else [])[:9]],
                 'albumsError': 'Не удалось загрузить популярные альбомы' if isinstance(ranked, Exception) else '',
                 'followed': None if isinstance(followed, Exception) else any(str((getattr(x, 'artist', None) or x).id) == str(id_) for x in followed or []),
                 'listeners': getattr(info.stats, 'last_month_listeners', None)}
+
+    async def artist_tracks(self, id_, page=0):
+        result = await self.client.artists_tracks(id_, page=page, page_size=50)
+        if result is None:
+            raise ValueError('Не удалось загрузить треки исполнителя.')
+        pager = result.pager
+        return {'tracks': await self.ratings([track(t) for t in result.tracks or []]), 'page': page,
+                'hasMore': bool(pager and (page + 1) * pager.per_page < pager.total)}
 
     async def artist_albums(self, id_, page=0):
         result = await self.client.artists_direct_albums(id_, page=page, page_size=24, sort_by='year')

@@ -15,6 +15,7 @@ import {
   Users,
   type LucideIcon,
 } from "lucide-react";
+import { HorizontalGallery } from "./HorizontalGallery";
 import { bridge } from "../bridge";
 import type { Card, State, Track } from "../types";
 import { Art, Button, Empty, IconButton, Skeleton } from "./ui";
@@ -272,9 +273,7 @@ export function CollectionBrowser({
         .includes(query.toLocaleLowerCase()),
     );
     return filtered.length ? (
-      <div
-        className={round ? "collection-artist-grid" : "collection-card-grid"}
-      >
+      <CollectionCards gallery={section === "overview"} round={round}>
         {filtered.map((c) => (
           <button
             key={`${c.source}:${c.type}:${c.owner}:${c.id}`}
@@ -291,7 +290,7 @@ export function CollectionBrowser({
             </small>
           </button>
         ))}
-      </div>
+      </CollectionCards>
     ) : (
       <Empty
         title={query ? "Ничего не найдено" : "Здесь пока пусто"}
@@ -460,7 +459,7 @@ export function CollectionBrowser({
           </section>
           {state.profile && (
             <section className="music-section dislikes-entry">
-              <button className="collection-section-heading" onClick={dislikes}>
+              <button className="collection-group" onClick={dislikes}>
                 <HeartOff size={22} />
                 <span>
                   <strong>Мои дизлайки</strong>
@@ -612,6 +611,30 @@ export function CollectionBrowser({
           ) : null}
         </>
       )}
+    </div>
+  );
+}
+
+function CollectionCards({
+  gallery,
+  round,
+  children,
+}: {
+  gallery: boolean;
+  round: boolean;
+  children: ReactNode;
+}) {
+  return gallery ? (
+    <HorizontalGallery
+      className={round ? "collection-artist-grid" : "collection-card-grid"}
+      artists={round}
+      label={round ? "Любимые исполнители" : "Музыка в коллекции"}
+    >
+      {children}
+    </HorizontalGallery>
+  ) : (
+    <div className={round ? "collection-artist-grid" : "collection-card-grid"}>
+      {children}
     </div>
   );
 }

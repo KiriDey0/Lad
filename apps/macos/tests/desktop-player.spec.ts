@@ -36,13 +36,10 @@ for (const width of [1440, 1100, 800])
       );
       await page.getByRole("button", { name: "Для тебя", exact: true }).click();
       await expect(page.locator(".wave-home-controls")).toBeInViewport();
-      const vertical = await page
-        .locator(".wave-home")
-        .evaluate((el) => ({
-          bottom: el.getBoundingClientRect().bottom,
-          player: document.querySelector(".player")!.getBoundingClientRect()
-            .top,
-        }));
+      const vertical = await page.locator(".wave-home").evaluate((el) => ({
+        bottom: el.getBoundingClientRect().bottom,
+        player: document.querySelector(".player")!.getBoundingClientRect().top,
+      }));
       expect(vertical.bottom).toBeLessThanOrEqual(vertical.player - 8);
       const player = page.locator(".player"),
         volume = page.getByRole("slider", { name: "Громкость", exact: true }),
@@ -53,9 +50,17 @@ for (const width of [1440, 1100, 800])
             .querySelector(".player-track-name")!
             .getBoundingClientRect(),
           like = el
-            .querySelector(".player-track > .like-button")!
+            .querySelector(".player-feedback-row > .like-button")!
             .getBoundingClientRect(),
-          group = el.querySelector(".player-track")!.getBoundingClientRect();
+          group = el
+            .querySelector(".player-feedback-row")!
+            .getBoundingClientRect(),
+          progress = el
+            .querySelector(".player-feedback-row .progress-row")!
+            .getBoundingClientRect(),
+          dislike = el
+            .querySelector(".player-feedback-row .dislike-button")!
+            .getBoundingClientRect();
         const input = el.querySelector<HTMLInputElement>(
           ".volume-control input",
         )!;
@@ -66,8 +71,12 @@ for (const width of [1440, 1100, 800])
           },
         );
         return {
-          heartGap: like.left - meta.right,
+          heartGap: like.left - progress.right,
           heartInside: like.right <= group.right + 1,
+          dislikeBefore: dislike.right <= progress.left,
+          iconSize: el
+            .querySelector(".player-feedback-row .like-button svg")!
+            .getBoundingClientRect().width,
           volumeWidth: input.clientWidth,
           volumeHeight: input.clientHeight,
           zones,
@@ -75,9 +84,20 @@ for (const width of [1440, 1100, 800])
           last: el.lastElementChild!.getBoundingClientRect().right,
         };
       });
-      expect(geometry.heartGap).toBeGreaterThanOrEqual(8);
+      expect(geometry.heartGap).toBeGreaterThanOrEqual(7.5);
       expect(geometry.heartGap).toBeLessThanOrEqual(16);
       expect(geometry.heartInside).toBe(true);
+      expect(geometry.dislikeBefore).toBe(true);
+      const dislike = player.locator(".player-feedback-row .dislike-button");
+      await dislike.hover();
+      await expect(dislike).toHaveCSS("border-radius", "50%");
+      await expect(dislike).not.toHaveCSS(
+        "background-color",
+        "rgba(0, 0, 0, 0)",
+      );
+      await page.mouse.move(0, 0);
+      await expect(dislike).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+      expect(geometry.iconSize).toBeGreaterThanOrEqual(25);
       expect(geometry.volumeWidth).toBe(105);
       expect(geometry.volumeHeight).toBeGreaterThanOrEqual(44);
       expect(geometry.last).toBeLessThanOrEqual(geometry.parent);
@@ -175,7 +195,7 @@ for (const width of [1440, 1100, 800])
       const overflow = await player.evaluate((el) => {
         const r = el.getBoundingClientRect(),
           like = el
-            .querySelector(".player-track > .like-button")!
+            .querySelector(".player-feedback-row > .like-button")!
             .getBoundingClientRect(),
           name = el
             .querySelector(".player-track-name")!
@@ -191,7 +211,7 @@ for (const width of [1440, 1100, 800])
       expect(overflow.scroll).toBeLessThanOrEqual(overflow.width + 1);
       expect(overflow.inside).toBe(true);
       expect(overflow.actions).toBe(true);
-      const heart = player.locator(".player-track > .like-button");
+      const heart = player.locator(".player-feedback-row > .like-button");
       await heart.click();
       await expect(heart).toHaveAttribute("aria-pressed", "true");
       await capture("desktop-player-long-title");

@@ -2626,3 +2626,264 @@ body {
 .lad-orbit .track-like.is-liked {
   opacity: 1;
 }
+
+/* Overview collections are single horizontal galleries; full catalogs keep grids. */
+.lad-orbit .horizontal-gallery {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: var(--gallery-card-width, 160px);
+  grid-template-columns: none;
+  gap: 18px;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  padding: 2px 0 14px;
+  align-items: start;
+}
+.lad-orbit .horizontal-gallery > * {
+  min-width: 0;
+  width: 100%;
+  scroll-snap-align: start;
+}
+.lad-orbit .horizontal-gallery .music-card {
+  padding: 0;
+  text-align: left;
+}
+.lad-orbit .horizontal-gallery .art {
+  width: 100%;
+  height: auto;
+  max-width: none;
+  aspect-ratio: 1;
+}
+.lad-orbit .horizontal-gallery .music-card strong {
+  display: block;
+  margin-top: 12px;
+  font-size: 15px;
+  font-weight: 550;
+  line-height: 1.4;
+}
+.lad-orbit .horizontal-gallery .music-card small {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--orbit-muted);
+  line-height: 1.4;
+}
+.lad-orbit .horizontal-gallery .collection-artist {
+  text-align: center;
+}
+.lad-orbit .horizontal-gallery .collection-artist strong {
+  font-size: 17px;
+  font-weight: 600;
+}
+.lad-orbit .artist-page .artist-section-title,
+.lad-orbit .main[data-page="collection"] .music-section > h2,
+.lad-orbit .main[data-page="collection"] .liked-preview-heading strong,
+.lad-orbit .main[data-page="collection"] .collection-section-heading h2,
+.lad-orbit .main[data-page="home"] .music-section > h2 {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.025em;
+}
+.lad-orbit .artist-page .artist-section-title {
+  margin: 0 0 22px;
+}
+.lad-orbit .artist-section-link {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  text-align: left;
+  border-radius: 12px;
+  font: inherit;
+  letter-spacing: inherit;
+}
+.lad-orbit .artist-section-link > svg {
+  flex: none;
+  color: var(--orbit-muted);
+}
+.lad-orbit .artist-page .music-section {
+  margin-top: 32px;
+}
+.lad-orbit .artist-page .artist-heading {
+  padding-bottom: 8px;
+}
+.lad-orbit .artist-page :is(.artist-all-tracks, .artist-discography) {
+  margin-top: 8px;
+}
+.lad-orbit .artist-page :is(.artist-all-tracks, .artist-discography) > h1 {
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1.15;
+  margin: 0 0 28px;
+  letter-spacing: -0.025em;
+}
+.lad-orbit .artist-page .artist-discography > p {
+  margin: -12px 0 24px;
+}
+.lad-orbit .artist-track-row {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 40px 46px;
+  gap: 14px;
+  align-items: center;
+  min-height: 64px;
+  border-radius: 12px;
+}
+.lad-orbit .artist-track-row:hover,
+.lad-orbit .artist-track-row.is-current {
+  background: color-mix(in srgb, var(--orbit-text) 5%, transparent);
+}
+.lad-orbit .artist-track-cover {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.lad-orbit .artist-track-cover .art {
+  width: 100%;
+  height: 100%;
+}
+.lad-orbit .artist-track-cover > svg {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  opacity: 0;
+}
+.lad-orbit .artist-track-cover:hover > svg,
+.lad-orbit .artist-track-cover:focus-visible > svg {
+  opacity: 1;
+}
+.lad-orbit .artist-track-cover:hover .art {
+  opacity: 0.5;
+}
+.lad-orbit .artist-track-row .track-name strong {
+  font-size: 14px;
+  font-weight: 550;
+  line-height: 1.4;
+}
+.lad-orbit .artist-track-row .track-name small {
+  font-size: 12px;
+  line-height: 1.4;
+  margin-top: 3px;
+}
+.lad-orbit .artist-track-duration {
+  font-size: 12px;
+  color: var(--orbit-muted);
+  text-align: right;
+  padding-right: 4px;
+  font-variant-numeric: tabular-nums;
+}
+.lad-orbit .artist-all-tracks > .lad-button,
+.lad-orbit .artist-discography > .lad-button {
+  margin-top: 24px;
+}
+.lad-orbit .artist-popular-albums .music-card strong {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.lad-orbit .main[data-page="collection"] .collection-section-heading {
+  margin-bottom: 28px;
+}
+.lad-orbit .main[data-page="collection"] .music-section > h2 {
+  margin-bottom: 28px;
+}
+.lad-orbit .dislikes-entry {
+  margin-top: 32px;
+}
+.lad-orbit .dislikes-entry > .collection-group {
+  width: calc((100% - 12px) / 2);
+}
+.lad-orbit .dislikes-entry .collection-group > span {
+  min-width: 0;
+}
+.lad-orbit .dislikes-entry .collection-group strong {
+  font-size: 16px;
+}
+.lad-orbit .dislikes-entry .collection-group small {
+  font-size: 12px;
+  line-height: 1.4;
+}
+@media (min-width: 761px) {
+  .lad-orbit .player-feedback-row {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr) 44px;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    min-width: 0;
+  }
+  .lad-orbit .player-feedback-row .progress-row {
+    width: 100%;
+    min-width: 0;
+  }
+  .lad-orbit .player-feedback-row :is(.like-button, .dislike-button) {
+    width: 44px;
+    height: 44px;
+    min-height: 44px;
+    padding: 7px;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    box-shadow: none;
+  }
+  .lad-orbit .player-feedback-row :is(.like-button, .dislike-button) svg {
+    width: 30px;
+    height: 30px;
+  }
+  .lad-orbit .player-feedback-row :is(.like-button, .dislike-button):hover {
+    background: color-mix(in srgb, var(--orbit-text) 10%, transparent);
+  }
+  .lad-orbit .player-feedback-row .feedback-placeholder {
+    width: 44px;
+    height: 44px;
+  }
+  .lad-orbit .player-dock > .player {
+    grid-template-columns: minmax(0, 1fr) minmax(340px, 1.6fr) minmax(
+        max-content,
+        1fr
+      );
+  }
+}
+@media (min-width: 761px) and (max-width: 1050px) {
+  .lad-orbit .player-dock > .player {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+}
+@media (max-width: 760px) {
+  .lad-orbit .artist-page .artist-section-title,
+  .lad-orbit .main[data-page="collection"] .music-section > h2,
+  .lad-orbit .main[data-page="collection"] .collection-section-heading h2,
+  .lad-orbit .main[data-page="home"] .music-section > h2 {
+    font-size: 22px;
+  }
+  .lad-orbit .artist-page :is(.artist-all-tracks, .artist-discography) > h1 {
+    font-size: 28px;
+  }
+  .lad-orbit .artist-track-row {
+    grid-template-columns: 40px minmax(0, 1fr) 36px 38px;
+    gap: 8px;
+    min-height: 60px;
+  }
+  .lad-orbit .artist-track-cover {
+    width: 40px;
+    height: 40px;
+  }
+  .lad-orbit .artist-track-row .track-name strong {
+    font-size: 13px;
+  }
+  .lad-orbit .artist-track-row .track-name small {
+    font-size: 11px;
+  }
+  .lad-orbit .artist-track-duration {
+    font-size: 11px;
+  }
+  .lad-orbit .dislikes-entry > .collection-group {
+    width: 100%;
+  }
+}

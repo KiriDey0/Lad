@@ -108,3 +108,12 @@ async def test_empty_discography_is_successful_empty_page():
     from yandex_music import ArtistAlbums
     m=Music();m.client=NS(artists_direct_albums=AsyncMock(return_value=ArtistAlbums(albums=[],pager=None)))
     assert await m.artist_albums('1')=={'albums':[],'page':0,'hasMore':False}
+
+@pytest.mark.asyncio
+async def test_all_artist_tracks_use_full_catalog_pagination_and_ratings():
+    m=Music();m.client=NS(artists_tracks=AsyncMock(return_value=NS(tracks=[track(1),track(2)],pager=NS(per_page=50,total=62))),
+        users_likes_tracks=AsyncMock(return_value=NS(tracks=[NS(id=1)])),users_dislikes_tracks=AsyncMock(return_value=NS(tracks=[])))
+    result=await m.artist_tracks('9',0)
+    assert result['hasMore'] and len(result['tracks'])==2 and result['tracks'][0]['liked']
+    m.client.artists_tracks.assert_awaited_once_with('9',page=0,page_size=50)
+    assert not (await m.artist_tracks('9',1))['hasMore']

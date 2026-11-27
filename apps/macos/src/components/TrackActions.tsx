@@ -42,6 +42,7 @@ type MenuTarget = MenuAnchor & {
 };
 type Actions = {
   open: (card: Card) => void;
+  like: (track: Track) => void;
   rating: (track: Track) => Track;
   dislike: (track: Track) => Promise<boolean>;
   menu: (
@@ -316,7 +317,7 @@ export function TrackActionsProvider({
       });
   }
   return (
-    <TrackActions.Provider value={{ open, menu, rating, dislike }}>
+    <TrackActions.Provider value={{ open, menu, rating, dislike, like }}>
       {children}
       {playlistTracks && (
         <LocalPlaylistDialog

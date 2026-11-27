@@ -19,6 +19,7 @@ import {
   NewReleases,
   DislikesPage,
 } from "./components/CatalogDiscovery";
+import { HorizontalGallery } from "./components/HorizontalGallery";
 import { MobileDock } from "./components/MobileDock";
 import { QueuePanel } from "./components/QueuePanel";
 import { Modal } from "./components/Modal";
@@ -193,6 +194,9 @@ export default function App() {
   const [searchResult, setSearchResult] = useState<SearchResult | null>(null);
   const [searchPage, setSearchPage] = useState(0);
   const [detail, setDetail] = useState<Card | null>(null);
+  const [artistView, setArtistView] = useState<
+    "overview" | "tracks" | "albums"
+  >("overview");
   const scope = state.profile
     ? `${state.demo ? "demo" : "account"}:${state.profile.uid}`
     : "local-device";
@@ -419,6 +423,7 @@ export default function App() {
     refreshKey,
   ]);
   const openCard = (card: Card) => {
+    setArtistView("overview");
     setDetail(card);
     setPage("detail");
   };
@@ -778,8 +783,20 @@ export default function App() {
                   <div className="flex items-center gap-2">
                     <IconButton
                       icon={ChevronLeft}
-                      label="Вернуться на главную"
-                      onClick={() => nav("home")}
+                      label={
+                        page === "detail" &&
+                        detail?.type === "artist" &&
+                        artistView !== "overview"
+                          ? "К исполнителю"
+                          : "Вернуться на главную"
+                      }
+                      onClick={() =>
+                        page === "detail" &&
+                        detail?.type === "artist" &&
+                        artistView !== "overview"
+                          ? setArtistView("overview")
+                          : nav("home")
+                      }
                     />
                     <span className="header-location">
                       {
@@ -795,7 +812,11 @@ export default function App() {
                           equalizer: "Эквалайзер",
                           detail:
                             detail?.type === "artist"
-                              ? "Исполнитель"
+                              ? artistView === "tracks"
+                                ? "Все треки"
+                                : artistView === "albums"
+                                  ? "Альбомы"
+                                  : "Исполнитель"
                               : detail?.type === "album"
                                 ? "Альбом"
                                 : "Плейлист",
@@ -914,17 +935,8 @@ export default function App() {
                       play={play}
                       changed={() => setRefreshKey((x) => x + 1)}
                       notice={notice}
-                      tracksView={(tracks, title) => (
-                        <TrackList
-                          tracks={tracks}
-                          title={title}
-                          state={state}
-                          source={detail.title}
-                          play={play}
-                          add={add}
-                          like={toggleLike}
-                        />
-                      )}
+                      view={artistView}
+                      onViewChange={setArtistView}
                     />
                   ) : page === "collection" ? (
                     <CollectionBrowser
@@ -1174,6 +1186,7 @@ export default function App() {
                                     (list as Card[]).length > 0 && (
                                       <CardGrid
                                         key={title as string}
+                                        gallery={searchType === "all"}
                                         title={title as string}
                                         cards={list as Card[]}
                                         open={openCard}
@@ -1227,6 +1240,7 @@ export default function App() {
                           {page === "home" && content.cards.length > 0 && (
                             <CardGrid
                               title="Собрано для тебя"
+                              gallery
                               cards={content.cards.slice(0, 8)}
                               open={openCard}
                             />
@@ -1578,7 +1592,9 @@ function CardGrid({
   title,
   cards,
   open,
+  gallery = false,
 }: {
+  gallery?: boolean;
   title: string;
   cards: Card[];
   open: (card: Card) => void;
@@ -1588,7 +1604,7 @@ function CardGrid({
     <section className="music-section">
       <h2>{title}</h2>
       {cards.length ? (
-        <div className="card-grid">
+        <CardCollection gallery={gallery} label={title}>
           {cards.map((card, i) => (
             <button
               className="music-card"
@@ -1606,13 +1622,30 @@ function CardGrid({
               <small>{card.subtitle}</small>
             </button>
           ))}
-        </div>
+        </CardCollection>
       ) : (
         <Empty icon={Library} title="Здесь пока пусто">
           Сохранённые альбомы и плейлисты появятся после обновления коллекции.
         </Empty>
       )}
     </section>
+  );
+}
+function CardCollection({
+  gallery,
+  label,
+  children,
+}: {
+  gallery: boolean;
+  label: string;
+  children: ReactNode;
+}) {
+  return gallery ? (
+    <HorizontalGallery className="card-grid" label={label}>
+      {children}
+    </HorizontalGallery>
+  ) : (
+    <div className="card-grid">{children}</div>
   );
 }
 function TrackList({
@@ -1907,23 +1940,6 @@ function Player({
               <div className="player-track-name">
                 <TrackMetadata track={t} />
               </div>
-              <LikeButton
-                identity={t.id}
-                aria-label={
-                  t.liked ? "Убрать из любимых" : "Добавить в любимые"
-                }
-                active={!!t.liked}
-                onClick={like}
-              />
-              {t.source !== "local" && !t.id.startsWith("local-") && (
-                <IconButton
-                  icon={HeartOff}
-                  className="dislike-button"
-                  label={t.disliked ? "Снять дизлайк" : "Не нравится"}
-                  aria-pressed={!!t.disliked}
-                  onClick={dislike}
-                />
-              )}
             </>
           ) : (
             <>
@@ -1997,13 +2013,33 @@ function Player({
               }
             />
           </div>
-          <TrackProgress
-            playing={p.playing}
-            position={position}
-            length={p.duration}
-            resetKey={`${t?.queueEntryId || t?.id || ""}:${state.output}`}
-            seek={(value) => act("control", { action: "seek", value })}
-          />
+          <div className="player-feedback-row">
+            {t && t.source !== "local" && !t.id.startsWith("local-") ? (
+              <IconButton
+                icon={HeartOff}
+                className="dislike-button"
+                label={t.disliked ? "Снять дизлайк" : "Не нравится"}
+                aria-pressed={!!t.disliked}
+                onClick={dislike}
+              />
+            ) : (
+              <span className="feedback-placeholder" aria-hidden="true" />
+            )}
+            <TrackProgress
+              playing={p.playing}
+              position={position}
+              length={p.duration}
+              resetKey={`${t?.queueEntryId || t?.id || ""}:${state.output}`}
+              seek={(value) => act("control", { action: "seek", value })}
+            />
+            <LikeButton
+              identity={t?.id}
+              active={!!t?.liked}
+              aria-label={t?.liked ? "Убрать из любимых" : "Добавить в любимые"}
+              disabled={!t}
+              onClick={like}
+            />
+          </div>
         </div>
         <div className="player-right">
           <div className="volume-control">
