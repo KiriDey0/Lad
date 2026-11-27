@@ -1171,6 +1171,29 @@ body {
 .lad-orbit .main {
   position: relative;
   isolation: isolate;
+  /* Header plus its 16px gap and border rounding cover the scroll clip. */
+  --wave-fade-header: 84px;
+  --wave-fade-depth: 96px;
+}
+/* One fixed veil fades both the scrolling artwork and the decorative canvas. */
+.lad-orbit .main:has(.page-wave .wave-home)::after {
+  content: "";
+  position: absolute;
+  inset: -80px 0 auto;
+  height: calc(80px + var(--wave-fade-header) + var(--wave-fade-depth));
+  background: linear-gradient(
+    to bottom,
+    var(--orbit-canvas) calc(100% - var(--wave-fade-depth)),
+    transparent 100%
+  );
+  z-index: 1;
+  pointer-events: none;
+}
+@media (max-width: 760px) {
+  .lad-orbit .main {
+    --wave-fade-header: 74px;
+    --wave-fade-depth: 72px;
+  }
 }
 .wave-scene-anchor {
   position: absolute;
