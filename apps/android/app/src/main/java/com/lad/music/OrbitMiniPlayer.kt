@@ -21,7 +21,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
@@ -48,13 +47,14 @@ internal fun OrbitMiniPlayer(
         val artwork by produceState(repository.cached(track.cover), track.cover) {
             value = repository.load(track.cover)
         }
-        val tint = artwork?.waveColor?.let { Color(it) } ?: p.accent
-        val fill = lerp(p.surface, tint, .22f)
+        val tint = artwork?.waveColor?.let { Color(it) }
+        val surface = tint?.let { lerp(p.raised, it, .10f) } ?: p.raised
+        val fill = lerp(surface, tint ?: p.text, .12f)
         val position = if (center) engine.position.collectAsStateWithLifecycle() else null
         val shape = CircleShape
         val content = Modifier.fillMaxSize()
             .clip(shape)
-            .background(Brush.verticalGradient(listOf(lerp(p.surface, tint, .18f), p.bg)))
+            .background(surface)
             .drawBehind {
                 if (center && state.durationMs > 0) {
                     val fraction = ((position?.value ?: 0L).toDouble() / state.durationMs)
