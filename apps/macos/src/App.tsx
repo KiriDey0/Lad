@@ -2879,7 +2879,7 @@ function SettingsPage({
               }
               options={interfaceScaleOptions(theme.scale).map((scale) => ({
                 value: String(scale),
-                label: `${Math.round(scale)}%${scale === 100 ? " · базовый" : ""}`,
+                label: `${Math.round(scale)}%`,
               }))}
             />
             <button

@@ -1566,7 +1566,7 @@ body {
   gap: 8px;
 }
 .lad-orbit .interface-scale-control > .orbit-field {
-  width: 180px;
+  width: 112px;
 }
 .lad-orbit .orbit-field__member select {
   background: transparent;
@@ -1585,6 +1585,60 @@ body {
   height: 40px;
   min-width: 32px;
   background: transparent;
+}
+/* Row labels already name these controls, so the selected value uses one line. */
+.lad-orbit .settings-page .orbit-select-field .orbit-field__label {
+  display: none;
+}
+.lad-orbit .settings-page .orbit-field__control.orbit-select-field {
+  height: 40px;
+  min-height: 40px;
+  padding: 0 12px;
+  border-color: var(--orbit-line);
+  border-radius: 12px;
+  outline: none;
+}
+.lad-orbit .settings-page .orbit-select-field select {
+  height: 38px;
+  padding: 0;
+  font-size: 14px;
+  line-height: 20px;
+  cursor: pointer;
+}
+.lad-orbit .settings-page .orbit-field__control.orbit-select-field > svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  color: var(--orbit-muted);
+}
+.lad-orbit .settings-page .orbit-field__control.orbit-select-field:hover {
+  border-color: var(--orbit-edge);
+}
+.lad-orbit
+  .settings-page
+  .orbit-field__control.orbit-select-field:has(select:focus-visible) {
+  border-color: var(--orbit-focus);
+  box-shadow: inset 0 0 0 1px var(--orbit-focus);
+}
+.lad-orbit .settings-page .orbit-segmented {
+  padding: 3px;
+  gap: 3px;
+  border: 1px solid var(--orbit-line);
+  border-radius: 12px;
+  background: var(--orbit-field);
+}
+.lad-orbit .settings-page .orbit-segmented button {
+  min-height: 32px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 500;
+}
+.lad-orbit .settings-page .orbit-segmented button[aria-checked="true"] {
+  background: var(--orbit-tonal);
+  color: var(--orbit-on-tonal);
+  font-weight: 600;
 }
 /* Only the canvas escapes the hero; its controls stay above the dock. */
 .lad-orbit .wave-home {
