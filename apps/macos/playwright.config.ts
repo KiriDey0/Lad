@@ -5,6 +5,7 @@ export default defineConfig({
   testMatch: [
     "orbit-preview.spec.ts",
     "mobile-dock.spec.ts",
+    "wave-controls.spec.ts",
     "queue-interaction.spec.ts",
     "release-history.spec.ts",
     "ui.spec.ts",

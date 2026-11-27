@@ -2109,3 +2109,134 @@ body {
     height: 112px;
   }
 }
+
+/* Keep the progress wavelength stable, continuous and separate from the rest track. */
+.lad-orbit .orbit-scrubber__track,
+.lad-orbit .orbit-scrubber__buffer {
+  left: min(100%, calc(var(--orbit-range-fill) + 7px));
+  width: max(0px, calc(100% - var(--orbit-range-fill) - 7px));
+  height: 3px;
+}
+.lad-orbit .orbit-scrubber__buffer {
+  width: max(0px, calc(var(--orbit-buffer) - var(--orbit-range-fill) - 7px));
+}
+.lad-orbit .orbit-scrubber__line,
+.lad-orbit .orbit-scrubber[data-playing="true"] .orbit-scrubber__line {
+  width: max(0px, calc(var(--orbit-range-fill) - 6px));
+  height: 20px;
+  overflow: hidden;
+  background: none;
+  border-radius: 0;
+}
+.lad-orbit .orbit-scrubber__line::before {
+  content: "";
+  position: absolute;
+  inset: calc(50% - 1.5px) 0 auto;
+  height: 3px;
+  background: var(--orbit-accent);
+  border-radius: 999px;
+  opacity: 1;
+  transition: opacity 250ms ease;
+}
+.lad-orbit .orbit-scrubber__line svg,
+.lad-orbit .orbit-scrubber[data-playing="true"] .orbit-scrubber__line svg {
+  display: block;
+  max-width: none;
+  overflow: visible;
+  opacity: 0;
+  transform-origin: 50% 50%;
+  scale: 1 0.15;
+  animation: lad-progress-flow 1.6s linear infinite;
+  animation-play-state: paused;
+  transition:
+    opacity 250ms ease,
+    scale 500ms ease;
+}
+.lad-orbit .orbit-scrubber__line path {
+  stroke-width: 3;
+}
+.lad-orbit .orbit-scrubber[data-playing="true"] .orbit-scrubber__line::before {
+  opacity: 0;
+}
+.lad-orbit .orbit-scrubber[data-playing="true"] .orbit-scrubber__line svg {
+  opacity: 1;
+  scale: 1 1;
+  animation-play-state: running;
+}
+@keyframes lad-progress-flow {
+  from {
+    transform: translateX(-32px);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lad-orbit .orbit-scrubber__line svg {
+    animation: none !important;
+    opacity: 0 !important;
+    transition: none;
+  }
+  .lad-orbit .orbit-scrubber__line::before {
+    opacity: 1 !important;
+    transition: none;
+  }
+}
+
+/* The compact accent trigger is a value control, not a prominent action. */
+.lad-color-trigger.orbit-button {
+  min-height: 36px;
+  padding: 6px 12px;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 500;
+}
+.lad-color-trigger .lad-color-chip {
+  width: 18px;
+  height: 18px;
+}
+.lad-color-trigger > svg {
+  width: 13px;
+  height: 13px;
+}
+
+/* Choice controls across dialogs and secondary menus use the same capsule shape. */
+.orbit-dialog .wave-preference-values .orbit-filter-chips {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.orbit-dialog .wave-preference-values button {
+  min-height: 40px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+}
+.lad-orbit .filter-tabs > button,
+.lad-orbit .collection-section-tabs > button,
+.lad-orbit .icon-text-button,
+.track-context-menu > button {
+  border-radius: 999px;
+}
+.lad-orbit .audio-preset-select select {
+  min-height: 40px;
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-size: 13px;
+}
+.orbit-dialog .local-field :is(input, select) {
+  min-height: 44px;
+  border-radius: 999px;
+}
+.orbit-dialog .local-field :is(input, select):focus-visible {
+  outline: none;
+  border-color: var(--orbit-focus);
+  box-shadow: inset 0 0 0 1px var(--orbit-focus);
+}
+.orbit-dialog .field-label > input {
+  border-radius: 999px;
+}
+.orbit-dialog .field-label > input:focus-visible {
+  outline: none;
+  border-color: var(--orbit-focus);
+  box-shadow: inset 0 0 0 1px var(--orbit-focus);
+}

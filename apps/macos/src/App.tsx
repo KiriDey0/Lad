@@ -1860,8 +1860,8 @@ function Player({
             playing={p.playing}
             position={position}
             length={p.duration}
-            resetKey={`${t?.id || ""}:${state.output}`}
-            seek={(value) => void act("control", { action: "seek", value })}
+            resetKey={`${t?.queueEntryId || t?.id || ""}:${state.output}`}
+            seek={(value) => act("control", { action: "seek", value })}
           />
         </div>
         <div className="player-right">
@@ -2213,21 +2213,18 @@ function WaveSettingsModal({
         <div className="wave-preference" key={g.key}>
           <h3>{g.name}</h3>
           <div className="wave-preference-values">
-            {g.values.map((v) => (
-              <button
-                key={v.value}
-                aria-pressed={g.selected === v.value}
-                onClick={() =>
-                  setGroups((old) =>
-                    old.map((x) =>
-                      x.key === g.key ? { ...x, selected: v.value } : x,
-                    ),
-                  )
-                }
-              >
-                {v.name}
-              </button>
-            ))}
+            <FilterChips
+              label={g.name}
+              value={g.selected}
+              options={g.values.map((v) => ({ value: v.value, label: v.name }))}
+              onValueChange={(value) =>
+                setGroups((old) =>
+                  old.map((x) =>
+                    x.key === g.key ? { ...x, selected: value } : x,
+                  ),
+                )
+              }
+            />
           </div>
         </div>
       ))}
