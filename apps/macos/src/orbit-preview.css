@@ -2958,3 +2958,86 @@ body {
     transform: none !important;
   }
 }
+
+/* Release information overlaps the portrait; desktop surfaces stay neutral. */
+.lad-orbit .release-card {
+  --release-portrait: 220px;
+}
+.lad-orbit .release-artist {
+  position: relative;
+  display: block;
+  padding: 0;
+  height: var(--release-portrait);
+}
+.lad-orbit .release-artist .art {
+  width: var(--release-portrait);
+  height: var(--release-portrait);
+  margin-inline: auto;
+}
+.lad-orbit .release-artist::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: calc((100% - var(--release-portrait)) / 2);
+  width: var(--release-portrait);
+  height: var(--release-portrait);
+  border-radius: 50%;
+  background: linear-gradient(transparent 50%, #0006);
+  pointer-events: none;
+}
+.lad-orbit .release-artist strong {
+  position: absolute;
+  z-index: 1;
+  bottom: 32px;
+  left: 16px;
+  right: 16px;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: #fff;
+  text-shadow: 0 1px 8px #0009;
+  text-align: center;
+}
+.lad-orbit .release-record {
+  position: relative;
+  z-index: 2;
+  margin-top: -22px;
+}
+.lad-orbit .release-card:not(:has(.release-artist)) .release-record {
+  margin-top: 0;
+}
+.lad-orbit .release-section-title {
+  margin-bottom: 0;
+}
+.lad-orbit .releases-page > h1 {
+  font-size: 32px;
+  line-height: 1.2;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  margin: 0 0 16px;
+}
+.lad-orbit .release-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(248px, 100%), 1fr));
+  gap: 32px 20px;
+  margin-top: 28px;
+}
+.lad-orbit .release-grid .release-card {
+  width: 100%;
+  max-width: 320px;
+  margin-inline: auto;
+}
+.lad-orbit .new-releases .text-link {
+  margin-left: 8px;
+}
+@media (max-width: 760px) {
+  .lad-orbit .release-card {
+    --release-portrait: 196px;
+  }
+  .lad-orbit .release-artist strong {
+    font-size: 18px;
+  }
+  .lad-orbit .releases-page > h1 {
+    font-size: 28px;
+  }
+}

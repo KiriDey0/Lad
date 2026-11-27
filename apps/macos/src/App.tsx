@@ -152,6 +152,7 @@ type Page =
   | "collection"
   | "liked"
   | "dislikes"
+  | "releases"
   | "now"
   | "settings"
   | "audio"
@@ -333,6 +334,7 @@ export default function App() {
     if (
       page === "collection" ||
       page === "dislikes" ||
+      page === "releases" ||
       (page === "detail" &&
         detail?.type === "artist" &&
         !detail.id.startsWith("local-")) ||
@@ -788,7 +790,9 @@ export default function App() {
                         detail?.type === "artist" &&
                         artistView !== "overview"
                           ? "К исполнителю"
-                          : "Вернуться на главную"
+                          : page === "releases"
+                            ? "Вернуться к подборке"
+                            : "Вернуться на главную"
                       }
                       onClick={() =>
                         page === "detail" &&
@@ -806,6 +810,7 @@ export default function App() {
                           collection: "Коллекция",
                           liked: "Мне нравится",
                           dislikes: "Мои дизлайки",
+                          releases: "Новые релизы",
                           now: "Сейчас играет",
                           settings: "Настройки",
                           audio: "Звук",
@@ -916,6 +921,14 @@ export default function App() {
                       onTab={(tab) =>
                         nav(tab === "overview" ? "audio" : "equalizer")
                       }
+                      notice={notice}
+                    />
+                  ) : page === "releases" ? (
+                    <NewReleases
+                      key={`${scope}:all`}
+                      full
+                      open={openCard}
+                      play={play}
                       notice={notice}
                     />
                   ) : page === "dislikes" ? (
@@ -1231,6 +1244,7 @@ export default function App() {
                         <>
                           {page === "home" && (
                             <NewReleases
+                              onExpand={() => nav("releases")}
                               key={scope}
                               open={openCard}
                               play={play}

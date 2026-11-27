@@ -1,5 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { ChevronRight, HeartOff, Play, RefreshCw, Undo2 } from "lucide-react";
 import { HorizontalGallery } from "./HorizontalGallery";
 import { bridge } from "../bridge";
@@ -480,7 +486,11 @@ export function NewReleases({
   open,
   play,
   notice,
+  full = false,
+  onExpand,
 }: {
+  full?: boolean;
+  onExpand?: () => void;
   open: (card: Card) => void;
   play: PlayTracks;
   notice: (message: string) => void;
@@ -539,9 +549,31 @@ export function NewReleases({
       if (alive.current) setBusy(null);
     }
   };
+  const today = new Date();
+  const cutoff = new Date(today);
+  cutoff.setDate(cutoff.getDate() - 13);
+  const day = (value: Date) =>
+    `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, "0")}-${String(value.getDate()).padStart(2, "0")}`;
+  const visible = full
+    ? data?.releases || []
+    : (data?.releases || []).filter((card) => {
+        const released = card.releaseDate?.slice(0, 10);
+        return !!released && released >= day(cutoff) && released <= day(today);
+      });
   return (
-    <section className="music-section new-releases">
-      <h2>Новые релизы</h2>
+    <section
+      className={`music-section new-releases${full ? " releases-page" : ""}`}
+    >
+      {full ? (
+        <h1>Новые релизы</h1>
+      ) : (
+        <h2 className="release-section-title">
+          <button className="artist-section-link" onClick={onExpand}>
+            Новые релизы
+            <ChevronRight size={24} />
+          </button>
+        </h2>
+      )}
       {error ? (
         <div className="inline-error">
           <p>{error}</p>
@@ -557,7 +589,9 @@ export function NewReleases({
         <Skeleton />
       ) : (
         <>
-          <p className="muted release-basis">{data.basis}</p>
+          <p className="muted release-basis">
+            {full ? data.basis : "За последние две недели"}
+          </p>
           {data.partial && (
             <p className="muted">
               Часть данных сейчас недоступна.{" "}
@@ -569,13 +603,9 @@ export function NewReleases({
               </button>
             </p>
           )}
-          {data.releases.length ? (
-            <HorizontalGallery
-              className="release-carousel"
-              label="Новые релизы"
-              cardWidth={280}
-            >
-              {data.releases.map((card) => {
+          {visible.length ? (
+            <ReleaseCollection full={full}>
+              {visible.map((card) => {
                 const artist = card.releaseArtist || card.artists?.[0];
                 return (
                   <article className="release-card" key={card.id}>
@@ -617,16 +647,41 @@ export function NewReleases({
                   </article>
                 );
               })}
-            </HorizontalGallery>
+            </ReleaseCollection>
           ) : (
             <p className="muted">
-              За последние 90 дней новых релизов не нашлось. Здесь появятся
-              новинки исполнителей, которых ты слушаешь и отмечаешь лайком.
+              {full
+                ? "За последние 90 дней новых релизов не нашлось."
+                : "За последние две недели новых релизов не нашлось."}
+              {!full && (
+                <button className="text-link" onClick={onExpand}>
+                  Смотреть все новые релизы
+                </button>
+              )}
             </p>
           )}
         </>
       )}
     </section>
+  );
+}
+function ReleaseCollection({
+  full,
+  children,
+}: {
+  full: boolean;
+  children: ReactNode;
+}) {
+  return full ? (
+    <div className="release-grid">{children}</div>
+  ) : (
+    <HorizontalGallery
+      className="release-carousel"
+      label="Новые релизы"
+      cardWidth={280}
+    >
+      {children}
+    </HorizontalGallery>
   );
 }
 export function DislikesPage({

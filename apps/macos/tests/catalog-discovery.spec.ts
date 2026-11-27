@@ -55,7 +55,7 @@ for (const width of [1440, 390])
           .locator(".release-artist .art")
           .first()
           .evaluate((el) => parseFloat(getComputedStyle(el).width)),
-      ).toBeCloseTo(width < 761 ? 156 : 180, 0);
+      ).toBeCloseTo(width < 761 ? 196 : 220, 0);
       await expect(page.locator(".release-album strong").first()).toBeVisible();
       await expect(page.locator(".track-number")).toHaveCount(0);
       await expect(page.locator(".main-header .header-location")).toHaveCSS(
@@ -516,3 +516,97 @@ test("collection uses large favorite artists in a gallery and a separated dislik
     fs.rmSync(profile, { recursive: true, force: true });
   }
 });
+
+for (const width of [1440, 390])
+  test(`release preview shows two weeks and opens the full release page at ${width}px`, async () => {
+    const { app, page, profile } = await launch(width);
+    try {
+      const state = await page.evaluate(() => window.lad!.rpc("snapshot"));
+      await app.evaluate(({ ipcMain }, state) => {
+        const date = (days: number) => {
+          const d = new Date();
+          d.setDate(d.getDate() - days);
+          return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}T00:00:00+03:00`;
+        };
+        const releases = [0, 13, 14, 70].map((days, i) => ({
+          id: `demo-release-${i}`,
+          type: "album",
+          title: `Релиз ${days}`,
+          releaseDate: date(days),
+          releaseType: "single",
+          releaseArtist: {
+            id: "demo-artist",
+            type: "artist",
+            title: "Лад Session",
+          },
+        }));
+        ipcMain.removeHandler("orbit:rpc");
+        ipcMain.handle("orbit:rpc", (_event, method) => {
+          if (method === "releases")
+            return { releases, basis: "За последние 90 дней", partial: false };
+          if (method === "home")
+            return {
+              cards: [],
+              tracks: state.queue.tracks,
+              tracksTitle: "Продолжить слушать",
+            };
+          if (method === "library")
+            return { playlists: [], albums: [], artists: [] };
+          if (method === "lyrics") return { lines: [], synced: false };
+          return state;
+        });
+      }, state);
+      await page
+        .getByRole(width < 761 ? "link" : "button", {
+          name: "Для тебя",
+          exact: true,
+        })
+        .click();
+      await expect(page.locator(".release-carousel .release-card")).toHaveCount(
+        2,
+      );
+      await expect(page.locator(".release-carousel")).toContainText("Релиз 0");
+      await expect(page.locator(".release-carousel")).toContainText("Релиз 13");
+      const geometry = await page
+        .locator(".release-card")
+        .first()
+        .evaluate((el) => {
+          const art = el
+              .querySelector(".release-artist .art")!
+              .getBoundingClientRect(),
+            name = el
+              .querySelector(".release-artist strong")!
+              .getBoundingClientRect(),
+            record = el
+              .querySelector(".release-record")!
+              .getBoundingClientRect();
+          return {
+            overlap: art.bottom - record.top,
+            nameOnImage: name.top > art.top && name.bottom < art.bottom,
+            nameAboveRecord: name.bottom < record.top,
+          };
+        });
+      expect(geometry.overlap).toBeGreaterThan(10);
+      expect(geometry.overlap).toBeLessThan(30);
+      expect(geometry.nameOnImage).toBe(true);
+      expect(geometry.nameAboveRecord).toBe(true);
+      await page
+        .getByRole("button", { name: "Новые релизы", exact: true })
+        .click();
+      await expect(page.locator(".releases-page h1")).toHaveText(
+        "Новые релизы",
+      );
+      await expect(page.locator(".release-grid .release-card")).toHaveCount(4);
+      await expect(page.locator(".release-grid")).toContainText("Релиз 70");
+      await page
+        .getByRole("button", { name: "Вернуться к подборке", exact: true })
+        .click();
+      await expect(page.locator(".release-carousel .release-card")).toHaveCount(
+        2,
+      );
+      await expect(page.locator(".releases-page")).toHaveCount(0);
+    } finally {
+      await app.close();
+      fs.rmSync(profile, { recursive: true, force: true });
+    }
+  });
