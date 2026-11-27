@@ -1938,3 +1938,174 @@ body {
     transition: none !important;
   }
 }
+
+/* Final control geometry and focus rings stay inside their rounded surfaces. */
+:is(.lad-orbit, .orbit-dialog, .orbit-popover) button:focus-visible {
+  outline-offset: -3px;
+}
+:is(.lad-orbit, .orbit-dialog, .orbit-popover)
+  .orbit-field__control:focus-within {
+  outline: none;
+  border-color: var(--orbit-focus);
+  box-shadow: inset 0 0 0 1px var(--orbit-focus);
+}
+.lad-orbit .device-selector {
+  position: relative;
+}
+.lad-orbit .device-selector > svg {
+  flex: none;
+}
+.lad-orbit .device-selector > svg:first-child {
+  margin-right: 3px;
+}
+.lad-orbit .device-selector > .status-dot {
+  position: absolute;
+  left: 24px;
+  top: 9px;
+}
+.lad-orbit .collection-browser .filter-tabs > button {
+  border-radius: 999px;
+}
+.lad-orbit .lyric-line {
+  color: color-mix(in srgb, var(--orbit-text) 52%, var(--orbit-canvas));
+  opacity: 1;
+}
+.lad-orbit .lyric-line.lyric-active {
+  color: var(--orbit-text);
+  opacity: 1;
+}
+.lad-orbit .lyric-line:not(.lyric-active):hover {
+  color: color-mix(in srgb, var(--orbit-text) 66%, var(--orbit-canvas));
+}
+.lad-orbit .settings-page .orbit-field__control.orbit-select-field {
+  border-radius: 999px;
+}
+.lad-orbit .account-summary,
+.lad-orbit .account-button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  height: 60px;
+  padding: 8px 12px;
+  margin-top: 12px;
+  border: 1px solid var(--orbit-line);
+  border-radius: 999px;
+  background: transparent;
+}
+.lad-orbit .account-summary strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 500;
+}
+.lad-orbit .account-summary small {
+  display: block;
+  margin-top: 4px;
+  font-size: 10px;
+  color: var(--orbit-muted);
+}
+.orbit-dialog .link-form .orbit-field__control {
+  min-height: 44px;
+  padding-inline: 14px;
+  border-radius: 999px;
+}
+.orbit-dialog .link-form .orbit-field__label {
+  display: none;
+}
+.orbit-dialog .link-form .orbit-field__member input {
+  height: 42px;
+  padding: 0;
+  font-size: 14px;
+}
+.orbit-dialog .link-form input::placeholder {
+  color: var(--orbit-muted);
+}
+
+.orbit-popover:has(.lad-color-picker) {
+  width: min(300px, calc(100vw - 24px));
+  padding: 16px;
+  border-radius: 20px;
+}
+.lad-color-picker {
+  gap: 10px;
+}
+.lad-color-heading strong {
+  font-size: 14px;
+}
+.lad-color-heading .orbit-button {
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  min-height: 32px;
+}
+.lad-color-plane {
+  height: 120px;
+  border-radius: 12px;
+}
+.lad-color-hue .orbit-slider__head {
+  font-size: 11px;
+}
+.lad-color-hue .orbit-slider__track {
+  height: 4px;
+}
+.lad-color-hue .orbit-slider__stage {
+  height: 36px;
+}
+.lad-color-hue .orbit-slider__position > span {
+  width: 14px;
+  height: 14px;
+  margin-inline-end: -7px;
+  border-radius: 50%;
+  background: var(--orbit-text);
+  box-shadow: 0 0 0 1px #0004;
+}
+.lad-color-preset.orbit-button {
+  min-height: 30px;
+}
+.lad-color-preset > span {
+  width: 22px;
+  height: 22px;
+}
+.lad-color-picker .orbit-field__control {
+  min-height: 36px;
+  padding: 0 10px;
+  border-radius: 999px;
+}
+.lad-color-picker .orbit-field__member {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.lad-color-picker .orbit-field__label {
+  position: static;
+  order: -1;
+  flex: none;
+  transform: none !important;
+  font-size: 11px;
+}
+.lad-color-picker .orbit-field__member input {
+  height: 34px;
+  padding: 0;
+  font-size: 12px;
+  line-height: 18px;
+}
+.lad-color-picker .lad-color-rgb {
+  gap: 6px;
+}
+.lad-color-picker .lad-color-note {
+  font-size: 10px;
+}
+@media (max-width: 760px) {
+  .orbit-popover:has(.lad-color-picker) {
+    width: 100%;
+  }
+  .lad-color-picker {
+    gap: 10px;
+  }
+  .lad-color-plane {
+    height: 112px;
+  }
+}

@@ -99,6 +99,30 @@ for (const width of [1440, 320])
       await expect(
         page.locator(".lyric-line:not(.lyric-active)").first(),
       ).toHaveCSS("font-weight", "500");
+      const brightness = await page.locator(".lyric-lines").evaluate((el) => {
+        const rgb = (node: Element) =>
+          getComputedStyle(node)
+            .color.match(/[\d.]+/g)!
+            .slice(0, 3)
+            .map(Number)
+            .reduce((a, b) => a + b, 0) / 3;
+        return {
+          active: rgb(el.querySelector(".lyric-active")!),
+          inactive: [
+            ...el.querySelectorAll(".lyric-line:not(.lyric-active)"),
+          ].map(rgb),
+        };
+      });
+      expect(Math.max(...brightness.inactive)).toBeLessThan(
+        brightness.active * 0.7,
+      );
+      if (width >= 760) {
+        await expect(page.locator(".account-summary")).toBeVisible();
+        expect(
+          await page.locator(".account-summary").evaluate((el) => el.tagName),
+        ).toBe("DIV");
+        await expect(page.locator(".account-summary > svg")).toHaveCount(0);
+      }
       await page.screenshot({ path: path.join(shots, `lyrics-${width}.png`) });
       const navigate = async (label: string) => {
         if (width < 760)
@@ -254,6 +278,41 @@ for (const width of [1440, 320])
       await page.screenshot({
         path: path.join(shots, `collection-${width}.png`),
       });
+      for (const button of await page
+        .getByRole("group", { name: "Источник коллекции", exact: true })
+        .locator("button")
+        .all()) {
+        await expect(button).toHaveCSS("border-radius", "999px");
+      }
+      if (width >= 760) {
+        await page
+          .getByRole("button", {
+            name: "Открыть ссылку Яндекс Музыки",
+            exact: true,
+          })
+          .click();
+        const linkDialog = page.getByRole("dialog", {
+          name: "Открыть музыку по ссылке",
+          exact: true,
+        });
+        const field = linkDialog.getByRole("textbox", {
+          name: "Ссылка Яндекс Музыки",
+          exact: true,
+        });
+        await field.focus();
+        const control = linkDialog.locator(".orbit-field__control");
+        await expect(control).toHaveCSS("border-radius", "999px");
+        await expect(control).toHaveCSS("outline-style", "none");
+        expect(
+          await control.evaluate((el) => getComputedStyle(el).boxShadow),
+        ).not.toBe("none");
+        await field.fill("https://music.yandex.ru/album/1");
+        await expect(
+          linkDialog.getByRole("button", { name: "Открыть", exact: true }),
+        ).toBeEnabled();
+        await page.keyboard.press("Escape");
+        await expect(linkDialog).toHaveCount(0);
+      }
       await navigate("Настройки");
       await expect(
         page.getByRole("heading", { name: "Настройки", exact: true }),
@@ -343,6 +402,24 @@ for (const width of [1440, 320])
         page.evaluate(
           () => JSON.parse(localStorage.getItem("orbit-theme")!).seed,
         );
+      for (const field of await picker.locator(".orbit-field__control").all()) {
+        await expect(field).toHaveCSS("min-height", "36px");
+        const geometry = await field.evaluate((el) => {
+          const input = el.querySelector("input")!.getBoundingClientRect(),
+            label = el
+              .querySelector(".orbit-field__label")!
+              .getBoundingClientRect();
+          return {
+            delta: Math.abs(
+              (input.top + input.bottom - label.top - label.bottom) / 2,
+            ),
+            scroll: el.scrollWidth,
+            width: el.clientWidth,
+          };
+        });
+        expect(geometry.delta).toBeLessThan(2);
+        expect(geometry.scroll).toBeLessThanOrEqual(geometry.width + 1);
+      }
       const initialSeed = await seed();
       await picker
         .getByRole("textbox", { name: "HEX", exact: true })

@@ -6,6 +6,7 @@ import {
   TabBar,
   SearchField,
   SelectField,
+  TextField,
   FilterChips,
   Segmented,
   Toast,
@@ -646,31 +647,40 @@ export default function App() {
                     active={page === "settings"}
                     onClick={() => nav("settings")}
                   />
-                  <button
-                    className="account-button"
-                    onClick={() =>
-                      !authenticated ? setModal("login") : nav("settings")
-                    }
-                  >
-                    <span className="account-avatar">
-                      {authenticated ? (
-                        state.profile!.name.slice(0, 1)
-                      ) : (
+                  {authenticated ? (
+                    <div
+                      className="account-summary"
+                      aria-label="Аккаунт Яндекс Музыки"
+                    >
+                      <span className="account-avatar">
+                        {state.profile!.name.slice(0, 1)}
+                      </span>
+                      <span className="min-w-0">
+                        <strong>{state.profile!.name}</strong>
+                        <small>
+                          {state.demo
+                            ? "Знакомство с «Ладом»"
+                            : state.profile?.plus
+                              ? "Яндекс Плюс"
+                              : "Аккаунт Яндекс Музыки"}
+                        </small>
+                      </span>
+                    </div>
+                  ) : (
+                    <button
+                      className="account-button"
+                      onClick={() => setModal("login")}
+                    >
+                      <span className="account-avatar">
                         <Headphones size={20} />
-                      )}
-                    </span>
-                    <span className="min-w-0">
-                      <strong>{state.profile?.name || "Войти в Яндекс"}</strong>
-                      <small>
-                        {state.demo
-                          ? "Знакомство с «Ладом»"
-                          : state.profile?.plus
-                            ? "Яндекс Плюс"
-                            : "Твоя музыка и устройства"}
-                      </small>
-                    </span>
-                    <ChevronRight size={16} />
-                  </button>
+                      </span>
+                      <span className="min-w-0">
+                        <strong>Войти в Яндекс</strong>
+                        <small>Твоя музыка и устройства</small>
+                      </span>
+                      <ChevronRight size={16} />
+                    </button>
+                  )}
                 </div>
               </aside>
               <main
@@ -723,16 +733,16 @@ export default function App() {
                             state.devices.find((d) => d.id === state.deviceId),
                           )}
                     </span>
-                    <span
-                      aria-hidden="true"
-                      className={clsx(
-                        "status-dot",
-                        (state.output === "local" ||
-                          state.connection === "connected" ||
-                          state.demo) &&
-                          "status-connected",
-                      )}
-                    />
+                    {state.output !== "local" && (
+                      <span
+                        aria-hidden="true"
+                        className={clsx(
+                          "status-dot",
+                          (state.connection === "connected" || state.demo) &&
+                            "status-connected",
+                        )}
+                      />
+                    )}
                     <ChevronRight size={14} />
                   </button>
                   <IconButton
@@ -2708,7 +2718,7 @@ function LinkModal({
       close={close}
     >
       <form
-        className="flex flex-col gap-4"
+        className="link-form flex flex-col gap-4"
         onSubmit={async (e) => {
           e.preventDefault();
           setBusy(true);
@@ -2717,7 +2727,8 @@ function LinkModal({
           if (data) onResult(data);
         }}
       >
-        <input
+        <TextField
+          label="Ссылка Яндекс Музыки"
           value={value}
           onChange={(e) => setValue(e.target.value)}
           placeholder="https://music.yandex.ru/…"
