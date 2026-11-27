@@ -2961,7 +2961,7 @@ body {
 
 /* Release information overlaps the portrait; desktop surfaces stay neutral. */
 .lad-orbit .release-card {
-  --release-portrait: 220px;
+  --release-portrait: 231px;
 }
 .lad-orbit .release-artist {
   position: relative;
@@ -3032,7 +3032,7 @@ body {
 }
 @media (max-width: 760px) {
   .lad-orbit .release-card {
-    --release-portrait: 196px;
+    --release-portrait: 206px;
   }
   .lad-orbit .release-artist strong {
     font-size: 18px;

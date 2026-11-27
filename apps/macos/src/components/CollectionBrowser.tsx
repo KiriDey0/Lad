@@ -15,6 +15,7 @@ import {
   Users,
   type LucideIcon,
 } from "lucide-react";
+import { usePageState } from "../pageNavigation";
 import { HorizontalGallery } from "./HorizontalGallery";
 import { bridge } from "../bridge";
 import type { Card, State, Track } from "../types";
@@ -79,10 +80,16 @@ export function CollectionBrowser({
   notice: (message: string) => void;
 }) {
   const actions = useCollectionActions();
-  const [source, setSource] = useState("all");
-  const [section, setSection] = useState<Section>("overview");
-  const [likedGroup, setLikedGroup] = useState(false);
-  const [query, setQuery] = useState("");
+  const [source, setSource] = usePageState("collection:source", "all");
+  const [section, setSection] = usePageState<Section>(
+    "collection:section",
+    "overview",
+  );
+  const [likedGroup, setLikedGroup] = usePageState(
+    "collection:likedGroup",
+    false,
+  );
+  const [query, setQuery] = usePageState("collection:query", "");
   const [revision, setRevision] = useState(0);
   const [remoteRevision, setRemoteRevision] = useState(0);
   const [remote, setRemote] = useState<Library>(emptyLibrary);

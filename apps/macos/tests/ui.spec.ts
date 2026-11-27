@@ -82,13 +82,13 @@ test("welcome, demo, queue, synced lyrics and keyboard transport", async () => {
     window.lad!.rpc("control", { action: "seek", value: 90 }),
   );
   await expect(progress).toHaveValue("90");
-  await expect(page.locator(".progress-row > span").first()).toHaveText("1:30");
-  await progress.dispatchEvent("pointerdown", { pointerId: 1 });
+  await expect(page.locator(".progress-row .orbit-scrubber__time").first()).toHaveText("1:30");
+  await progress.dispatchEvent("pointerdown", { pointerId: 1, isPrimary: true, button: 0 });
   await progress.fill("33");
   await expect(progress).toHaveValue("33");
   await progress.dispatchEvent("pointercancel", { pointerId: 1 });
   await expect(progress).toHaveValue("90");
-  await progress.dispatchEvent("pointerdown", { pointerId: 1 });
+  await progress.dispatchEvent("pointerdown", { pointerId: 1, isPrimary: true, button: 0 });
   await progress.fill("55");
   await page.evaluate(() => window.dispatchEvent(new Event("blur")));
   await expect(progress).toHaveValue("90");
@@ -180,7 +180,7 @@ test("catalog search, collection, add next and no layout overflow", async () => 
   await expect(page.locator(".header-location")).toHaveText("Моя волна");
   await page.keyboard.press("Meta+k");
   await page
-    .getByRole("textbox", { name: "Поиск музыки", exact: true })
+    .getByRole("searchbox", { name: "Поиск музыки", exact: true })
     .fill("Ближе");
   await expect(page.locator(".track-row")).toHaveCount(1);
   await page
@@ -208,7 +208,7 @@ test("catalog search, collection, add next and no layout overflow", async () => 
   await page.getByRole("button", { name: "Коллекция", exact: true }).click();
   await page.locator(".collection-group").filter({hasText:"Альбомы"}).click();
   await expect(
-    page.getByRole("heading", { name: "Здесь пока пусто" }),
+    page.getByRole("region", { name: "Здесь пока пусто" }),
   ).toBeVisible();
   const overflow = await page.evaluate(() => ({
     x: document.documentElement.scrollWidth > innerWidth,
@@ -363,7 +363,7 @@ test("collection pinning, album likes and batch queue actions", async () => {
     .getByRole("menuitem", { name: "Убрать альбом из коллекции", exact: true })
     .click();
   await expect(
-    page.getByRole("heading", { name: "Здесь пока пусто", exact: true }),
+    page.getByRole("region", { name: "Здесь пока пусто", exact: true }),
   ).toBeVisible();
   await expect(shortcuts.filter({ hasText: "Альбом" })).toHaveCount(1);
   await app.close();

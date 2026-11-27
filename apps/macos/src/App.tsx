@@ -19,6 +19,11 @@ import {
   NewReleases,
   DislikesPage,
 } from "./components/CatalogDiscovery";
+import {
+  PageMemoryContext,
+  usePageNavigation,
+  usePageState,
+} from "./pageNavigation";
 import { HorizontalGallery } from "./components/HorizontalGallery";
 import { MobileDock } from "./components/MobileDock";
 import { QueuePanel } from "./components/QueuePanel";
@@ -170,7 +175,20 @@ type Content = {
 export default function App() {
   useGlassPointer();
   const [state, setState] = useState<State>(initialState);
-  const [page, setPage] = useState<Page>("home");
+  const scope = state.profile
+    ? `${state.demo ? "demo" : "account"}:${state.profile.uid}`
+    : "local-device";
+  const navigation = usePageNavigation<{ page: Page; detail: Card | null }>(
+    { page: "home", detail: null },
+    scope,
+  );
+  const { page, detail } = navigation.route;
+  const nav = useCallback(
+    (target: Page) => {
+      if (target !== page) navigation.navigate({ page: target, detail: null });
+    },
+    [page, navigation.navigate],
+  );
   const [queueOpen, setQueueOpen] = useState(
     () => matchMedia("(min-width: 1200px)").matches,
   );
@@ -187,20 +205,36 @@ export default function App() {
   >(null);
   const [toast, setToast] = useState("");
   const [busy, setBusy] = useState(false);
-  const [content, setContent] = useState<Content>({ cards: [], tracks: [] });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [query, setQuery] = useState("");
-  const [searchType, setSearchType] = useState("all");
-  const [searchResult, setSearchResult] = useState<SearchResult | null>(null);
-  const [searchPage, setSearchPage] = useState(0);
-  const [detail, setDetail] = useState<Card | null>(null);
-  const [artistView, setArtistView] = useState<
+  const [content, setContent] = usePageState<Content>(
+    "content",
+    { cards: [], tracks: [] },
+    navigation.memory,
+  );
+  const [loading, setLoading] = usePageState(
+    "loading",
+    false,
+    navigation.memory,
+  );
+  const [error, setError] = usePageState("error", "", navigation.memory);
+  const [query, setQuery] = usePageState("query", "", navigation.memory);
+  const [searchType, setSearchType] = usePageState(
+    "searchType",
+    "all",
+    navigation.memory,
+  );
+  const [searchResult, setSearchResult] = usePageState<SearchResult | null>(
+    "searchResult",
+    null,
+    navigation.memory,
+  );
+  const [searchPage, setSearchPage] = usePageState(
+    "searchPage",
+    0,
+    navigation.memory,
+  );
+  const [artistView, setArtistView] = usePageState<
     "overview" | "tracks" | "albums"
-  >("overview");
-  const scope = state.profile
-    ? `${state.demo ? "demo" : "account"}:${state.profile.uid}`
-    : "local-device";
+  >("artistView", "overview", navigation.memory);
   const [library, setLibrary] = useState<{
     scope: string;
     playlists: Card[];
@@ -300,7 +334,7 @@ export default function App() {
         target.isContentEditable;
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
         e.preventDefault();
-        setPage("search");
+        nav("search");
         requestAnimationFrame(() => searchRef.current?.focus());
         return;
       }
@@ -323,12 +357,12 @@ export default function App() {
       }
       if ((e.metaKey || e.ctrlKey) && e.key === "l") {
         e.preventDefault();
-        setPage("now");
+        nav("now");
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [act, modal]);
+  }, [act, modal, nav]);
   const authenticated = !!state.profile;
   useEffect(() => {
     if (
@@ -350,6 +384,16 @@ export default function App() {
       setError("");
       return;
     }
+    const signature = JSON.stringify([
+      page,
+      detail?.id,
+      query,
+      searchType,
+      searchPage,
+      refreshKey,
+      scope,
+    ]);
+    if (navigation.memory.read("contentSignature", "") === signature) return;
     const id = ++requestId.current;
     setError("");
     setLoading(true);
@@ -404,7 +448,10 @@ export default function App() {
         } catch (e) {
           if (id === requestId.current) setError((e as Error).message);
         } finally {
-          if (id === requestId.current) setLoading(false);
+          if (id === requestId.current) {
+            setLoading(false);
+            navigation.memory.write("contentSignature", signature);
+          }
         }
       },
       page === "search" ? 320 : 0,
@@ -423,11 +470,10 @@ export default function App() {
     searchPage,
     detail,
     refreshKey,
+    navigation.memory,
   ]);
   const openCard = (card: Card) => {
-    setArtistView("overview");
-    setDetail(card);
-    setPage("detail");
+    navigation.navigate({ page: "detail", detail: card });
   };
   const play = async (tracks: Track[], index: number, source: string) => {
     if (
@@ -455,7 +501,7 @@ export default function App() {
     setBusy(true);
     const result = await act("wave");
     setBusy(false);
-    if (result) setPage("home");
+    if (result) nav("home");
   };
   const current = state.playback.track;
   const rating = (track: Track): Track => ({
@@ -567,10 +613,6 @@ export default function App() {
   const add = async (track: Track, next = false) => {
     const ok = await act("queue", { action: "add", tracks: [track], next });
     if (ok) notice(next ? "Трек будет следующим" : "Добавлено в очередь");
-  };
-  const nav = (target: Page) => {
-    setPage(target);
-    setError("");
   };
   return (
     <OrbitProvider className="lad-orbit" style={orbitTokens(theme)}>
@@ -792,14 +834,14 @@ export default function App() {
                           ? "К исполнителю"
                           : page === "releases"
                             ? "Вернуться к подборке"
-                            : "Вернуться на главную"
+                            : "Назад"
                       }
                       onClick={() =>
                         page === "detail" &&
                         detail?.type === "artist" &&
                         artistView !== "overview"
                           ? setArtistView("overview")
-                          : nav("home")
+                          : navigation.back()
                       }
                     />
                     <span className="header-location">
@@ -868,449 +910,460 @@ export default function App() {
                   />
                 </header>
                 <div
+                  ref={navigation.scroller}
                   className={clsx(
                     "page-content",
                     page === "now" && "page-lyrics",
                     page === "home" && "page-wave",
                   )}
                 >
-                  {!authenticated &&
-                  page !== "settings" &&
-                  page !== "audio" &&
-                  page !== "equalizer" &&
-                  page !== "collection" &&
-                  !(page === "now" && current?.source === "local") &&
-                  !(page === "detail" && detail?.id.startsWith("local-")) ? (
-                    <Welcome
-                      onLocal={() => setPage("collection")}
-                      onLogin={() => setModal("login")}
-                      onDemo={() => {
-                        void act("demo").then(() => {
-                          setPage("now");
-                        });
-                      }}
-                    />
-                  ) : page === "settings" ? (
-                    <SettingsPage
-                      state={state}
-                      act={act}
-                      theme={theme}
-                      onTheme={setTheme}
-                      onLogin={() => setModal("login")}
-                      onDevices={() => setModal("devices")}
-                      onAudio={() => nav("audio")}
-                      onLogout={() => {
-                        void act("logout").then(() => setPage("home"));
-                      }}
-                    />
-                  ) : page === "audio" ? (
-                    <AudioSettingsPage
-                      state={state}
-                      settings={audioSettings}
-                      onChange={updateAudioSettings}
-                      onTab={(tab) =>
-                        nav(tab === "overview" ? "audio" : "equalizer")
-                      }
-                      notice={notice}
-                    />
-                  ) : page === "equalizer" ? (
-                    <EqualizerPage
-                      state={state}
-                      settings={audioSettings}
-                      onChange={updateAudioSettings}
-                      onTab={(tab) =>
-                        nav(tab === "overview" ? "audio" : "equalizer")
-                      }
-                      notice={notice}
-                    />
-                  ) : page === "releases" ? (
-                    <NewReleases
-                      key={`${scope}:all`}
-                      full
-                      open={openCard}
-                      play={play}
-                      notice={notice}
-                    />
-                  ) : page === "dislikes" ? (
-                    <DislikesPage
-                      state={state}
-                      play={play}
-                      undo={toggleDislike}
-                    />
-                  ) : page === "detail" &&
-                    detail?.type === "artist" &&
-                    !detail.id.startsWith("local-") ? (
-                    <ArtistPage
-                      key={`${scope}:${detail.id}`}
-                      card={detail}
-                      state={state}
-                      open={openCard}
-                      play={play}
-                      changed={() => setRefreshKey((x) => x + 1)}
-                      notice={notice}
-                      view={artistView}
-                      onViewChange={setArtistView}
-                    />
-                  ) : page === "collection" ? (
-                    <CollectionBrowser
-                      dislikes={() => nav("dislikes")}
-                      state={state}
-                      refresh={refreshKey}
-                      open={openCard}
-                      favorite={() => nav("liked")}
-                      notice={notice}
-                      tracksView={(tracks, title, compact, collectionId) => (
-                        <TrackList
-                          compact={compact}
-                          tracks={tracks}
-                          title={title}
-                          source={title}
-                          state={state}
-                          play={async (ts, i, source) => {
-                            if (collectionId?.startsWith("local-")) {
-                              const all = await act<Collection>("collection", {
-                                type: "playlist",
-                                id: collectionId,
-                              });
-                              if (all) {
-                                const index = all.tracks.findIndex(
-                                  (t) => t.id === ts[i].id,
-                                );
-                                if (index >= 0)
-                                  await play(all.tracks, index, source);
-                              }
-                            } else await play(ts, i, source);
-                          }}
-                          add={add}
-                          like={toggleLike}
-                        />
-                      )}
-                    />
-                  ) : page === "now" ? (
-                    <LyricsPage
-                      track={current}
-                      state={state}
-                      theme={theme}
-                      notice={notice}
-                      seek={(value) =>
-                        void act("control", { action: "seek", value })
-                      }
-                      onBrowse={() => nav("home")}
-                      toggleLike={() => current && void toggleLike(current)}
-                    />
-                  ) : (
-                    <>
-                      {page === "search" ? (
-                        <>
-                          <div className="page-heading">
-                            <span className="eyebrow">
-                              НАЙДЁТСЯ ТО, ЧТО ХОЧЕТСЯ
-                            </span>
-                            <h1>Поиск музыки</h1>
-                          </div>
-                          <div
-                            className="lad-search"
-                            ref={(node) => {
-                              searchRef.current =
-                                node?.querySelector("input") ?? null;
-                            }}
-                          >
-                            <SearchField
-                              label="Поиск музыки"
-                              value={query}
-                              shortcut="⌘ K"
-                              placeholder="Трек, альбом, исполнитель…"
-                              onValueChange={(value) => {
-                                setQuery(value);
-                                setSearchPage(0);
-                              }}
-                            />
-                          </div>
-                          <FilterChips
-                            label="Тип поиска"
-                            value={searchType}
-                            onValueChange={(value) => {
-                              setSearchType(value);
-                              setSearchPage(0);
-                            }}
-                            options={[
-                              { value: "all", label: "Всё" },
-                              { value: "track", label: "Треки" },
-                              { value: "album", label: "Альбомы" },
-                              { value: "artist", label: "Исполнители" },
-                              { value: "playlist", label: "Плейлисты" },
-                            ]}
-                          />
-                        </>
-                      ) : page === "home" ? (
-                        <Container
-                          material="surface"
-                          className="home-hero wave-home"
-                        >
-                          <WaveBackdrop
-                            cover={current?.cover}
-                            playing={state.playback.playing}
-                            local={state.output === "local"}
-                            remote={
-                              state.output === "station" &&
-                              state.connection === "connected" &&
-                              !state.demo
-                                ? state.playback
-                                : undefined
-                            }
-                            intensity={theme.waveIntensity}
-                            smoothing={theme.waveSmoothing}
-                            quality={theme.waveQuality}
-                          />
-                          <div className="wave-heading">
-                            <span className="eyebrow">ТВОЙ РИТМ</span>
-                            <h1>Моя волна</h1>
-                          </div>
-                          {current ? (
-                            <WaveNowPlaying
-                              state={state}
-                              theme={theme}
-                              onExpand={() => nav("now")}
-                            />
-                          ) : (
-                            <div className="wave-empty">
-                              <Art
-                                item={{ id: "orbit-hero", art: 0 }}
-                                size="lg"
-                              />
-                              <p>
-                                Знакомое и новое.
-                                <br />В твоём настроении.
-                              </p>
-                            </div>
-                          )}
-                          <div className="wave-home-controls">
-                            <Button
-                              icon={
-                                state.queue.source.startsWith("Моя волна") &&
-                                state.queue.owned &&
-                                state.playback.playing
-                                  ? Pause
-                                  : Play
-                              }
-                              onClick={() =>
-                                state.queue.source.startsWith("Моя волна") &&
-                                state.queue.owned
-                                  ? void act("control", { action: "toggle" })
-                                  : void wave()
-                              }
-                              loading={busy}
-                            >
-                              {state.queue.source.startsWith("Моя волна") &&
-                              state.queue.owned
-                                ? state.playback.playing
-                                  ? "Пауза"
-                                  : "Продолжить волну"
-                                : "Включить Мою волну"}
-                            </Button>
-                            <Button
-                              variant="secondary"
-                              icon={SlidersHorizontal}
-                              onClick={() => setModal("wave")}
-                            >
-                              Настроить
-                            </Button>
-                          </div>
-                        </Container>
-                      ) : page === "liked" ? (
-                        <div className="collection-heading">
-                          <span className="liked-cover">
-                            <Heart size={54} strokeWidth={1.2} />
-                          </span>
-                          <div>
-                            <span className="eyebrow">ТВОЯ КОЛЛЕКЦИЯ</span>
-                            <h1>Мне нравится</h1>
-                            <p>
-                              {content.total ?? content.tracks.length} треков ·
-                              из Яндекс Музыки
-                            </p>
-                          </div>
-                        </div>
-                      ) : (
-                        <CollectionHeading card={detail}>
-                          {detail && <Art item={detail} size="md" />}
-                          <div className="collection-details">
-                            <span className="eyebrow">
-                              {detail?.type === "artist"
-                                ? "ИСПОЛНИТЕЛЬ"
-                                : detail?.type === "album"
-                                  ? "АЛЬБОМ"
-                                  : "ПЛЕЙЛИСТ"}
-                            </span>
-                            <h1>{content.title || detail?.title}</h1>
-                            <p>
-                              {detail?.subtitle ||
-                                `${content.tracks.length} треков`}
-                            </p>
-                          </div>
-                          {detail && <CollectionControls card={detail} />}
-                        </CollectionHeading>
-                      )}
-                      {loading ? (
-                        <Skeleton />
-                      ) : error ? (
-                        <Empty
-                          icon={AlertCircle}
-                          title="Не удалось загрузить музыку"
-                          action={
-                            <Button
-                              icon={RefreshCw}
-                              variant="secondary"
-                              onClick={() => setRefreshKey((x) => x + 1)}
-                            >
-                              Повторить
-                            </Button>
-                          }
-                        >
-                          {error}
-                        </Empty>
-                      ) : page === "search" ? (
-                        <>
-                          {!query.trim() ? (
-                            <Empty icon={Search} title="С чего начнём?">
-                              Введи название. Можно найти трек, целый альбом или
-                              чужой плейлист.
-                            </Empty>
-                          ) : (
-                            searchResult && (
-                              <>
-                                {searchResult.tracks.length > 0 && (
-                                  <TrackList
-                                    tracks={searchResult.tracks}
-                                    title="Треки"
-                                    state={state}
-                                    source={`Поиск: ${query}`}
-                                    play={play}
-                                    add={add}
-                                    like={toggleLike}
-                                  />
-                                )}
-                                {[
-                                  ["Исполнители", searchResult.artists],
-                                  ["Альбомы", searchResult.albums],
-                                  ["Плейлисты", searchResult.playlists],
-                                ].map(
-                                  ([title, list]) =>
-                                    (list as Card[]).length > 0 && (
-                                      <CardGrid
-                                        key={title as string}
-                                        gallery={searchType === "all"}
-                                        title={title as string}
-                                        cards={list as Card[]}
-                                        open={openCard}
-                                      />
-                                    ),
-                                )}
-                                {!searchResult.tracks.length &&
-                                  !searchResult.albums.length &&
-                                  !searchResult.playlists.length &&
-                                  !searchResult.artists.length && (
-                                    <Empty
-                                      icon={Search}
-                                      title="Ничего не нашлось"
-                                    >
-                                      Попробуй другое название или имя
-                                      исполнителя.
-                                    </Empty>
-                                  )}
-                                {((searchType === "track" &&
-                                  searchResult.tracks.length > 0 &&
-                                  searchResult.tracks.length <
-                                    searchResult.total) ||
-                                  (searchType !== "all" &&
-                                    searchType !== "track" &&
-                                    [
-                                      searchResult.artists,
-                                      searchResult.albums,
-                                      searchResult.playlists,
-                                    ].some((x) => x.length > 0))) && (
-                                  <Button
-                                    variant="secondary"
-                                    onClick={() => setSearchPage((x) => x + 1)}
-                                  >
-                                    Показать ещё
-                                  </Button>
-                                )}
-                              </>
-                            )
-                          )}
-                        </>
-                      ) : (
-                        <>
-                          {page === "home" && (
-                            <NewReleases
-                              onExpand={() => nav("releases")}
-                              key={scope}
-                              open={openCard}
-                              play={play}
-                              notice={notice}
-                            />
-                          )}
-                          {page === "home" && content.cards.length > 0 && (
-                            <CardGrid
-                              title="Собрано для тебя"
-                              gallery
-                              cards={content.cards.slice(0, 8)}
-                              open={openCard}
-                            />
-                          )}
+                  <PageMemoryContext.Provider
+                    value={navigation.memory}
+                    key={scope + ":" + page + ":" + (detail?.id || "")}
+                  >
+                    {!authenticated &&
+                    page !== "settings" &&
+                    page !== "audio" &&
+                    page !== "equalizer" &&
+                    page !== "collection" &&
+                    !(page === "now" && current?.source === "local") &&
+                    !(page === "detail" && detail?.id.startsWith("local-")) ? (
+                      <Welcome
+                        onLocal={() => nav("collection")}
+                        onLogin={() => setModal("login")}
+                        onDemo={() => {
+                          void act("demo").then(() => {
+                            nav("now");
+                          });
+                        }}
+                      />
+                    ) : page === "settings" ? (
+                      <SettingsPage
+                        state={state}
+                        act={act}
+                        theme={theme}
+                        onTheme={setTheme}
+                        onLogin={() => setModal("login")}
+                        onDevices={() => setModal("devices")}
+                        onAudio={() => nav("audio")}
+                        onLogout={() => {
+                          void act("logout").then(() => nav("home"));
+                        }}
+                      />
+                    ) : page === "audio" ? (
+                      <AudioSettingsPage
+                        state={state}
+                        settings={audioSettings}
+                        onChange={updateAudioSettings}
+                        onTab={(tab) =>
+                          nav(tab === "overview" ? "audio" : "equalizer")
+                        }
+                        notice={notice}
+                      />
+                    ) : page === "equalizer" ? (
+                      <EqualizerPage
+                        state={state}
+                        settings={audioSettings}
+                        onChange={updateAudioSettings}
+                        onTab={(tab) =>
+                          nav(tab === "overview" ? "audio" : "equalizer")
+                        }
+                        notice={notice}
+                      />
+                    ) : page === "releases" ? (
+                      <NewReleases
+                        key={`${scope}:all`}
+                        full
+                        open={openCard}
+                        play={play}
+                        notice={notice}
+                      />
+                    ) : page === "dislikes" ? (
+                      <DislikesPage
+                        state={state}
+                        play={play}
+                        undo={toggleDislike}
+                      />
+                    ) : page === "detail" &&
+                      detail?.type === "artist" &&
+                      !detail.id.startsWith("local-") ? (
+                      <ArtistPage
+                        key={`${scope}:${detail.id}`}
+                        card={detail}
+                        state={state}
+                        open={openCard}
+                        play={play}
+                        changed={() => setRefreshKey((x) => x + 1)}
+                        notice={notice}
+                        view={artistView}
+                        onViewChange={setArtistView}
+                      />
+                    ) : page === "collection" ? (
+                      <CollectionBrowser
+                        dislikes={() => nav("dislikes")}
+                        state={state}
+                        refresh={refreshKey}
+                        open={openCard}
+                        favorite={() => nav("liked")}
+                        notice={notice}
+                        tracksView={(tracks, title, compact, collectionId) => (
                           <TrackList
-                            ranked={
-                              page === "home" &&
-                              content.tracksTitle === "Сейчас в чарте"
-                            }
-                            tracks={content.tracks}
-                            title={
-                              page === "home"
-                                ? content.tracksTitle || "Треки для тебя"
-                                : page === "liked"
-                                  ? "Любимые треки"
-                                  : "Треки"
-                            }
+                            compact={compact}
+                            tracks={tracks}
+                            title={title}
+                            source={title}
                             state={state}
-                            source={
-                              page === "home"
-                                ? content.tracksTitle || "Треки для тебя"
-                                : content.title || "Треки"
-                            }
-                            play={play}
+                            play={async (ts, i, source) => {
+                              if (collectionId?.startsWith("local-")) {
+                                const all = await act<Collection>(
+                                  "collection",
+                                  {
+                                    type: "playlist",
+                                    id: collectionId,
+                                  },
+                                );
+                                if (all) {
+                                  const index = all.tracks.findIndex(
+                                    (t) => t.id === ts[i].id,
+                                  );
+                                  if (index >= 0)
+                                    await play(all.tracks, index, source);
+                                }
+                              } else await play(ts, i, source);
+                            }}
                             add={add}
                             like={toggleLike}
                           />
-                          {page === "liked" &&
-                          content.total &&
-                          content.tracks.length < content.total ? (
-                            <Button
-                              variant="secondary"
-                              onClick={async () => {
-                                setBusy(true);
-                                const data = await act<{ tracks: Track[] }>(
-                                  "liked",
-                                  {
-                                    offset: content.tracks.length,
-                                  },
-                                );
-                                if (data)
-                                  setContent((prev) => ({
-                                    ...prev,
-                                    tracks: [...prev.tracks, ...data.tracks],
-                                  }));
-                                setBusy(false);
+                        )}
+                      />
+                    ) : page === "now" ? (
+                      <LyricsPage
+                        track={current}
+                        state={state}
+                        theme={theme}
+                        notice={notice}
+                        seek={(value) =>
+                          void act("control", { action: "seek", value })
+                        }
+                        onBrowse={() => nav("home")}
+                        toggleLike={() => current && void toggleLike(current)}
+                      />
+                    ) : (
+                      <>
+                        {page === "search" ? (
+                          <>
+                            <div className="page-heading">
+                              <span className="eyebrow">
+                                НАЙДЁТСЯ ТО, ЧТО ХОЧЕТСЯ
+                              </span>
+                              <h1>Поиск музыки</h1>
+                            </div>
+                            <div
+                              className="lad-search"
+                              ref={(node) => {
+                                searchRef.current =
+                                  node?.querySelector("input") ?? null;
                               }}
-                              loading={busy}
                             >
-                              Показать ещё
-                            </Button>
-                          ) : null}
-                        </>
-                      )}
-                    </>
-                  )}
+                              <SearchField
+                                label="Поиск музыки"
+                                value={query}
+                                shortcut="⌘ K"
+                                placeholder="Трек, альбом, исполнитель…"
+                                onValueChange={(value) => {
+                                  setQuery(value);
+                                  setSearchPage(0);
+                                }}
+                              />
+                            </div>
+                            <FilterChips
+                              label="Тип поиска"
+                              value={searchType}
+                              onValueChange={(value) => {
+                                setSearchType(value);
+                                setSearchPage(0);
+                              }}
+                              options={[
+                                { value: "all", label: "Всё" },
+                                { value: "track", label: "Треки" },
+                                { value: "album", label: "Альбомы" },
+                                { value: "artist", label: "Исполнители" },
+                                { value: "playlist", label: "Плейлисты" },
+                              ]}
+                            />
+                          </>
+                        ) : page === "home" ? (
+                          <Container
+                            material="surface"
+                            className="home-hero wave-home"
+                          >
+                            <WaveBackdrop
+                              cover={current?.cover}
+                              playing={state.playback.playing}
+                              local={state.output === "local"}
+                              remote={
+                                state.output === "station" &&
+                                state.connection === "connected" &&
+                                !state.demo
+                                  ? state.playback
+                                  : undefined
+                              }
+                              intensity={theme.waveIntensity}
+                              smoothing={theme.waveSmoothing}
+                              quality={theme.waveQuality}
+                            />
+                            <div className="wave-heading">
+                              <span className="eyebrow">ТВОЙ РИТМ</span>
+                              <h1>Моя волна</h1>
+                            </div>
+                            {current ? (
+                              <WaveNowPlaying
+                                state={state}
+                                theme={theme}
+                                onExpand={() => nav("now")}
+                              />
+                            ) : (
+                              <div className="wave-empty">
+                                <Art
+                                  item={{ id: "orbit-hero", art: 0 }}
+                                  size="lg"
+                                />
+                                <p>
+                                  Знакомое и новое.
+                                  <br />В твоём настроении.
+                                </p>
+                              </div>
+                            )}
+                            <div className="wave-home-controls">
+                              <Button
+                                icon={
+                                  state.queue.source.startsWith("Моя волна") &&
+                                  state.queue.owned &&
+                                  state.playback.playing
+                                    ? Pause
+                                    : Play
+                                }
+                                onClick={() =>
+                                  state.queue.source.startsWith("Моя волна") &&
+                                  state.queue.owned
+                                    ? void act("control", { action: "toggle" })
+                                    : void wave()
+                                }
+                                loading={busy}
+                              >
+                                {state.queue.source.startsWith("Моя волна") &&
+                                state.queue.owned
+                                  ? state.playback.playing
+                                    ? "Пауза"
+                                    : "Продолжить волну"
+                                  : "Включить Мою волну"}
+                              </Button>
+                              <Button
+                                variant="secondary"
+                                icon={SlidersHorizontal}
+                                onClick={() => setModal("wave")}
+                              >
+                                Настроить
+                              </Button>
+                            </div>
+                          </Container>
+                        ) : page === "liked" ? (
+                          <div className="collection-heading">
+                            <span className="liked-cover">
+                              <Heart size={54} strokeWidth={1.2} />
+                            </span>
+                            <div>
+                              <span className="eyebrow">ТВОЯ КОЛЛЕКЦИЯ</span>
+                              <h1>Мне нравится</h1>
+                              <p>
+                                {content.total ?? content.tracks.length} треков
+                                · из Яндекс Музыки
+                              </p>
+                            </div>
+                          </div>
+                        ) : (
+                          <CollectionHeading card={detail}>
+                            {detail && <Art item={detail} size="md" />}
+                            <div className="collection-details">
+                              <span className="eyebrow">
+                                {detail?.type === "artist"
+                                  ? "ИСПОЛНИТЕЛЬ"
+                                  : detail?.type === "album"
+                                    ? "АЛЬБОМ"
+                                    : "ПЛЕЙЛИСТ"}
+                              </span>
+                              <h1>{content.title || detail?.title}</h1>
+                              <p>
+                                {detail?.subtitle ||
+                                  `${content.tracks.length} треков`}
+                              </p>
+                            </div>
+                            {detail && <CollectionControls card={detail} />}
+                          </CollectionHeading>
+                        )}
+                        {loading ? (
+                          <Skeleton />
+                        ) : error ? (
+                          <Empty
+                            icon={AlertCircle}
+                            title="Не удалось загрузить музыку"
+                            action={
+                              <Button
+                                icon={RefreshCw}
+                                variant="secondary"
+                                onClick={() => setRefreshKey((x) => x + 1)}
+                              >
+                                Повторить
+                              </Button>
+                            }
+                          >
+                            {error}
+                          </Empty>
+                        ) : page === "search" ? (
+                          <>
+                            {!query.trim() ? (
+                              <Empty icon={Search} title="С чего начнём?">
+                                Введи название. Можно найти трек, целый альбом
+                                или чужой плейлист.
+                              </Empty>
+                            ) : (
+                              searchResult && (
+                                <>
+                                  {searchResult.tracks.length > 0 && (
+                                    <TrackList
+                                      tracks={searchResult.tracks}
+                                      title="Треки"
+                                      state={state}
+                                      source={`Поиск: ${query}`}
+                                      play={play}
+                                      add={add}
+                                      like={toggleLike}
+                                    />
+                                  )}
+                                  {[
+                                    ["Исполнители", searchResult.artists],
+                                    ["Альбомы", searchResult.albums],
+                                    ["Плейлисты", searchResult.playlists],
+                                  ].map(
+                                    ([title, list]) =>
+                                      (list as Card[]).length > 0 && (
+                                        <CardGrid
+                                          key={title as string}
+                                          gallery={searchType === "all"}
+                                          title={title as string}
+                                          cards={list as Card[]}
+                                          open={openCard}
+                                        />
+                                      ),
+                                  )}
+                                  {!searchResult.tracks.length &&
+                                    !searchResult.albums.length &&
+                                    !searchResult.playlists.length &&
+                                    !searchResult.artists.length && (
+                                      <Empty
+                                        icon={Search}
+                                        title="Ничего не нашлось"
+                                      >
+                                        Попробуй другое название или имя
+                                        исполнителя.
+                                      </Empty>
+                                    )}
+                                  {((searchType === "track" &&
+                                    searchResult.tracks.length > 0 &&
+                                    searchResult.tracks.length <
+                                      searchResult.total) ||
+                                    (searchType !== "all" &&
+                                      searchType !== "track" &&
+                                      [
+                                        searchResult.artists,
+                                        searchResult.albums,
+                                        searchResult.playlists,
+                                      ].some((x) => x.length > 0))) && (
+                                    <Button
+                                      variant="secondary"
+                                      onClick={() =>
+                                        setSearchPage((x) => x + 1)
+                                      }
+                                    >
+                                      Показать ещё
+                                    </Button>
+                                  )}
+                                </>
+                              )
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            {page === "home" && (
+                              <NewReleases
+                                onExpand={() => nav("releases")}
+                                key={scope}
+                                open={openCard}
+                                play={play}
+                                notice={notice}
+                              />
+                            )}
+                            {page === "home" && content.cards.length > 0 && (
+                              <CardGrid
+                                title="Собрано для тебя"
+                                gallery
+                                cards={content.cards.slice(0, 8)}
+                                open={openCard}
+                              />
+                            )}
+                            <TrackList
+                              ranked={
+                                page === "home" &&
+                                content.tracksTitle === "Сейчас в чарте"
+                              }
+                              tracks={content.tracks}
+                              title={
+                                page === "home"
+                                  ? content.tracksTitle || "Треки для тебя"
+                                  : page === "liked"
+                                    ? "Любимые треки"
+                                    : "Треки"
+                              }
+                              state={state}
+                              source={
+                                page === "home"
+                                  ? content.tracksTitle || "Треки для тебя"
+                                  : content.title || "Треки"
+                              }
+                              play={play}
+                              add={add}
+                              like={toggleLike}
+                            />
+                            {page === "liked" &&
+                            content.total &&
+                            content.tracks.length < content.total ? (
+                              <Button
+                                variant="secondary"
+                                onClick={async () => {
+                                  setBusy(true);
+                                  const data = await act<{ tracks: Track[] }>(
+                                    "liked",
+                                    {
+                                      offset: content.tracks.length,
+                                    },
+                                  );
+                                  if (data)
+                                    setContent((prev) => ({
+                                      ...prev,
+                                      tracks: [...prev.tracks, ...data.tracks],
+                                    }));
+                                  setBusy(false);
+                                }}
+                                loading={busy}
+                              >
+                                Показать ещё
+                              </Button>
+                            ) : null}
+                          </>
+                        )}
+                      </>
+                    )}
+                  </PageMemoryContext.Provider>
                 </div>
               </main>
               {queueOpen &&
@@ -1430,17 +1483,23 @@ export default function App() {
                 onResult={(data) => {
                   setLoading(false);
                   setError("");
-                  setDetail({
-                    id: "link",
-                    type: "playlist",
-                    title: data.title,
-                  });
-                  setContent({
-                    cards: [],
-                    tracks: data.tracks,
-                    title: data.title,
-                  });
-                  setPage("detail");
+                  navigation.navigate(
+                    {
+                      page: "detail",
+                      detail: {
+                        id: "link",
+                        type: "playlist",
+                        title: data.title,
+                      },
+                    },
+                    {
+                      content: {
+                        cards: [],
+                        tracks: data.tracks,
+                        title: data.title,
+                      },
+                    },
+                  );
                   setModal(null);
                 }}
               />
@@ -1687,7 +1746,7 @@ function TrackList({
   add: (track: Track, next?: boolean) => void;
   like: (track: Track) => void;
 }) {
-  const [filter, setFilter] = useState("");
+  const [filter, setFilter] = usePageState(`track-filter:${source}`, "");
   const actions = useTrackActions();
   const filtered = tracks
     .map((track, index) => ({ track, index }))

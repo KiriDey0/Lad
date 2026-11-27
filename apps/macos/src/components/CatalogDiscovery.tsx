@@ -7,6 +7,7 @@ import {
   type ReactNode,
 } from "react";
 import { ChevronRight, HeartOff, Play, RefreshCw, Undo2 } from "lucide-react";
+import { usePageState, usePageRef } from "../pageNavigation";
 import { HorizontalGallery } from "./HorizontalGallery";
 import { bridge } from "../bridge";
 import type { ArtistDetail, Card, State, Track } from "../types";
@@ -135,21 +136,30 @@ export function ArtistPage({
   view: ArtistView;
   onViewChange: (view: ArtistView) => void;
 }) {
-  const [data, setData] = useState<ArtistDetail | null>(null),
+  const [data, setData] = usePageState<ArtistDetail | null>(
+      "artist:data",
+      null,
+    ),
     [error, setError] = useState(""),
     [revision, setRevision] = useState(0),
     [following, setFollowing] = useState(false);
-  const [albums, setAlbums] = useState<Albums | null>(null),
+  const [albums, setAlbums] = usePageState<Albums | null>(
+      "artist:albums",
+      null,
+    ),
     [albumsError, setAlbumsError] = useState(""),
     [loadingAlbums, setLoadingAlbums] = useState(false);
-  const [tracks, setTracks] = useState<ArtistTracks | null>(null),
+  const [tracks, setTracks] = usePageState<ArtistTracks | null>(
+      "artist:tracks",
+      null,
+    ),
     [tracksError, setTracksError] = useState(""),
     [loadingTracks, setLoadingTracks] = useState(false),
     [starting, setStarting] = useState(false);
   const root = useRef<HTMLDivElement>(null),
     alive = useRef(true),
-    overviewScroll = useRef(0),
-    carouselScroll = useRef(0),
+    overviewScroll = usePageRef("artist:overviewScroll", 0),
+    carouselScroll = usePageRef("artist:carouselScroll", 0),
     fullQueue = useRef<Track[] | null>(null);
   const albumBusy = useRef(false),
     trackBusy = useRef(false),
@@ -163,7 +173,7 @@ export function ArtistPage({
   useEffect(() => {
     let cancelled = false;
     setError("");
-    setData(null);
+    if (data && revision === 0) return;
     bridge
       .rpc<ArtistDetail>("artist", { id: card.id })
       .then((v) => {
@@ -178,10 +188,12 @@ export function ArtistPage({
       cancelled = true;
     };
   }, [card.id, revision]);
+  const previousView = useRef(view);
   useLayoutEffect(() => {
     const scroller = root.current?.closest<HTMLElement>(".page-content");
-    if (scroller)
+    if (scroller && previousView.current !== view)
       scroller.scrollTop = view === "overview" ? overviewScroll.current : 0;
+    previousView.current = view;
     const carousel = root.current?.querySelector<HTMLElement>(
       ".artist-album-carousel",
     );
@@ -495,11 +507,11 @@ export function NewReleases({
   play: PlayTracks;
   notice: (message: string) => void;
 }) {
-  const [data, setData] = useState<{
+  const [data, setData] = usePageState<{
       releases: Card[];
       basis: string;
       partial?: boolean;
-    } | null>(null),
+    } | null>("releases:data", null),
     [error, setError] = useState(""),
     [revision, setRevision] = useState(0),
     [busy, setBusy] = useState<string | null>(null);
@@ -513,6 +525,7 @@ export function NewReleases({
   useEffect(() => {
     let cancelled = false;
     setError("");
+    if (data && revision === 0) return;
     bridge
       .rpc<{ releases: Card[]; basis: string; partial?: boolean }>("releases", {
         refresh: revision > 0,
@@ -549,17 +562,9 @@ export function NewReleases({
       if (alive.current) setBusy(null);
     }
   };
-  const today = new Date();
-  const cutoff = new Date(today);
-  cutoff.setDate(cutoff.getDate() - 13);
-  const day = (value: Date) =>
-    `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, "0")}-${String(value.getDate()).padStart(2, "0")}`;
   const visible = full
     ? data?.releases || []
-    : (data?.releases || []).filter((card) => {
-        const released = card.releaseDate?.slice(0, 10);
-        return !!released && released >= day(cutoff) && released <= day(today);
-      });
+    : (data?.releases || []).slice(0, 6);
   return (
     <section
       className={`music-section new-releases${full ? " releases-page" : ""}`}
@@ -589,9 +594,7 @@ export function NewReleases({
         <Skeleton />
       ) : (
         <>
-          <p className="muted release-basis">
-            {full ? data.basis : "За последние две недели"}
-          </p>
+          {full && <p className="muted release-basis">{data.basis}</p>}
           {data.partial && (
             <p className="muted">
               Часть данных сейчас недоступна.{" "}
@@ -652,7 +655,7 @@ export function NewReleases({
             <p className="muted">
               {full
                 ? "За последние 90 дней новых релизов не нашлось."
-                : "За последние две недели новых релизов не нашлось."}
+                : "Новых релизов пока не нашлось."}
               {!full && (
                 <button className="text-link" onClick={onExpand}>
                   Смотреть все новые релизы

@@ -55,7 +55,7 @@ for (const width of [1440, 390])
           .locator(".release-artist .art")
           .first()
           .evaluate((el) => parseFloat(getComputedStyle(el).width)),
-      ).toBeCloseTo(width < 761 ? 196 : 220, 0);
+      ).toBeCloseTo(width < 761 ? 206 : 231, 0);
       await expect(page.locator(".release-album strong").first()).toBeVisible();
       await expect(page.locator(".track-number")).toHaveCount(0);
       await expect(page.locator(".main-header .header-location")).toHaveCSS(
@@ -136,6 +136,26 @@ for (const width of [1440, 390])
       await expect(
         page.locator(".artist-all-tracks .artist-track-row"),
       ).toHaveCount(62);
+      const tracksTop = await page
+        .locator(".page-content")
+        .evaluate((el) => el.scrollTop);
+      await page
+        .getByRole(width < 761 ? "link" : "button", {
+          name: "Настройки",
+          exact: true,
+        })
+        .click();
+      await page.getByRole("button", { name: "Назад", exact: true }).click();
+      await expect(
+        page.locator(".artist-all-tracks .artist-track-row"),
+      ).toHaveCount(62);
+      await expect
+        .poll(() =>
+          page
+            .locator(".page-content")
+            .evaluate((el, top) => Math.abs(el.scrollTop - top), tracksTop),
+        )
+        .toBeLessThan(2);
       await page
         .getByRole("button", { name: "К исполнителю", exact: true })
         .click();
@@ -511,6 +531,26 @@ test("collection uses large favorite artists in a gallery and a separated dislik
     await expect(
       page.getByRole("heading", { name: "Мои дизлайки", exact: true }),
     ).toBeVisible();
+    await page.getByRole("button", { name: "Назад", exact: true }).click();
+    await expect(gallery.locator(".music-card")).toHaveCount(12);
+    await expect
+      .poll(() => gallery.evaluate((el) => el.scrollLeft))
+      .toBeGreaterThan(100);
+    await page
+      .locator(".collection-group-grid")
+      .getByRole("button", { name: /Исполнители/ })
+      .click();
+    const filter = page.getByPlaceholder("Искать: исполнители");
+    await filter.fill("артист 11");
+    await expect(
+      page.locator(".collection-artist-grid .music-card"),
+    ).toHaveCount(1);
+    await page.getByRole("button", { name: "Настройки", exact: true }).click();
+    await page.getByRole("button", { name: "Назад", exact: true }).click();
+    await expect(filter).toHaveValue("артист 11");
+    await expect(
+      page.locator(".collection-artist-grid .music-card"),
+    ).toHaveCount(1);
   } finally {
     await app.close();
     fs.rmSync(profile, { recursive: true, force: true });
@@ -518,7 +558,7 @@ test("collection uses large favorite artists in a gallery and a separated dislik
 });
 
 for (const width of [1440, 390])
-  test(`release preview shows two weeks and opens the full release page at ${width}px`, async () => {
+  test(`release preview caps at six and restores browsing position at ${width}px`, async () => {
     const { app, page, profile } = await launch(width);
     try {
       const state = await page.evaluate(() => window.lad!.rpc("snapshot"));
@@ -528,7 +568,7 @@ for (const width of [1440, 390])
           d.setDate(d.getDate() - days);
           return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}T00:00:00+03:00`;
         };
-        const releases = [0, 13, 14, 70].map((days, i) => ({
+        const releases = [0, 13, 14, 30, 50, 70, 75, 80].map((days, i) => ({
           id: `demo-release-${i}`,
           type: "album",
           title: `Релиз ${days}`,
@@ -553,9 +593,17 @@ for (const width of [1440, 390])
           if (method === "library")
             return { playlists: [], albums: [], artists: [] };
           if (method === "lyrics") return { lines: [], synced: false };
+          if (method === "collection")
+            return { tracks: state.queue.tracks, title: "Открытый релиз" };
           return state;
         });
       }, state);
+      await page
+        .getByRole(width < 761 ? "link" : "button", {
+          name: "Поиск",
+          exact: true,
+        })
+        .click();
       await page
         .getByRole(width < 761 ? "link" : "button", {
           name: "Для тебя",
@@ -563,10 +611,23 @@ for (const width of [1440, 390])
         })
         .click();
       await expect(page.locator(".release-carousel .release-card")).toHaveCount(
-        2,
+        6,
       );
       await expect(page.locator(".release-carousel")).toContainText("Релиз 0");
-      await expect(page.locator(".release-carousel")).toContainText("Релиз 13");
+      await expect(page.locator(".release-carousel")).toContainText("Релиз 70");
+      await expect(page.locator(".release-carousel")).not.toContainText(
+        "Релиз 75",
+      );
+      await expect(page.locator(".release-basis")).toHaveCount(0);
+      const scroller = page.locator(".page-content");
+      await page
+        .getByRole(width < 761 ? "link" : "button", {
+          name: "Настройки",
+          exact: true,
+        })
+        .click();
+      await page.getByRole("button", { name: "Назад", exact: true }).click();
+      await expect.poll(() => scroller.evaluate((el) => el.scrollTop)).toBe(0);
       const geometry = await page
         .locator(".release-card")
         .first()
@@ -590,21 +651,66 @@ for (const width of [1440, 390])
       expect(geometry.overlap).toBeLessThan(30);
       expect(geometry.nameOnImage).toBe(true);
       expect(geometry.nameAboveRecord).toBe(true);
-      await page
-        .getByRole("button", { name: "Новые релизы", exact: true })
-        .click();
+      const heading = page.getByRole("button", {
+        name: "Новые релизы",
+        exact: true,
+      });
+      await scroller.dispatchEvent("wheel", { deltaY: 1 });
+      await heading.scrollIntoViewIfNeeded();
+      await scroller.evaluate((el) => {
+        el.scrollTop = 250;
+      });
+      await page.locator(".release-carousel").evaluate((el) => {
+        (el as HTMLElement).style.scrollSnapType = "none";
+        el.scrollLeft = 310;
+      });
+      const homeTop = await scroller.evaluate((el) => el.scrollTop);
+      const homeLeft = await page
+        .locator(".release-carousel")
+        .evaluate((el) => el.scrollLeft);
+      expect(homeTop).toBeGreaterThan(100);
+      expect(homeLeft).toBeGreaterThan(200);
+      await heading.click();
       await expect(page.locator(".releases-page h1")).toHaveText(
         "Новые релизы",
       );
-      await expect(page.locator(".release-grid .release-card")).toHaveCount(4);
+      await expect(page.locator(".release-grid .release-card")).toHaveCount(8);
       await expect(page.locator(".release-grid")).toContainText("Релиз 70");
+      await expect.poll(() => scroller.evaluate((el) => el.scrollTop)).toBe(0);
+      const album = page.locator(".release-grid .release-album").last();
+      await scroller.dispatchEvent("wheel", { deltaY: 1 });
+      await album.scrollIntoViewIfNeeded();
+      const fullTop = await scroller.evaluate((el) => el.scrollTop);
+      expect(fullTop).toBeGreaterThan(100);
+      await album.click();
+      await expect(page.locator(".main[data-page=detail]")).toBeVisible();
+      await expect.poll(() => scroller.evaluate((el) => el.scrollTop)).toBe(0);
+      await page.getByRole("button", { name: "Назад", exact: true }).click();
+      await expect(page.locator(".release-grid .release-card")).toHaveCount(8);
+      await expect
+        .poll(() =>
+          scroller.evaluate((el, top) => Math.abs(el.scrollTop - top), fullTop),
+        )
+        .toBeLessThan(2);
       await page
         .getByRole("button", { name: "Вернуться к подборке", exact: true })
         .click();
       await expect(page.locator(".release-carousel .release-card")).toHaveCount(
-        2,
+        6,
       );
       await expect(page.locator(".releases-page")).toHaveCount(0);
+      await expect
+        .poll(() =>
+          scroller.evaluate((el, top) => Math.abs(el.scrollTop - top), homeTop),
+        )
+        .toBeLessThan(2);
+      await expect
+        .poll(() =>
+          page
+            .locator(".release-carousel")
+            .evaluate((el, left) => Math.abs(el.scrollLeft - left), homeLeft),
+        )
+        .toBeLessThan(2);
     } finally {
       await app.close();
       fs.rmSync(profile, { recursive: true, force: true });
