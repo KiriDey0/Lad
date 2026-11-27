@@ -28,7 +28,7 @@ import {
   type MenuAnchor,
   type MenuRow,
 } from "./ContextMenu";
-import { IconButton } from "./ui";
+import { IconButton, LikeButton } from "./ui";
 
 type Actions = {
   menu: (event: MouseEvent<HTMLElement>, card: Card) => void;
@@ -52,10 +52,10 @@ export function CollectionControls({ card }: { card: Card }) {
   return (
     <div className="collection-controls">
       {card.type === "album" && !card.id.startsWith("local-") && (
-        <IconButton
-          icon={Heart}
+        <LikeButton
+          identity={`album:${card.id}`}
           active={actions.albumSaved(card)}
-          label={
+          aria-label={
             actions.albumSaved(card)
               ? "Убрать альбом из коллекции"
               : "Добавить альбом в коллекцию"

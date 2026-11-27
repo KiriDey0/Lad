@@ -1,5 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { converter, formatHex, clampChroma } from "culori";
+import {
+  interfaceZoom,
+  INTERFACE_SCALE_BASIS,
+  MIN_INTERFACE_SCALE,
+  MAX_INTERFACE_SCALE,
+} from "./interfaceScale";
+import { resolveOrbitTheme } from "@kiridey/orbit-ui";
+import type { CSSProperties } from "react";
 export type Theme = {
   base: "dark" | "oled";
   mode: "default" | "accent" | "tinted";
@@ -7,6 +14,7 @@ export type Theme = {
   transparency: boolean;
   lyricOffset: number;
   scale: number;
+  scaleBasis: 85;
   waveIntensity: number;
   waveSmoothing: number;
   waveQuality: "auto" | "eco" | "smooth";
@@ -14,90 +22,137 @@ export type Theme = {
 export const defaultTheme: Theme = {
   base: "dark",
   mode: "default",
-  seed: "#E2E6EC",
+  seed: "#BFCAF5",
   transparency: true,
   lyricOffset: 0,
-  scale: 85,
+  scale: 100,
+  scaleBasis: INTERFACE_SCALE_BASIS,
   waveIntensity: 100,
   waveSmoothing: 50,
   waveQuality: "auto",
 };
 export function loadTheme(): Theme {
   try {
-    const theme = {
-      ...defaultTheme,
-      ...JSON.parse(localStorage.getItem("orbit-theme") || "{}"),
-    };
-    theme.scale =
-      typeof theme.scale === "number" && Number.isFinite(theme.scale)
-        ? Math.max(75, Math.min(115, Math.round(theme.scale / 5) * 5))
-        : defaultTheme.scale;
-    theme.waveIntensity = Number.isFinite(theme.waveIntensity) ? Math.max(0, Math.min(100, theme.waveIntensity)) : 100;
-    theme.waveSmoothing = Number.isFinite(theme.waveSmoothing) ? Math.max(0, Math.min(100, theme.waveSmoothing)) : 50;
-    if (!["auto", "eco", "smooth"].includes(theme.waveQuality)) theme.waveQuality = "auto";
+    const saved = JSON.parse(localStorage.getItem("orbit-theme") || "{}");
+    const theme = { ...defaultTheme, ...saved };
+    // Migrate the old absolute zoom without changing the user's actual size.
+    const previous =
+      typeof saved.scale === "number" && Number.isFinite(saved.scale)
+        ? saved.scale
+        : 85;
+    const display =
+      saved.scaleBasis === INTERFACE_SCALE_BASIS ? previous : previous / 0.85;
+    theme.scale = Math.max(
+      MIN_INTERFACE_SCALE,
+      Math.min(MAX_INTERFACE_SCALE, display),
+    );
+    theme.scaleBasis = INTERFACE_SCALE_BASIS;
+    theme.waveIntensity = Number.isFinite(theme.waveIntensity)
+      ? Math.max(0, Math.min(100, theme.waveIntensity))
+      : 100;
+    theme.waveSmoothing = Number.isFinite(theme.waveSmoothing)
+      ? Math.max(0, Math.min(100, theme.waveSmoothing))
+      : 50;
+    if (!["auto", "eco", "smooth"].includes(theme.waveQuality))
+      theme.waveQuality = "auto";
     return theme;
   } catch {
     return defaultTheme;
   }
 }
+// Orbit's resolver returns palette deltas; reset every color it can change.
+const orbitColorDefaults: Record<string, string> = {
+  "--orbit-canvas": "#000000",
+  "--orbit-surface": "#131417",
+  "--orbit-field": "#16171a",
+  "--orbit-raised": "#202227",
+  "--orbit-elevated": "#282b32",
+  "--orbit-accent": "#bfcaf5",
+  "--orbit-hover": "#cfd8ff",
+  "--orbit-pressed": "#a4b1e4",
+  "--orbit-tonal": "#292f46",
+  "--orbit-on-tonal": "#dce4ff",
+  "--orbit-row-selected": "#222631",
+};
+export function orbitTokens(theme: Theme): CSSProperties {
+  const colors: Record<string, string> = {
+    ...orbitColorDefaults,
+    ...(resolveOrbitTheme({
+      style: "orbit",
+      base: theme.base,
+      colorMode: theme.mode,
+      seed: theme.seed,
+    }).resolvedTokens as Record<string, string>),
+  };
+  // Keep OLED truly black in every color mode, and Dark visibly graphite.
+  colors["--orbit-canvas"] =
+    theme.base === "oled"
+      ? "#000000"
+      : theme.mode === "tinted"
+        ? `color-mix(in srgb,#111318 85%,${colors["--orbit-tonal"]} 15%)`
+        : "#111318";
+  if (theme.base === "dark") {
+    for (const role of ["surface", "field", "raised", "elevated"])
+      colors[`--orbit-${role}`] =
+        `color-mix(in srgb,${colors[`--orbit-${role}`]} 94%,white 6%)`;
+  }
+  return {
+    ...colors,
+    "--orbit-glass": "color-mix(in srgb,var(--orbit-elevated) 64%,transparent)",
+    "--orbit-mobile-glass":
+      "color-mix(in srgb,var(--orbit-elevated) 72%,transparent)",
+    "--orbit-action-glass":
+      "color-mix(in srgb,var(--orbit-elevated) 48%,transparent)",
+    ...(!theme.transparency
+      ? {
+          "--orbit-glass": "var(--orbit-elevated)",
+          "--orbit-mobile-glass": "var(--orbit-elevated)",
+          "--orbit-action-glass": "var(--orbit-elevated)",
+        }
+      : {}),
+  } as CSSProperties;
+}
 export function applyTheme(theme: Theme) {
   const root = document.documentElement;
-  const vars: Record<string, string> = {
-    bg: "#0C0D0F",
-    surface: "#17191D",
-    raised: "#282B31",
-    border: "#FFFFFF24",
-    text: "#F1F3F5",
-    muted: "#AAAFB9",
-    accent: "#E2E6EC",
-    tonal: "#30353D",
-    "on-accent": "#0C0D0F",
-    danger: "#E7A8B0",
-    success: "#ACCEBC",
-    warning: "#DECBA1",
-    focus: "#E2E6EC",
-    "accent-pressed": "#C0C4CB",
+  for (const [name, value] of Object.entries(orbitTokens(theme)))
+    root.style.setProperty(name, String(value));
+  const roles: Record<string, string> = {
+    bg: "canvas",
+    surface: "surface",
+    raised: "raised",
+    border: "rim",
+    text: "text",
+    muted: "muted",
+    accent: "accent",
+    tonal: "tonal",
+    "on-accent": "on-accent",
+    danger: "danger",
+    success: "success",
+    warning: "warning",
+    focus: "focus",
+    "accent-pressed": "pressed",
+    "glass-fill": "action-glass",
+    "glass-popup-fill": "elevated",
+    "glass-border": "rim",
   };
-  if (theme.mode !== "default") {
-    const seed = converter("oklch")(theme.seed);
-    if (seed) {
-      const c = Math.min(seed.c || 0, 0.13),
-        h = c < 0.008 ? 0 : seed.h || 0;
-      const color = (l: number, chroma: number) =>
-        formatHex(
-          clampChroma({ mode: "oklch", l, c: chroma, h }, "oklch", "rgb"),
-        ) || "#E2E6EC";
-      vars.accent = color(0.82, c);
-      vars.tonal = color(0.32, Math.min(c, 0.06));
-      vars.focus = vars.accent;
-      vars["accent-pressed"] = color(0.76, c);
-      if (theme.mode === "tinted")
-        for (const [key, chroma] of [
-          ["bg", 0.014],
-          ["surface", 0.022],
-          ["raised", 0.03],
-        ] as const) {
-          const l = converter("oklch")(vars[key])?.l || 0.15;
-          vars[key] = color(l, Math.min(c, chroma));
-        }
-    }
-  }
-  if (theme.base === "oled") vars.bg = "#000000";
-  vars["accent-soft"] = vars.accent + "22";
-  vars["on-accent-soft"] = "#0C0D0F1A";
-  vars["glass-fill"] = vars.surface + (theme.transparency ? "80" : "");
-  vars["glass-popup-fill"] = vars.surface + (theme.transparency ? "BF" : "");
-  vars["glass-border"] = "#FFFFFF30";
-  for (const [key, value] of Object.entries(vars))
-    root.style.setProperty("--" + key, value);
+  for (const [name, role] of Object.entries(roles))
+    root.style.setProperty("--" + name, "var(--orbit-" + role + ")");
+  root.style.setProperty(
+    "--accent-soft",
+    "color-mix(in srgb,var(--orbit-accent) 14%,transparent)",
+  );
+  root.style.setProperty(
+    "--on-accent-soft",
+    "color-mix(in srgb,var(--orbit-on-accent) 12%,transparent)",
+  );
   root.dataset.transparency = String(theme.transparency);
   if (window.lad?.setScale)
-    void window.lad.setScale(theme.scale / 100).catch(() => {});
+    void window.lad.setScale(interfaceZoom(theme.scale)).catch(() => {});
   else {
-    root.style.zoom = String(theme.scale / 100);
+    root.style.zoom = String(interfaceZoom(theme.scale));
     root.style.setProperty(
       "--scaled-viewport-height",
-      `${10000 / theme.scale}dvh`,
+      `${100 / interfaceZoom(theme.scale)}dvh`,
     );
   }
   localStorage.setItem("orbit-theme", JSON.stringify(theme));

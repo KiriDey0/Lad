@@ -13,7 +13,7 @@ test('local folder, playback, synced text and playlists work without an account'
   const root=path.resolve(__dirname,'..');
   const python=process.env.LAD_PYTHON || path.join(root,'.venv/bin/python');
   execFileSync(python,['-c',`import wave,math,struct,sys\nfrom pathlib import Path\nfrom mutagen.wave import WAVE\nfrom mutagen.id3 import TIT2,TPE1,TALB,USLT\np=Path(sys.argv[1])/'nested'/'qa.wav'\nwith wave.open(str(p),'wb') as w:\n w.setnchannels(1);w.setsampwidth(2);w.setframerate(8000);w.writeframes(b''.join(struct.pack('<h',int(250*math.sin(i*.2))) for i in range(8000*12)))\na=WAVE(p);a.add_tags();a.tags.add(TIT2(encoding=3,text='Local QA'));a.tags.add(TPE1(encoding=3,text='Test Artist'));a.tags.add(TALB(encoding=3,text='Test Album'));a.tags.add(USLT(encoding=3,lang='eng',text='[00:00.00]First line\\n[00:03.00]Second line'));a.save()`,music]);
-  const app=await _electron.launch({args:[root],env:{...process.env,LAD_USER_DATA:path.join(privateRoot,'profile'),LAD_PYTHON:python}});
+  const app=await _electron.launch({executablePath:process.env.LAD_TEST_EXE||undefined,args:process.env.LAD_TEST_EXE?[]:[root],env:{...process.env,LAD_USER_DATA:path.join(privateRoot,'profile'),LAD_PYTHON:python}});
   try {
     const page=await app.firstWindow();
     await expect.poll(()=>page.evaluate(async()=>{try{await window.lad!.rpc('snapshot');return true}catch{return false}})).toBe(true);
@@ -30,13 +30,19 @@ test('local folder, playback, synced text and playlists work without an account'
     await page.getByRole('button',{name:'Включить Local QA',exact:true}).click();
     await expect.poll(()=>page.evaluate(async()=> (await window.lad!.rpc('snapshot') as any).playback.track?.id)).toBe(tracks[0].id);
     await expect.poll(()=>page.evaluate(async()=> (await window.lad!.rpc('snapshot') as any).playback.position)).toBeGreaterThan(0);
+    const seekbar = page.getByRole('slider', {name:'Позиция трека',exact:true});
+    const seekBounds = (await seekbar.boundingBox())!;
+    await page.mouse.click(seekBounds.x + seekBounds.width / 2, seekBounds.y + seekBounds.height / 2);
+    await expect.poll(async()=>Math.abs((await page.evaluate(()=>window.lad!.rpc('snapshot'))).playback.position - 6)).toBeLessThan(1.5);
     await page.evaluate(()=>window.lad!.rpc('control',{action:'pause'}));
     const lyrics=await page.evaluate((t)=>window.lad!.rpc('lyrics',{id:t.id}),tracks[0]) as any;
     expect(lyrics.lines).toEqual([{time:0,text:'First line'},{time:3,text:'Second line'}]);
     await page.locator('.liked-preview .track-row').first().click({button:'right'});
     await expect(page.getByRole('menuitem',{name:/Добавить в плейлист на устройстве/})).toBeVisible();
+    for (const item of await page.getByRole('menuitem').all()) await expect(item).toHaveCSS('border-radius','999px');
     await page.getByRole('menuitem',{name:/Добавить в плейлист на устройстве/}).click();
     await page.getByRole('textbox',{name:'Название',exact:true}).fill('QA playlist');
+    await expect(page.getByRole('textbox',{name:'Название',exact:true})).toHaveCSS('border-radius','999px');
     await page.getByRole('button',{name:'Добавить',exact:true}).click();
     const playlists=await page.evaluate(async()=> (await window.lad!.rpc('localBrowse',{kind:'playlists'}) as any).cards);
     expect(playlists).toHaveLength(1);

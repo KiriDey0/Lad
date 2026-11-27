@@ -280,13 +280,10 @@ kbd {
     @apply block text-[10px] font-medium tracking-[.17em];
     color: var(--muted);
   }
-  .orbit-button {
+  .lad-legacy-button {
     @apply inline-flex h-12 shrink-0 items-center justify-center gap-2.5 rounded-2xl border border-transparent px-2 text-[16px] font-medium whitespace-nowrap;
   }
-  .orbit-button > span:last-child {
-    @apply px-2;
-  }
-  .orbit-button .icon-compartment {
+  .lad-legacy-button .icon-compartment {
     @apply flex size-8 shrink-0 items-center justify-center rounded-lg;
   }
   .button-primary {
@@ -450,7 +447,7 @@ kbd {
     @apply ml-2 text-sm font-normal;
     color: var(--muted);
   }
-  .section-title .orbit-button {
+  .section-title .lad-legacy-button {
     @apply h-10 text-xs;
   }
   .section-title .icon-compartment {
@@ -1247,7 +1244,7 @@ kbd {
     @apply mt-2 max-w-[410px] text-xs leading-5;
     color: var(--muted);
   }
-  .setting-row .orbit-button {
+  .setting-row .lad-legacy-button {
     @apply h-10 text-xs;
   }
   .setting-row .icon-compartment {
@@ -1256,7 +1253,7 @@ kbd {
   .setting-row .icon-compartment svg {
     @apply size-4;
   }
-  .settings-section > .orbit-button {
+  .settings-section > .lad-legacy-button {
     @apply mt-4;
   }
   .settings-section > .inline-note {
@@ -2420,7 +2417,7 @@ kbd {
   height: min(640px, calc(100dvh - 64px));
 }
 .release-history-modal .modal-scroll { flex: 1; }
-.release-history-modal .modal-footer .orbit-button { width: 100%; }
+.release-history-modal .modal-footer .lad-legacy-button { width: 100%; }
 .history-item { padding: 20px 0; border-bottom: 1px solid var(--border); }
 .history-item:first-child { padding-top: 0; }
 .history-item:last-child { border-bottom: 0; padding-bottom: 0; }
@@ -2432,7 +2429,7 @@ kbd {
 .release-notes ul { list-style: disc; padding-left: 18px; }
 .release-notes li + li { margin-top: 6px; }
 .history-status { font-size: 13px; line-height: 1.65; color: var(--muted); }
-.history-status .orbit-button { margin-top: 16px; }
+.history-status .lad-legacy-button { margin-top: 16px; }
 
 /* A drag owns its floating row; list rows make actual space for its placeholder. */
 .queue-scroll { position: relative; overscroll-behavior: contain; overflow-anchor: none; }

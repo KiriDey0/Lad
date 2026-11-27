@@ -7,6 +7,7 @@ import {
   Folder,
   FolderPlus,
   Heart,
+  HeartOff,
   ListMusic,
   RefreshCw,
   Search,
@@ -14,6 +15,8 @@ import {
   Users,
   type LucideIcon,
 } from "lucide-react";
+import { usePageState } from "../pageNavigation";
+import { HorizontalGallery } from "./HorizontalGallery";
 import { bridge } from "../bridge";
 import type { Card, State, Track } from "../types";
 import { Art, Button, Empty, IconButton, Skeleton } from "./ui";
@@ -59,6 +62,7 @@ export function CollectionBrowser({
   refresh,
   open,
   favorite,
+  dislikes,
   tracksView,
   notice,
 }: {
@@ -66,14 +70,26 @@ export function CollectionBrowser({
   refresh: number;
   open: (card: Card) => void;
   favorite: () => void;
-  tracksView: (tracks: Track[], title: string, compact?: boolean, collectionId?:string) => ReactNode;
+  dislikes: () => void;
+  tracksView: (
+    tracks: Track[],
+    title: string,
+    compact?: boolean,
+    collectionId?: string,
+  ) => ReactNode;
   notice: (message: string) => void;
 }) {
   const actions = useCollectionActions();
-  const [source, setSource] = useState("all");
-  const [section, setSection] = useState<Section>("overview");
-  const [likedGroup, setLikedGroup] = useState(false);
-  const [query, setQuery] = useState("");
+  const [source, setSource] = usePageState("collection:source", "all");
+  const [section, setSection] = usePageState<Section>(
+    "collection:section",
+    "overview",
+  );
+  const [likedGroup, setLikedGroup] = usePageState(
+    "collection:likedGroup",
+    false,
+  );
+  const [query, setQuery] = usePageState("collection:query", "");
   const [revision, setRevision] = useState(0);
   const [remoteRevision, setRemoteRevision] = useState(0);
   const [remote, setRemote] = useState<Library>(emptyLibrary);
@@ -264,9 +280,7 @@ export function CollectionBrowser({
         .includes(query.toLocaleLowerCase()),
     );
     return filtered.length ? (
-      <div
-        className={round ? "collection-artist-grid" : "collection-card-grid"}
-      >
+      <CollectionCards gallery={section === "overview"} round={round}>
         {filtered.map((c) => (
           <button
             key={`${c.source}:${c.type}:${c.owner}:${c.id}`}
@@ -283,7 +297,7 @@ export function CollectionBrowser({
             </small>
           </button>
         ))}
-      </div>
+      </CollectionCards>
     ) : (
       <Empty
         title={query ? "Ничего не найдено" : "Здесь пока пусто"}
@@ -382,7 +396,10 @@ export function CollectionBrowser({
         <Skeleton />
       ) : section === "overview" ? (
         <>
-          <section className="liked-preview" aria-label="Любимые треки в коллекции">
+          <section
+            className="liked-preview"
+            aria-label="Любимые треки в коллекции"
+          >
             <button className="liked-preview-heading" onClick={openFavorites}>
               <span className="liked-cover">
                 <Heart size={26} />
@@ -394,7 +411,16 @@ export function CollectionBrowser({
               <ChevronRight size={20} />
             </button>
             {favorites.length ? (
-              tracksView(favorites, "Мне нравится", true, source==="yandex"?"liked":source==="local"?"local-liked":"local-all-liked")
+              tracksView(
+                favorites,
+                "Мне нравится",
+                true,
+                source === "yandex"
+                  ? "liked"
+                  : source === "local"
+                    ? "local-liked"
+                    : "local-all-liked",
+              )
             ) : (
               <p className="muted">Отмечай любимые треки сердечком</p>
             )}
@@ -438,6 +464,18 @@ export function CollectionBrowser({
               ))}
             </div>
           </section>
+          {state.profile && (
+            <section className="music-section dislikes-entry">
+              <button className="collection-group" onClick={dislikes}>
+                <HeartOff size={22} />
+                <span>
+                  <strong>Мои дизлайки</strong>
+                  <small>Треки, которые ты исключил из рекомендаций</small>
+                </span>
+                <ChevronRight size={20} />
+              </button>
+            </section>
+          )}
         </>
       ) : (
         <>
@@ -580,6 +618,30 @@ export function CollectionBrowser({
           ) : null}
         </>
       )}
+    </div>
+  );
+}
+
+function CollectionCards({
+  gallery,
+  round,
+  children,
+}: {
+  gallery: boolean;
+  round: boolean;
+  children: ReactNode;
+}) {
+  return gallery ? (
+    <HorizontalGallery
+      className={round ? "collection-artist-grid" : "collection-card-grid"}
+      artists={round}
+      label={round ? "Любимые исполнители" : "Музыка в коллекции"}
+    >
+      {children}
+    </HorizontalGallery>
+  ) : (
+    <div className={round ? "collection-artist-grid" : "collection-card-grid"}>
+      {children}
     </div>
   );
 }

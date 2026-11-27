@@ -12,6 +12,7 @@ import {
   ListEnd,
   ListStart,
   Heart,
+  HeartOff,
   Disc3,
   Mic2,
   Copy,
@@ -41,6 +42,9 @@ type MenuTarget = MenuAnchor & {
 };
 type Actions = {
   open: (card: Card) => void;
+  like: (track: Track) => void;
+  rating: (track: Track) => Track;
+  dislike: (track: Track) => Promise<boolean>;
   menu: (
     event: MouseEvent<HTMLElement>,
     track: Track,
@@ -135,6 +139,8 @@ export function TrackActionsProvider({
   play,
   add,
   like,
+  dislike,
+  rating,
   act,
   notice,
   children,
@@ -144,6 +150,8 @@ export function TrackActionsProvider({
   play: (tracks: Track[], index: number, source: string) => void;
   add: (track: Track, next?: boolean) => void;
   like: (track: Track) => void;
+  dislike: (track: Track) => Promise<boolean>;
+  rating: (track: Track) => Track;
   act: (method: string, params?: Record<string, unknown>) => Promise<unknown>;
   notice: (message: string) => void;
   children: ReactNode;
@@ -157,7 +165,13 @@ export function TrackActionsProvider({
     return () => window.removeEventListener("lad:local-playlist", open);
   }, []);
   const menu: Actions["menu"] = (event, track, run, queueIndex) => {
-    setTarget({ ...menuAnchor(event), track, play: run, queueIndex, queueEntryId: queueIndex === undefined ? undefined : track.queueEntryId });
+    setTarget({
+      ...menuAnchor(event),
+      track,
+      play: run,
+      queueIndex,
+      queueEntryId: queueIndex === undefined ? undefined : track.queueEntryId,
+    });
   };
   useEffect(() => setTarget(null), [state.profile?.uid, state.demo]);
   const rows: MenuRow[] = [];
@@ -165,10 +179,7 @@ export function TrackActionsProvider({
     const t = target.track;
     const blocked =
       t.available === false || (state.blockExplicit && !!t.explicit);
-    const isLiked =
-      state.playback.track?.id === t.id
-        ? (state.playback.track.liked ?? t.liked)
-        : (state.queue.tracks.find((x) => x.id === t.id)?.liked ?? t.liked);
+    const isLiked = rating(t).liked;
     rows.push(
       {
         label: "Включить",
@@ -195,6 +206,12 @@ export function TrackActionsProvider({
         run: () => like({ ...t, liked: !!isLiked }),
       },
     );
+    if (!t.id.startsWith("local-") && t.source !== "local")
+      rows.push({
+        label: rating(t).disliked ? "Снять дизлайк" : "Не нравится",
+        icon: HeartOff,
+        run: () => dislike(rating(t)),
+      });
     rows.push({
       label: "Добавить в плейлист на устройстве",
       icon: ListPlus,
@@ -281,7 +298,9 @@ export function TrackActionsProvider({
         },
       );
     const i = target.queueEntryId
-      ? state.queue.tracks.findIndex(track => track.queueEntryId === target.queueEntryId)
+      ? state.queue.tracks.findIndex(
+          (track) => track.queueEntryId === target.queueEntryId,
+        )
       : target.queueIndex;
     if (i !== undefined && state.queue.tracks[i]?.id === t.id)
       rows.push({
@@ -289,11 +308,16 @@ export function TrackActionsProvider({
         icon: Trash2,
         separator: true,
         disabled: state.queue.owned && state.queue.index === i,
-        run: () => act("queue", { action: "remove", index: i, entryId: target.queueEntryId }),
+        run: () =>
+          act("queue", {
+            action: "remove",
+            index: i,
+            entryId: target.queueEntryId,
+          }),
       });
   }
   return (
-    <TrackActions.Provider value={{ open, menu }}>
+    <TrackActions.Provider value={{ open, menu, rating, dislike, like }}>
       {children}
       {playlistTracks && (
         <LocalPlaylistDialog

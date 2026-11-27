@@ -8,10 +8,8 @@ import { bridge } from "../bridge";
 import { WaveRenderer } from "./renderer";
 import { useRemoteWaveAudio } from "./remote";
 import { waveBrightness } from "../../../../shared/wave/appearance.mjs";
-import {
-  coverWavePalette,
-  neutralWavePalette as neutral,
-} from "../../../../shared/wave/palette.mjs";
+import { neutralWavePalette as neutral } from "../../../../shared/wave/palette.mjs";
+import { loadCoverColors } from "./coverColors";
 export function WaveScene({
   cover,
   playing,
@@ -41,56 +39,15 @@ export function WaveScene({
   const latest = useRef({ playing, local, intensity, smoothing, quality });
   latest.current = { playing, local, intensity, smoothing, quality };
   useEffect(() => {
-    if (!cover) {
-      palette.current = neutral.map((c) => c.slice());
-      lineGain.current = 1.25;
-      wake.current();
-      return;
-    }
     let cancelled = false;
-    const image = new Image();
-    image.crossOrigin = "anonymous";
-    image.onload = () => {
+    void loadCoverColors(cover).then((extracted) => {
       if (cancelled) return;
-      try {
-        const c = document.createElement("canvas");
-        c.width = c.height = 96;
-        const ctx = c.getContext("2d")!;
-        const side = Math.min(image.width, image.height);
-        ctx.drawImage(
-          image,
-          (image.width - side) / 2,
-          (image.height - side) / 2,
-          side,
-          side,
-          0,
-          0,
-          96,
-          96,
-        );
-        const data = ctx.getImageData(0, 0, 96, 96).data;
-        const extracted = coverWavePalette(data, 96, 96);
-        palette.current = extracted.colors;
-        lineGain.current = extracted.lineGain;
-        wake.current();
-      } catch {
-        palette.current = neutral.map((c) => c.slice());
-        lineGain.current = 1.25;
-        wake.current();
-      }
-    };
-    image.onerror = () => {
-      if (!cancelled) {
-        palette.current = neutral.map((c) => c.slice());
-        lineGain.current = 1.25;
-        wake.current();
-      }
-    };
-    image.src = cover;
+      palette.current = extracted.colors;
+      lineGain.current = extracted.lineGain;
+      wake.current();
+    });
     return () => {
       cancelled = true;
-      image.onload = null;
-      image.onerror = null;
     };
   }, [cover]);
   useEffect(() => {
@@ -115,7 +72,12 @@ export function WaveScene({
       schedule();
     };
     wake.current = resume;
-    const renderer = new WaveRenderer(el, resume, parseFloat(getComputedStyle(el).getPropertyValue("--wave-top-bleed")) || 0);
+    const renderer = new WaveRenderer(
+      el,
+      resume,
+      parseFloat(getComputedStyle(el).getPropertyValue("--wave-top-bleed")) ||
+        0,
+    );
     const power = (value: { fps: number }) => {
       fps.current = [20, 30, 60].includes(value.fps) ? value.fps : 30;
       resume();

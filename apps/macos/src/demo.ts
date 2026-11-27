@@ -41,8 +41,10 @@ const cards: Card[] = [
 }));
 export function browserBridge(): Bridge {
   let savedAlbums: Card[] = [];
+  let followed = false;
   let state: State = structuredClone(initialState);
-  const entries = (tracks: Track[]): Track[] => tracks.map(t => ({ ...t, queueEntryId: crypto.randomUUID() }));
+  const entries = (tracks: Track[]): Track[] =>
+    tracks.map((t) => ({ ...t, queueEntryId: crypto.randomUUID() }));
   const listeners = new Set<(e: LadEvent) => void>();
   const emit = () =>
     listeners.forEach((fn) =>
@@ -140,6 +142,80 @@ export function browserBridge(): Bridge {
             tracksTitle: "Продолжить слушать",
           };
           break;
+        case "releases":
+          out = {
+            releases: [
+              {
+                ...cards[0],
+                id: "demo-release",
+                type: "album",
+                releaseDate: new Date().toISOString(),
+                releaseType: "single",
+                releaseArtist: {
+                  id: "demo-artist",
+                  type: "artist",
+                  title: "Лад Session",
+                },
+              },
+            ],
+            basis: "Пример новых релизов · без данных аккаунта",
+          };
+          break;
+        case "artist":
+          out = {
+            title: "Лад Session",
+            artist: { id: "demo-artist", type: "artist", title: "Лад Session" },
+            tracks: demoTracks,
+            albums: Array.from({ length: 9 }, (_, i) => ({
+              ...cards[i % 4],
+              id: `demo-album-${i}`,
+              type: "album",
+              title: `Альбом ${i + 1}`,
+              year: 2026 - i,
+            })),
+            followed,
+            listeners: null,
+          };
+          break;
+        case "artistTracks": {
+          const allTracks = [
+            ...demoTracks,
+            ...Array.from({ length: 56 }, (_, i) => ({
+              ...demoTracks[i % 6],
+              id: `demo-${i + demoTracks.length}`,
+              title: `Ещё один трек ${i + 1}`,
+            })),
+          ];
+          const page = Math.max(0, Number(p.page) || 0);
+          out = {
+            tracks: allTracks.slice(page * 50, (page + 1) * 50),
+            page,
+            hasMore: (page + 1) * 50 < allTracks.length,
+          };
+          break;
+        }
+        case "artistAlbums":
+          out = {
+            albums: [{ ...cards[0], type: "album", year: 2026 }],
+            page: 0,
+            hasMore: false,
+          };
+          break;
+        case "artistLike":
+          followed = !!p.liked;
+          out = true;
+          break;
+        case "dislikes": {
+          const tracks = demoTracks.filter((t) => t.disliked);
+          const offset = p.offset || 0,
+            limit = p.limit || 100;
+          out = {
+            tracks: tracks.slice(offset, offset + limit),
+            total: tracks.length,
+            nextOffset: Math.min(tracks.length, offset + limit),
+          };
+          break;
+        }
         case "library":
           out = { playlists: cards, albums: savedAlbums };
           break;
@@ -207,13 +283,23 @@ export function browserBridge(): Bridge {
           break;
         case "queue":
           if (p.entryId) {
-            const index = state.queue.tracks.findIndex(t => t.queueEntryId === p.entryId);
+            const index = state.queue.tracks.findIndex(
+              (t) => t.queueEntryId === p.entryId,
+            );
             if (index < 0) throw new Error("Трек уже удалён из очереди");
             p = { ...p, index, from: index };
             if (p.action === "move") {
-              const rest = state.queue.tracks.filter(t => t.queueEntryId !== p.entryId);
-              p.to = "beforeEntryId" in p ? (p.beforeEntryId === null ? rest.length : rest.findIndex(t => t.queueEntryId === p.beforeEntryId)) : index + (p.delta || 0);
-              if (p.to < 0 || p.to >= state.queue.tracks.length) throw new Error("Очередь изменилась");
+              const rest = state.queue.tracks.filter(
+                (t) => t.queueEntryId !== p.entryId,
+              );
+              p.to =
+                "beforeEntryId" in p
+                  ? p.beforeEntryId === null
+                    ? rest.length
+                    : rest.findIndex((t) => t.queueEntryId === p.beforeEntryId)
+                  : index + (p.delta || 0);
+              if (p.to < 0 || p.to >= state.queue.tracks.length)
+                throw new Error("Очередь изменилась");
             }
           }
           if (p.action === "jump") start(p.index);
@@ -287,10 +373,29 @@ export function browserBridge(): Bridge {
           };
           break;
         case "like":
-          for (const t of [...demoTracks, ...state.queue.tracks])
-            if (t.id === p.id) t.liked = p.liked;
+        case "dislike": {
+          const key = method === "like" ? "liked" : "disliked";
+          for (const t of [
+            ...demoTracks,
+            ...state.queue.tracks,
+            ...(state.playback.track ? [state.playback.track] : []),
+          ]) {
+            if (t.id !== p.id) continue;
+            t[key] = !!p[key];
+            if (p[key]) t[key === "liked" ? "disliked" : "liked"] = false;
+          }
+          if (
+            method === "dislike" &&
+            p.disliked &&
+            state.playback.track?.id === p.id
+          ) {
+            if (state.queue.index + 1 < state.queue.tracks.length)
+              start(state.queue.index + 1);
+            else state.playback.playing = false;
+          }
           out = true;
           break;
+        }
         default:
           throw new Error("Это действие доступно в настольном приложении Лад.");
       }
