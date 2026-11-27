@@ -39,7 +39,7 @@ class LockScreenSettingsActivity : ComponentActivity() {
         setContent {
             val engine = (application as LadApplication).engine
             val state by engine.state.collectAsStateWithLifecycle()
-            LadTheme(state.settings) { LockScreenChooser(state, engine, ::finish) }
+            LadTheme(state.settings, orbit = !state.settings.classicDesign) { LockScreenChooser(state, engine, ::finish) }
         }
     }
 }
@@ -72,8 +72,8 @@ private fun LockScreenChooser(s: MusicState, engine: MusicEngine, back: () -> Un
                 Spacer(Modifier.height(4.dp))
                 LockStyle.entries.forEach { style ->
                     val selected=draft.style==style
-                    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(if(selected)p.tonal else p.surface)
-                        .border(1.dp,if(selected)p.accent.copy(alpha=.6f) else Color.White.copy(alpha=.06f),RoundedCornerShape(20.dp))
+                    Row(Modifier.fillMaxWidth().clip(ladPanelShape(20.dp)).background(if(selected)p.tonal else p.surface)
+                        .border(1.dp,if(selected)p.accent.copy(alpha=.6f) else Color.White.copy(alpha=.06f),ladPanelShape(20.dp))
                         .selectable(selected,role=Role.RadioButton){draft=draft.copy(style=style)}.padding(12.dp),
                         verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(16.dp)) {
                         LockMiniPreview(s,visual,style,draft.options(style),Modifier.size(62.dp,134.dp))
@@ -95,7 +95,7 @@ private fun LockScreenChooser(s: MusicState, engine: MusicEngine, back: () -> Un
                     context.startActivity(Intent(context,LockScreenActivity::class.java))
                 }
             } else {
-                Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(p.surface).padding(16.dp),
+                Row(Modifier.fillMaxWidth().clip(ladPanelShape(24.dp)).background(p.surface).padding(16.dp),
                     horizontalArrangement=Arrangement.spacedBy(20.dp),verticalAlignment=Alignment.CenterVertically) {
                     LockMiniPreview(s,visual,draft.style,draft.options(),Modifier.size(90.dp,195.dp))
                     Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(12.dp)) {
@@ -144,13 +144,13 @@ private fun LockScreenChooser(s: MusicState, engine: MusicEngine, back: () -> Un
             Spacer(Modifier.height(12.dp))
         }
         Button({engine.settings(engine.state.value.settings.copy(lockScreen=draft.copy(enabled=true)));back()},
-            Modifier.fillMaxWidth().padding(horizontal=20.dp,vertical=12.dp).heightIn(min=52.dp),shape=RoundedCornerShape(16.dp)) {
+            Modifier.fillMaxWidth().padding(horizontal=20.dp,vertical=12.dp).heightIn(min=52.dp),shape=ladControlShape(16.dp)) {
             Text("Использовать «${draft.style.title}»")
         }
     }
     if(fullPreview)Dialog({fullPreview=false},properties=DialogProperties(usePlatformDefaultWidth=false,decorFitsSystemWindows=false)) {
         Box(Modifier.fillMaxSize()) {
-            LadTheme(s.settings.copy(scale=1f,accent=0xFFE2E6EC,tinted=false)) {
+            LockScreenTheme(s.settings) {
                 LockScreenScene(s,visual,draft.style,draft.options(),Modifier.fillMaxSize(),preview=true)
             }
             IconButton({fullPreview=false},Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(8.dp)) {
@@ -163,9 +163,9 @@ private fun LockScreenChooser(s: MusicState, engine: MusicEngine, back: () -> Un
 @Composable
 private fun LockSegments(labels:List<String>, selected:Int, choose:(Int)->Unit) {
     val p=LocalPalette.current
-    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(p.surface).padding(4.dp),horizontalArrangement=Arrangement.spacedBy(4.dp)) {
+    Row(Modifier.fillMaxWidth().clip(ladControlShape(16.dp)).background(p.surface).padding(4.dp),horizontalArrangement=Arrangement.spacedBy(4.dp)) {
         labels.forEachIndexed { index,label ->
-            Box(Modifier.weight(1f).heightIn(min=44.dp).clip(RoundedCornerShape(12.dp))
+            Box(Modifier.weight(1f).heightIn(min=44.dp).clip(ladControlShape(12.dp))
                 .background(if(index==selected)p.tonal else Color.Transparent)
                 .selectable(index==selected,role=Role.RadioButton){choose(index)}.padding(4.dp),contentAlignment=Alignment.Center) {
                 Label(label,12,if(index==selected)p.text else p.muted,maxLines=2)
@@ -180,7 +180,7 @@ private fun LockMiniPreview(s:MusicState,visual:LockVisual,style:LockStyle,optio
     val density=LocalDensity.current
     CompositionLocalProvider(LocalDensity provides Density(density.density,1f)) {
         Layout(content={
-            LadTheme(s.settings.copy(scale=1f,accent=0xFFE2E6EC,tinted=false)) {
+            LockScreenTheme(s.settings) {
                 LockScreenScene(s,visual,style,options,Modifier.fillMaxSize())
             }
         },modifier=modifier.clip(RoundedCornerShape(12.dp)).clearAndSetSemantics{}) { measurables,constraints ->

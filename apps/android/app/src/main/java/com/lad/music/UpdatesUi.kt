@@ -5,7 +5,6 @@ import android.app.Activity
 import android.content.ContextWrapper
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.LinearProgressIndicator
@@ -24,7 +23,7 @@ fun UpdatesCard() {
     val s by updater.state.collectAsState()
     val palette=LocalPalette.current
     val activity=generateSequence(context){(it as? ContextWrapper)?.baseContext}.filterIsInstance<Activity>().firstOrNull()
-    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(palette.surface).padding(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
+    Column(Modifier.fillMaxWidth().clip(ladPanelShape(20.dp)).background(palette.surface).padding(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
         Label(when(s.phase){"checking"->"Проверяем GitHub…";"available"->"Доступен Лад ${s.version}";"downloading"->"Скачивание · ${s.progress}%";"ready"->"Обновление загружено";"current"->"Установлена последняя версия";"error"->"Не удалось обновить Лад";"installing"->"Установка обновления";else->"Обновления"},20,weight=FontWeight.SemiBold)
         Label("Лад ${installedAppVersion(androidx.compose.ui.platform.LocalContext.current).name} · стабильный выпуск",13,palette.muted)
         if(s.phase=="downloading") {

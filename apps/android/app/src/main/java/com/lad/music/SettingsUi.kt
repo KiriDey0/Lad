@@ -120,7 +120,7 @@ fun LoginView(
                 label = { Text("OAuth-токен Яндекс Музыки") },
                 visualTransformation = PasswordVisualTransformation(),
                 singleLine = true,
-                shape = RoundedCornerShape(16.dp),
+                shape = ladControlShape(16.dp),
             )
             Action(
                 "Войти с токеном",
@@ -175,7 +175,7 @@ fun SettingsView(
     ) {
         Column(
             Modifier.fillMaxWidth()
-                .clip(RoundedCornerShape(20.dp))
+                .clip(ladPanelShape(20.dp))
                 .background(p.surface)
                 .padding(16.dp)
         ) {
@@ -263,10 +263,10 @@ fun SettingsView(
         Label("Пресет", 16, weight = FontWeight.Medium)
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             listOf("flat" to "Ровный", "warm" to "Тёплый свет", "rock" to "Реп / рок", "night" to "Ночной", "custom" to "Свой профиль").forEach { (id, title) ->
-                FilterChip(
+                ChoiceChip(
                     selected = settings.audioPreset == id,
                     onClick = {
-                        if (id == "custom") { audioEditor = true; return@FilterChip }
+                        if (id == "custom") { audioEditor = true; return@ChoiceChip }
                         val gains = when (id) {
                             "flat" -> List(10) { 0f }
                             "rock" -> listOf(3.5f, 3f, 1.5f, -1f, -1.5f, 0f, 1.5f, 2f, 2f, 1.5f)
@@ -392,7 +392,7 @@ private fun AudioEqualizerDialog(settings: Settings, engine: MusicEngine, close:
                 Spacer(Modifier.height(12.dp))
                 Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf("flat" to "Ровный", "warm" to "Тёплый свет", "rock" to "Реп / рок", "night" to "Ночной").forEach { (id, title) ->
-                        FilterChip(
+                        ChoiceChip(
                             selected = settings.audioPreset == id,
                             onClick = {
                                 val gains = when (id) {
@@ -442,7 +442,7 @@ private fun AudioEqualizerDialog(settings: Settings, engine: MusicEngine, close:
                                 textStyle = LocalTextStyle.current.copy(textAlign = TextAlign.Center),
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                                 suffix = { Text("dB", fontSize = 10.sp) },
-                                shape = RoundedCornerShape(12.dp),
+                                shape = ladControlShape(12.dp),
                             )
                         }
                     }

@@ -196,7 +196,7 @@ internal fun LockScreenScene(
                     LockButton(Icons.Outlined.Shuffle,"Перемешать",active=s.shuffle,preview=preview){command("shuffle")}
                     LockButton(Icons.Outlined.SkipPrevious,"Предыдущий трек",preview=preview,enabled=s.track!=null&&!s.loading){command("previous")}
                     FilledIconButton({command("toggle")},Modifier.size(64.dp),enabled=preview||s.track!=null,
-                        shape=RoundedCornerShape(22.dp),colors=IconButtonDefaults.filledIconButtonColors(containerColor=p.accent,contentColor=Color(0xFF0C0D0F))) {
+                        shape=ladControlShape(22.dp),colors=IconButtonDefaults.filledIconButtonColors(containerColor=p.accent,contentColor=Color(0xFF0C0D0F))) {
                         Icon(if(s.playing)Icons.Outlined.Pause else Icons.Outlined.PlayArrow,if(s.playing)"Пауза" else "Продолжить",Modifier.size(30.dp))
                     }
                     LockButton(Icons.Outlined.SkipNext,"Следующий трек",preview=preview,enabled=s.track!=null&&!s.loading){command("next")}
@@ -222,10 +222,12 @@ private fun LockLyricsView(s: MusicState, lyrics: Lyrics, loading: Boolean, visi
     LaunchedEffect(active, lines.size, visible) {
         if (visible && active >= 0) listState.animateScrollToItem((active - 2).coerceAtLeast(0))
     }
+    val shape = ladPanelShape(24.dp)
     Box(
         modifier
+            .clip(shape)
             .background(Color(0xFF0C0D0F).copy(alpha = .48f))
-            .border(1.dp, Color.White.copy(alpha = .18f), RoundedCornerShape(24.dp)),
+            .border(1.dp, Color.White.copy(alpha = .18f), shape),
         contentAlignment = Alignment.Center,
     ) {
         when {
@@ -265,7 +267,7 @@ private fun LockGlassPanel(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    val shape = RoundedCornerShape(24.dp)
+    val shape = ladPanelShape(24.dp)
     val tint = Color(0xFF17191D).copy(alpha = if (atmosphere) .47f else .34f)
     Box(modifier.clip(shape).border(1.dp, Color.White.copy(alpha = .22f), shape)) {
         if (art != null) {

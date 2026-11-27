@@ -319,7 +319,7 @@ fun MenuPlaybackActions(
         labels.forEachIndexed { i, label ->
             Column(
                 Modifier.weight(1f)
-                    .clip(androidx.compose.foundation.shape.RoundedCornerShape(18.dp))
+                    .clip(ladPanelShape(18.dp))
                     .background(p.raised)
                     .clickable(enabled = enabled, onClick = actions[i])
                     .padding(vertical = 14.dp),

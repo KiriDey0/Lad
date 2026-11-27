@@ -15,7 +15,6 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.*
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
@@ -125,7 +124,7 @@ fun Transport(s: MusicState, engine: MusicEngine) {
             { engine.task { engine.toggle() } },
             Modifier.size(64.dp),
             enabled = s.track != null && !s.loading,
-            shape = RoundedCornerShape(22.dp),
+            shape = ladControlShape(22.dp),
             colors =
                 IconButtonDefaults.filledIconButtonColors(
                     containerColor = p.accent,
@@ -315,7 +314,7 @@ fun NowView(
                         ) {
                             Row(
                                 Modifier.weight(1f)
-                                    .clip(RoundedCornerShape(18.dp))
+                                    .clip(ladPanelShape(18.dp))
                                     .background(p.surface)
                                     .clickable(onClick = devices)
                                     .padding(horizontal = 12.dp)
@@ -504,7 +503,7 @@ fun DevicePane(s: MusicState, engine: MusicEngine, dismiss: () -> Unit) {
             Label(transferError, 14, p.accent, modifier = Modifier.padding(vertical = 12.dp))
         Row(
             Modifier.fillMaxWidth()
-                .clip(RoundedCornerShape(20.dp))
+                .clip(ladControlShape(20.dp))
                 .background(if (selected == "phone") p.tonal else p.surface)
                 .clickable(enabled = !busy) { selected = "phone" }
                 .padding(16.dp),
@@ -521,7 +520,7 @@ fun DevicePane(s: MusicState, engine: MusicEngine, dismiss: () -> Unit) {
         s.devices.forEach { device ->
             Row(
                 Modifier.fillMaxWidth()
-                    .clip(RoundedCornerShape(20.dp))
+                    .clip(ladControlShape(20.dp))
                     .background(if (selected == device.id) p.tonal else p.surface)
                     .clickable(enabled = !busy) { selected = device.id }
                     .padding(16.dp),
@@ -579,7 +578,7 @@ fun DevicePane(s: MusicState, engine: MusicEngine, dismiss: () -> Unit) {
                 Modifier.fillMaxWidth(),
                 label = { Text("Например, 192.168.1.25") },
                 singleLine = true,
-                shape = RoundedCornerShape(16.dp),
+                shape = ladControlShape(16.dp),
                 keyboardOptions =
                     androidx.compose.foundation.text.KeyboardOptions(
                         keyboardType = androidx.compose.ui.text.input.KeyboardType.Ascii

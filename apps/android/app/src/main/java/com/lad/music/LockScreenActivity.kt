@@ -177,7 +177,7 @@ class LockScreenActivity : ComponentActivity() {
                 else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                 onDispose { window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON) }
             }
-            LadTheme(s.settings.copy(scale = 1f, accent = 0xFFE2E6EC, tinted = false)) {
+            LockScreenTheme(s.settings) {
                 // Keep the composition/artwork/lyrics mode across display sleep. Only
                 // visible clocks and lyric work resume when the display is interactive.
                 LockPlayer(s, engine, ::closePlayer, ::unlock, active = visible) { lyricsVisible = it }

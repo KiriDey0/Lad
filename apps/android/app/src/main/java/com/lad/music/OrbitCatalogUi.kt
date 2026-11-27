@@ -27,7 +27,7 @@ import java.util.Locale
 internal fun OrbitSectionLink(title: String, open: () -> Unit) {
     val p = LocalPalette.current
     Row(
-        Modifier.fillMaxWidth().heightIn(min = 48.dp).clip(RoundedCornerShape(14.dp)).clickable(onClick = open),
+        Modifier.fillMaxWidth().heightIn(min = 48.dp).clip(ladControlShape(14.dp)).clickable(onClick = open),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -85,7 +85,7 @@ internal fun ReleaseTile(
         }
         Row(
             Modifier.fillMaxWidth().align(Alignment.BottomCenter).height(64.dp)
-                .clip(RoundedCornerShape(18.dp)).background(p.surface),
+                .clip(ladPanelShape(18.dp)).background(p.surface),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Row(

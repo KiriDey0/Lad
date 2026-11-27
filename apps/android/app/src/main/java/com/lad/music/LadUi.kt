@@ -117,7 +117,7 @@ fun Action(
         onClick,
         modifier.heightIn(min = 48.dp),
         enabled = enabled,
-        shape = if (LocalOrbitDesign.current) CircleShape else RoundedCornerShape(16.dp),
+        shape = ladControlShape(16.dp),
         colors =
             ButtonDefaults.buttonColors(
                 containerColor = if (tonal) p.tonal else p.accent,
@@ -127,7 +127,7 @@ fun Action(
     ) {
         Box(
             Modifier.size(32.dp)
-                .clip(RoundedCornerShape(8.dp))
+                .clip(ladControlShape(8.dp))
                 .background((if (tonal) p.text else p.bg).copy(alpha = .08f)),
             contentAlignment = Alignment.Center,
         ) {
@@ -190,7 +190,7 @@ fun Explicit(track: Track, interactive: Boolean = true) {
     Box(
         Modifier.padding(start = 5.dp)
             .size((16 * scale).dp)
-            .clip(RoundedCornerShape((3 * scale).dp))
+            .clip(ladControlShape((3 * scale).dp))
             .background(p.raised)
             .then(if (interactive) Modifier.clickable { show(track) } else Modifier)
             .semantics { contentDescription = "Контент 18+" },
@@ -229,7 +229,7 @@ fun TrackRow(
         modifier
             .fillMaxWidth()
             .heightIn(min = 68.dp)
-            .clip(RoundedCornerShape(16.dp))
+            .clip(ladPanelShape(16.dp))
             .background(
                 if (current) p.tonal else Color.Transparent
             )
@@ -259,7 +259,7 @@ fun TrackRow(
                         Icons.Outlined.GraphicEq,
                         "Играет",
                         Modifier.align(Alignment.Center)
-                            .background(p.surface.copy(alpha = .5f), RoundedCornerShape(6.dp))
+                            .background(p.surface.copy(alpha = .5f), ladControlShape(6.dp))
                             .size(22.dp),
                         tint = p.accent,
                     )
@@ -590,7 +590,7 @@ private fun WavePreferencesPane(s: MusicState, engine: MusicEngine, dismiss: () 
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 g.values.forEach { v ->
-                    FilterChip(
+                    ChoiceChip(
                         selected = value?.selected?.get(g.key) == v.value,
                         onClick = {
                             value = value!!.copy(selected = value!!.selected + (g.key to v.value))
@@ -789,7 +789,7 @@ fun MenuItem(label: String, icon: ImageVector, enabled: Boolean = true, onClick:
     Row(
         Modifier.fillMaxWidth()
             .heightIn(min = 48.dp)
-            .clip(RoundedCornerShape(16.dp))
+            .clip(ladControlShape(16.dp))
             .clickable(enabled = enabled, onClick = onClick)
             .padding(10.dp)
             .alpha(if (enabled) 1f else .35f),
@@ -1385,7 +1385,7 @@ fun LadApp(engine: MusicEngine, restartInterface: () -> Unit) {
                                                     onClick = { query = "" },
                                                 )
                                         },
-                                        shape = RoundedCornerShape(16.dp),
+                                        shape = ladControlShape(16.dp),
                                     )
                                     LazyRow(
                                         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -1400,7 +1400,7 @@ fun LadApp(engine: MusicEngine, restartInterface: () -> Unit) {
                                                 "playlist" to "Плейлисты",
                                             )
                                         ) { (key, label) ->
-                                            FilterChip(
+                                            ChoiceChip(
                                                 searchType == key,
                                                 {
                                                     searchType = key
@@ -1613,7 +1613,7 @@ fun LadApp(engine: MusicEngine, restartInterface: () -> Unit) {
                                             if (artistView == "albums") {
                                                 items(shownCatalog.cards, key = { it.key }) { album ->
                                                     Row(
-                                                        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
+                                                        Modifier.fillMaxWidth().clip(ladPanelShape(16.dp))
                                                             .background(p.surface).clickable { open(album) }.padding(12.dp),
                                                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                                                         verticalAlignment = Alignment.CenterVertically,
@@ -1888,7 +1888,14 @@ fun LadApp(engine: MusicEngine, restartInterface: () -> Unit) {
                             MenuSummary(track.cover,track.title,track.artist)
                             Label("На этом устройстве",13,p.muted)
                             for(card in localLibrary.playlists)MenuItem(card.title,Icons.Outlined.PlaylistPlay) {engine.localLibrary.addPlaylist(card.id,listOf(track));localPlaylistTrack=null;engine.notice("Добавлено в «${card.title}»")}
-                            OutlinedTextField(localPlaylistTitle,{localPlaylistTitle=it.take(160)},label={Text("Новый плейлист")},singleLine=true,modifier=Modifier.fillMaxWidth())
+                            OutlinedTextField(
+                                value = localPlaylistTitle,
+                                onValueChange = { localPlaylistTitle = it.take(160) },
+                                label = { Text("Новый плейлист") },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = if (orbit) CircleShape else OutlinedTextFieldDefaults.shape,
+                            )
                             Action("Создать и добавить",Icons.Outlined.Add,enabled=localPlaylistTitle.isNotBlank(),modifier=Modifier.fillMaxWidth()) {engine.localLibrary.createPlaylist(localPlaylistTitle,listOf(track));localPlaylistTrack=null;engine.notice("Плейлист создан")}
                         }
                     }
@@ -2056,7 +2063,7 @@ fun LadApp(engine: MusicEngine, restartInterface: () -> Unit) {
                                 .clickable { engine.clearNotice() },
                             s.settings.glass,
                             true,
-                            shape = RoundedCornerShape(18.dp),
+                            shape = ladPanelShape(18.dp),
                         ) {
                             Label(s.message!!, 13, modifier = Modifier.padding(16.dp))
                         }

@@ -8,7 +8,6 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
-import androidx.compose.material3.FilterChip
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
@@ -18,7 +17,7 @@ import androidx.compose.ui.unit.dp
 @Composable fun CollectionSources(source:String,select:(String)->Unit,engine:MusicEngine) {
     LazyRow(horizontalArrangement=Arrangement.spacedBy(8.dp),contentPadding=PaddingValues(vertical=4.dp)) {
         items(listOf("all" to "Всё","yandex" to "Яндекс Музыка","local" to "На устройстве")) { (id,title)->
-            FilterChip(source==id,{select(id)},label={Label(title,12,maxLines=1)})
+            ChoiceChip(source==id,{select(id)},label={Label(title,12,maxLines=1)})
         }
         item {Tool(Icons.Outlined.CreateNewFolder,"Добавить папку",onClick={engine.requestLocalFolder()})}
     }

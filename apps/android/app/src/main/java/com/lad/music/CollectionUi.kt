@@ -52,7 +52,7 @@ private fun CollectionTile(
     val p = LocalPalette.current
     Column(
         modifier
-            .clip(RoundedCornerShape(18.dp))
+            .clip(ladPanelShape(18.dp))
             .background(p.surface)
             .clickable(onClick = click)
             .padding(12.dp)
@@ -104,7 +104,7 @@ fun CollectionView(
             contentPadding = PaddingValues(vertical = 8.dp),
         ) {
             item {
-                FilterChip(
+                ChoiceChip(
                     !likedGroup,
                     { group(false) },
                     label = {
@@ -113,7 +113,7 @@ fun CollectionView(
                 )
             }
             item {
-                FilterChip(
+                ChoiceChip(
                     likedGroup,
                     { group(true) },
                     label = {
@@ -160,7 +160,7 @@ fun CollectionView(
                     item {
                         Row(
                             Modifier.fillMaxWidth()
-                                .clip(RoundedCornerShape(20.dp))
+                                .clip(ladControlShape(20.dp))
                                 .background(p.surface)
                                 .clickable(onClick = favorite)
                                 .padding(14.dp),

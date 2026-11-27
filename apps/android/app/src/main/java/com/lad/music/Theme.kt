@@ -115,6 +115,13 @@ fun LadTheme(settings: Settings, orbit: Boolean = false, content: @Composable ()
     }
 }
 
+@Composable
+internal fun LockScreenTheme(settings: Settings, content: @Composable () -> Unit) {
+    LadTheme(settings.copy(scale = 1f, accent = 0xFFE2E6EC, tinted = false)) {
+        CompositionLocalProvider(LocalOrbitDesign provides !settings.classicDesign, content = content)
+    }
+}
+
 val LocalBackdropReveal = staticCompositionLocalOf<((Any, Boolean) -> Unit)?> { null }
 
 val LocalBackdrop = staticCompositionLocalOf<HazeState?> { null }
@@ -132,7 +139,7 @@ fun Glass(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     popup: Boolean = false,
-    shape: RoundedCornerShape = RoundedCornerShape(24.dp),
+    shape: RoundedCornerShape = ladPanelShape(24.dp),
     content: @Composable BoxScope.() -> Unit,
 ) {
     val p = LocalPalette.current

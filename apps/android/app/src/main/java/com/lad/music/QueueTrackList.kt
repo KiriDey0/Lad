@@ -7,7 +7,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.*
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.Icon
@@ -159,8 +158,8 @@ fun QueueTrackList(
             TrackRow(track, state, {}, {}, {},
                 Modifier.offset { IntOffset(0, (pointerY - grab).roundToInt()) }
                     .height(with(density) { rowHeight.toDp() }).zIndex(2f)
-                    .shadow(12.dp, RoundedCornerShape(16.dp))
-                    .background(p.raised, RoundedCornerShape(16.dp))
+                    .shadow(12.dp, ladPanelShape(16.dp))
+                    .background(p.raised, ladPanelShape(16.dp))
                     .semantics { contentDescription = "Переносимый трек: ${track.title}" },
                 trailing = { Icon(Icons.Outlined.DragIndicator, null, Modifier.size(48.dp).padding(12.dp), tint = p.muted) })
         }
