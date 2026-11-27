@@ -128,6 +128,8 @@ export interface ReleaseHistoryEntry {
   notes: string;
 }
 export interface Bridge {
+  interfaceDesign?: "orbit" | "classic";
+  changeInterfaceDesign?(design: "orbit" | "classic"): Promise<void>;
   releaseHistory?: () => Promise<ReleaseHistoryEntry[]>;
   wavePower?: (request?: {mode: "auto" | "eco" | "smooth"; active: boolean; pressure?: number}) => Promise<{ fps: number }>;
   localFiles?(

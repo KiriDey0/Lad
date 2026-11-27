@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@fontsource-variable/golos-text": "^5.2.8",
+    "@kiridey/orbit-ui": "file:vendor/kiridey-orbit-ui-0.2.0.tgz",
     "clsx": "^2.1.1",
     "culori": "^4.0.2",
     "lucide-react": "^0.468.0",

@@ -2,6 +2,7 @@
 """JSON-lines RPC sidecar. Secrets travel only over inherited process pipes."""
 from __future__ import annotations
 import asyncio
+from datetime import date
 import copy
 import json
 import logging
@@ -93,6 +94,8 @@ class App:
         self.tasks = set()
         self.auth_code = None
         self.radio = None
+        self.rating_lock = asyncio.Lock()
+        self.demo_followed = False
         self.advancing = False
         self.station_continuation = None
         self.operation_epoch = 0
@@ -379,6 +382,9 @@ class App:
         if local_id(t.get('id')):
             t = dict(self.local_library.track(t['id'], self.local_media.cover, require=True), queueEntryId=t.get('queueEntryId', ''))
             self.queue.tracks[index] = t
+        if not self.demo and not local_id(t.get('id')):
+            await self.music.ratings([t])
+            self.require_operation(epoch)
         await self.check_content(t)
         self.require_operation(epoch)
         if t.get('available') is False:
@@ -419,8 +425,10 @@ class App:
         if self.radio and not self.demo:
             self.spawn(self.radio_feedback('trackStarted', t, radio=dict(self.radio)))
 
-    async def advance(self, direction=1, automatic=False):
+    async def advance(self, direction=1, automatic=False, expected_entry=None):
         async with self.lock:
+            if expected_entry and (self.queue.current or {}).get('queueEntryId') != expected_entry:
+                return
             if self.advancing:
                 return
             self.advancing = True
@@ -1046,6 +1054,29 @@ class App:
             self.require_music()
             return await self.music.lyrics(p['id'])
         if self.demo:
+            if method == 'releases':
+                return {'releases': [{**demo_cards()[0], 'type': 'album', 'id': 'demo-release',
+                    'title': 'Первый свет', 'releaseDate': date.today().isoformat(), 'releaseType': 'single',
+                    'releaseArtist': {'id': 'demo-artist', 'type': 'artist', 'title': 'Лад Session'}}],
+                    'basis': 'Пример новых релизов · без данных аккаунта'}
+            if method == 'artist':
+                return {'title': 'Лад Session', 'artist': {'id': 'demo-artist', 'type': 'artist', 'title': 'Лад Session'},
+                        'tracks': DEMO_TRACKS, 'albums': [{**demo_cards()[i % 4], 'id': f'demo-album-{i}', 'type': 'album', 'title': f'Альбом {i + 1}', 'year': 2026 - i} for i in range(9)],
+                        'followed': self.demo_followed, 'listeners': None}
+            if method == 'artistTracks':
+                all_tracks = DEMO_TRACKS + [{**DEMO_TRACKS[i % len(DEMO_TRACKS)], 'id': f'demo-{i + len(DEMO_TRACKS)}',
+                    'title': f'Ещё один трек {i + 1}'} for i in range(56)]
+                page = max(0, int(p.get('page', 0)))
+                return {'tracks': all_tracks[page * 50:(page + 1) * 50], 'page': page, 'hasMore': (page + 1) * 50 < len(all_tracks)}
+            if method == 'artistAlbums':
+                return {'albums': [{**demo_cards()[0], 'type': 'album', 'year': 2026}], 'page': 0, 'hasMore': False}
+            if method == 'artistLike':
+                if not isinstance(p.get('liked'), bool): raise ValueError('Некорректный лайк.')
+                self.demo_followed = p['liked']
+                return True
+            if method == 'dislikes':
+                values = [t for t in DEMO_TRACKS if t.get('disliked')]
+                return {'tracks': values, 'total': len(values)}
             if method == 'search':
                 matches = [t for t in DEMO_TRACKS if p['query'].lower() in (t['title'] + ' ' + t['artist']).lower()]
                 return {'tracks': matches, 'albums': [], 'playlists': [], 'artists': [], 'page': 0, 'total': len(matches)}
@@ -1065,10 +1096,19 @@ class App:
                 if p['liked']:
                     self.demo_albums.append({**p.get('card', {}), 'id': p['id'], 'type': 'album'})
                 return True
-            if method == 'like':
-                for t in DEMO_TRACKS:
+            if method in ('like', 'dislike'):
+                key = 'liked' if method == 'like' else 'disliked'
+                if not isinstance(p.get(key), bool): raise ValueError('Некорректная отметка.')
+                for t in [*DEMO_TRACKS, *self.queue.tracks]:
                     if t['id'] == p['id']:
-                        t['liked'] = p['liked']
+                        t[key] = p[key]
+                        if p[key]: t['disliked' if key == 'liked' else 'liked'] = False
+                if (self.playback.get('track') or {}).get('id') == p['id']:
+                    self.playback['track'][key] = p[key]
+                    if p[key]: self.playback['track']['disliked' if key == 'liked' else 'liked'] = False
+                self.publish(True)
+                if method == 'dislike' and p[key] and (self.queue.current or {}).get('id') == p['id']:
+                    await self.advance(1, expected_entry=(self.queue.current or {}).get('queueEntryId'))
                 return True
             if method == 'wave':
                 self.queue.replace(DEMO_TRACKS, 0, 'Моя волна · пример')
@@ -1097,6 +1137,24 @@ class App:
                     self.radio = context
                     self.publish(True)
                 return result
+        if method == 'releases':
+            if p.get('refresh'): self.music.cache.pop('releases', None)
+            return await self.music.releases()
+        if method == 'artist':
+            return await self.music.artist_info(p['id'])
+        if method == 'artistTracks':
+            return await self.music.artist_tracks(p['id'], max(0, int(p.get('page', 0))))
+        if method == 'artistAlbums':
+            return await self.music.artist_albums(p['id'], max(0, int(p.get('page', 0))))
+        if method == 'artistLike':
+            if not str(p.get('id', '')).isdigit() or not isinstance(p.get('liked'), bool):
+                raise ValueError('Некорректный исполнитель или лайк.')
+            result = await (self.music.client.users_likes_artists_add(p['id']) if p['liked'] else self.music.client.users_likes_artists_remove(p['id']))
+            if not result: raise ValueError('Яндекс не подтвердил лайк исполнителя.')
+            self.music.cache.pop('releases', None)
+            return True
+        if method == 'dislikes':
+            return await self.music.dislikes(max(0, int(p.get('offset', 0))), min(100, max(1, int(p.get('limit', 100)))))
         if method == 'search':
             return await self.music.search(p['query'][:300], int(p.get('page', 0)), p.get('type', 'all'))
         if method == 'liked':
@@ -1116,14 +1174,24 @@ class App:
             if not result:
                 raise ValueError('Яндекс Музыка не сохранила лайк альбома. Попробуй ещё раз.')
             return True
-        if method == 'like':
-            result = await (self.music.client.users_likes_tracks_add(p['id']) if p['liked'] else self.music.client.users_likes_tracks_remove(p['id']))
-            if not result:
-                raise ValueError('Яндекс не подтвердил изменение отметки.')
-            for t in self.queue.tracks:
-                if t['id'] == p['id']:
-                    t['liked'] = p['liked']
-            self.publish(True)
+        if method in ('like', 'dislike'):
+            key = 'liked' if method == 'like' else 'disliked'
+            async with self.rating_lock:
+                current = self.queue.current
+                entry = current.get('queueEntryId') if self.queue.owned and current and current['id'] == p.get('id') else None
+                await self.music.set_rating(p.get('id'), key, p.get(key))
+                self.require_operation(epoch)
+                for t in [*self.queue.tracks, self.playback.get('track') or {}]:
+                    if t.get('id') == p['id']:
+                        t[key] = p[key]
+                        if p[key]: t['disliked' if key == 'liked' else 'liked'] = False
+                self.publish(True)
+                skip = method == 'dislike' and p[key] and entry and (self.queue.current or {}).get('queueEntryId') == entry
+            if skip:
+                try:
+                    await self.advance(1, expected_entry=entry)
+                except Exception:
+                    emit('notice', {'message': 'Дизлайк сохранён. Не удалось включить следующий трек.'})
             return True
         if method == 'wave':
             async with self.lock:

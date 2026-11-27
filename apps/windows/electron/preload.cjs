@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 const { contextBridge, ipcRenderer } = require("electron");
 contextBridge.exposeInMainWorld("lad", {
+  interfaceDesign: process.argv.includes("--lad-interface-design=classic") ? "classic" : "orbit",
+  changeInterfaceDesign: (design) => ipcRenderer.invoke("lad:interface-design", design),
   wavePower: (request) => ipcRenderer.invoke("lad:wave-power", request),
   localFiles: (action, id) => ipcRenderer.invoke("lad:local-files", action, id),
   releaseHistory: () => ipcRenderer.invoke("lad:release-history"),

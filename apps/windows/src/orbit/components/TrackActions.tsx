@@ -1,0 +1,341 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  type MouseEvent,
+  type ReactNode,
+} from "react";
+import {
+  Play,
+  ListEnd,
+  ListStart,
+  Heart,
+  HeartOff,
+  Disc3,
+  Mic2,
+  Copy,
+  ExternalLink,
+  Trash2,
+  Folder,
+  FileText,
+  Info,
+  ListPlus,
+} from "lucide-react";
+import { LocalPlaylistDialog } from "./LocalPlaylistDialog";
+import type { Card, State, Track } from "../types";
+import { bridge } from "../bridge";
+import {
+  ContextMenu,
+  menuAnchor,
+  type MenuAnchor,
+  type MenuRow,
+} from "../../components/ContextMenu";
+import { ExplicitBadge } from "./ExplicitBadge";
+
+type MenuTarget = MenuAnchor & {
+  track: Track;
+  play?: () => void;
+  queueIndex?: number;
+  queueEntryId?: string;
+};
+type Actions = {
+  open: (card: Card) => void;
+  like: (track: Track) => void;
+  rating: (track: Track) => Track;
+  dislike: (track: Track) => Promise<boolean>;
+  menu: (
+    event: MouseEvent<HTMLElement>,
+    track: Track,
+    play?: () => void,
+    queueIndex?: number,
+  ) => void;
+};
+const TrackActions = createContext<Actions | null>(null);
+export function useTrackActions() {
+  const value = useContext(TrackActions);
+  if (!value) throw new Error("TrackActionsProvider is required");
+  return value;
+}
+export function trackArtists(track: Track) {
+  return track.artists?.length
+    ? track.artists
+    : track.artistId
+      ? [{ id: track.artistId, name: track.artist }]
+      : [];
+}
+export function TrackAlbumLink({
+  track,
+  children,
+}: {
+  track: Track;
+  children: ReactNode;
+}) {
+  const { open } = useTrackActions();
+  return track.albumId ? (
+    <button
+      className="metadata-link"
+      aria-label={`Открыть альбом ${track.album || track.title}`}
+      onClick={(e) => {
+        e.stopPropagation();
+        open({
+          id: track.albumId!,
+          type: "album",
+          title: track.album || track.title,
+          subtitle: track.artist,
+          cover: track.cover,
+          art: track.art,
+        });
+      }}
+    >
+      {children}
+    </button>
+  ) : (
+    <>{children}</>
+  );
+}
+export function ArtistLinks({ track }: { track: Track }) {
+  const { open } = useTrackActions();
+  const artists = trackArtists(track);
+  return (
+    <>
+      {artists.length
+        ? artists.map((artist, i) => (
+            <span key={`${artist.id}:${i}`}>
+              {i > 0 && ", "}
+              <button
+                className="metadata-link"
+                aria-label={`Открыть исполнителя ${artist.name}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  open({ id: artist.id, type: "artist", title: artist.name });
+                }}
+              >
+                {artist.name}
+              </button>
+            </span>
+          ))
+        : track.artist}
+    </>
+  );
+}
+export function TrackMetadata({ track }: { track: Track }) {
+  return (
+    <>
+      <strong>
+        <TrackAlbumLink track={track}>{track.title}</TrackAlbumLink>{" "}
+        <ExplicitBadge track={track} />
+      </strong>
+      <small>
+        <ArtistLinks track={track} />
+      </small>
+    </>
+  );
+}
+export function TrackActionsProvider({
+  state,
+  open,
+  play,
+  add,
+  like,
+  dislike,
+  rating,
+  act,
+  notice,
+  children,
+}: {
+  state: State;
+  open: (card: Card) => void;
+  play: (tracks: Track[], index: number, source: string) => void;
+  add: (track: Track, next?: boolean) => void;
+  like: (track: Track) => void;
+  dislike: (track: Track) => Promise<boolean>;
+  rating: (track: Track) => Track;
+  act: (method: string, params?: Record<string, unknown>) => Promise<unknown>;
+  notice: (message: string) => void;
+  children: ReactNode;
+}) {
+  const [target, setTarget] = useState<MenuTarget | null>(null);
+  const [playlistTracks, setPlaylistTracks] = useState<Track[] | null>(null);
+  useEffect(() => {
+    const open = (event: Event) =>
+      setPlaylistTracks((event as CustomEvent<Track[]>).detail || []);
+    window.addEventListener("lad:local-playlist", open);
+    return () => window.removeEventListener("lad:local-playlist", open);
+  }, []);
+  const menu: Actions["menu"] = (event, track, run, queueIndex) => {
+    setTarget({
+      ...menuAnchor(event),
+      track,
+      play: run,
+      queueIndex,
+      queueEntryId: queueIndex === undefined ? undefined : track.queueEntryId,
+    });
+  };
+  useEffect(() => setTarget(null), [state.profile?.uid, state.demo]);
+  const rows: MenuRow[] = [];
+  if (target) {
+    const t = target.track;
+    const blocked =
+      t.available === false || (state.blockExplicit && !!t.explicit);
+    const isLiked = rating(t).liked;
+    rows.push(
+      {
+        label: "Включить",
+        icon: Play,
+        disabled: blocked,
+        run: target.play || (() => play([t], 0, "Выбранный трек")),
+      },
+      {
+        label: "Играть следующим",
+        icon: ListStart,
+        disabled: blocked,
+        run: () => add(t, true),
+      },
+      {
+        label: "Добавить в конец очереди",
+        icon: ListEnd,
+        disabled: blocked,
+        run: () => add(t),
+      },
+      {
+        label: isLiked ? "Убрать из любимых" : "Нравится",
+        icon: Heart,
+        separator: true,
+        run: () => like({ ...t, liked: !!isLiked }),
+      },
+    );
+    if (!t.id.startsWith("local-") && t.source !== "local")
+      rows.push({
+        label: rating(t).disliked ? "Снять дизлайк" : "Не нравится",
+        icon: HeartOff,
+        run: () => dislike(rating(t)),
+      });
+    rows.push({
+      label: "Добавить в плейлист на устройстве",
+      icon: ListPlus,
+      separator: true,
+      run: () => setPlaylistTracks([t]),
+    });
+    if (t.id.startsWith("local-")) {
+      rows.push(
+        {
+          label: "Показать в папке",
+          icon: Folder,
+          separator: true,
+          run: () => bridge.localFiles?.("reveal", t.id),
+        },
+        {
+          label: "Найти файл заново",
+          icon: Folder,
+          run: () => bridge.localFiles?.("locate", t.id),
+        },
+        {
+          label: "Подключить текст LRC или TXT",
+          icon: FileText,
+          run: async () => {
+            const result = await bridge.localFiles?.("lyrics", t.id);
+            if (result) {
+              window.dispatchEvent(new Event("lad:lyrics-changed"));
+              notice("Текст песни подключён");
+            }
+          },
+        },
+        {
+          label: "О файле",
+          icon: Info,
+          run: async () => {
+            const info = await bridge.rpc<
+              Track & { sampleRate: number; channels: number }
+            >("localFileInfo", { id: t.id });
+            notice(
+              `${info.fileName} · ${info.format} · ${info.sampleRate} Гц · ${info.channels} кан.`,
+            );
+          },
+        },
+      );
+    }
+    if (t.albumId)
+      rows.push({
+        label: "Перейти к альбому",
+        icon: Disc3,
+        separator: true,
+        run: () =>
+          open({
+            id: t.albumId!,
+            type: "album",
+            title: t.album || t.title,
+            cover: t.cover,
+            art: t.art,
+            subtitle: t.artist,
+          }),
+      });
+    for (const artist of trackArtists(t))
+      rows.push({
+        label: `К исполнителю: ${artist.name}`,
+        icon: Mic2,
+        run: () => open({ id: artist.id, type: "artist", title: artist.name }),
+      });
+    const url = `https://music.yandex.ru/${t.albumId ? `album/${encodeURIComponent(t.albumId)}/` : ""}track/${encodeURIComponent(t.id)}`;
+    if (!t.id.startsWith("local-"))
+      rows.push(
+        {
+          label: "Скопировать ссылку",
+          icon: Copy,
+          separator: true,
+          disabled: state.demo,
+          run: async () => {
+            await bridge.copy(url);
+            notice("Ссылка на трек скопирована");
+          },
+        },
+        {
+          label: "Открыть в Яндекс Музыке",
+          icon: ExternalLink,
+          disabled: state.demo,
+          run: () => bridge.open(url),
+        },
+      );
+    const i = target.queueEntryId
+      ? state.queue.tracks.findIndex(
+          (track) => track.queueEntryId === target.queueEntryId,
+        )
+      : target.queueIndex;
+    if (i !== undefined && state.queue.tracks[i]?.id === t.id)
+      rows.push({
+        label: "Удалить из очереди",
+        icon: Trash2,
+        separator: true,
+        disabled: state.queue.owned && state.queue.index === i,
+        run: () =>
+          act("queue", {
+            action: "remove",
+            index: i,
+            entryId: target.queueEntryId,
+          }),
+      });
+  }
+  return (
+    <TrackActions.Provider value={{ open, menu, rating, dislike, like }}>
+      {children}
+      {playlistTracks && (
+        <LocalPlaylistDialog
+          tracks={playlistTracks}
+          close={() => setPlaylistTracks(null)}
+          notice={notice}
+        />
+      )}
+      {target && (
+        <ContextMenu
+          anchor={target}
+          title={target.track.title}
+          label={`Действия с треком ${target.track.title}`}
+          rows={rows}
+          close={() => setTarget(null)}
+          notice={notice}
+        />
+      )}
+    </TrackActions.Provider>
+  );
+}

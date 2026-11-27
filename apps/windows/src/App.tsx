@@ -1,3 +1,4 @@
+import { InterfaceDesignSetting } from "./InterfaceDesignSetting";
 import { QueuePanel } from "./components/QueuePanel";
 import {Modal} from "./components/Modal";
 import {
@@ -2936,6 +2937,7 @@ function SettingsPage({
           </Button>
         )}
       </section>
+      <InterfaceDesignSetting />
     </div>
   );
 }

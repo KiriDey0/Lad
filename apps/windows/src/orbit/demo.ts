@@ -1,0 +1,406 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+import {
+  initialState,
+  type Bridge,
+  type State,
+  type Track,
+  type LadEvent,
+  type Card,
+} from "./types";
+export const demoTracks: Track[] = [
+  "Первый свет",
+  "Тихий город",
+  "Между станциями",
+  "После полуночи",
+  "Ближе к свету",
+  "До следующего утра",
+].map((title, i) => ({
+  id: `demo-${i}`,
+  title,
+  artist: "Лад Session",
+  artistId: "demo-artist",
+  artists: [{ id: "demo-artist", name: "Лад Session" }],
+  album: "Тихий город",
+  albumId: "demo",
+  duration: 216 + i * 9,
+  art: i,
+  available: true,
+  liked: i % 2 === 0,
+}));
+const cards: Card[] = [
+  "Первый свет",
+  "Тихий город",
+  "После полуночи",
+  "Ближе к свету",
+].map((title, i) => ({
+  id: `demo-${i}`,
+  type: "playlist",
+  title,
+  subtitle: "Лад Session · пример",
+  art: i,
+}));
+export function browserBridge(): Bridge {
+  let savedAlbums: Card[] = [];
+  let followed = false;
+  let state: State = structuredClone(initialState);
+  const entries = (tracks: Track[]): Track[] =>
+    tracks.map((t) => ({ ...t, queueEntryId: crypto.randomUUID() }));
+  const listeners = new Set<(e: LadEvent) => void>();
+  const emit = () =>
+    listeners.forEach((fn) =>
+      fn({ event: "state", data: structuredClone(state) }),
+    );
+  const start = (index: number) => {
+    state.queue.index = index;
+    state.queue.owned = true;
+    state.playback = {
+      ...state.playback,
+      track: state.queue.tracks[index],
+      position: 0,
+      positionAt: Date.now(),
+      duration: state.queue.tracks[index].duration,
+      playing: true,
+    };
+  };
+  setInterval(() => {
+    if (state.demo && state.playback.playing) {
+      const p = state.playback;
+      const pos = p.position + (Date.now() - p.positionAt) / 1000;
+      if (pos >= p.duration) {
+        if (state.queue.index < state.queue.tracks.length - 1)
+          start(state.queue.index + 1);
+        else p.playing = false;
+      }
+      emit();
+    }
+  }, 1000);
+  return {
+    platform: "browser",
+    onEvent(fn) {
+      listeners.add(fn);
+      return () => listeners.delete(fn);
+    },
+    async login() {
+      throw new Error(
+        "Вход в аккаунт доступен в настольном приложении Лад. Здесь можно посмотреть демо.",
+      );
+    },
+    async open(url) {
+      window.open(url, "_blank", "noopener,noreferrer");
+    },
+    async copy(text) {
+      await navigator.clipboard.writeText(text);
+    },
+    async rpc<T = any>(
+      method: string,
+      p: Record<string, any> = {},
+    ): Promise<T> {
+      let out: any;
+      switch (method) {
+        case "snapshot":
+          out = state;
+          break;
+        case "demo":
+          state = {
+            ...structuredClone(initialState),
+            demo: true,
+            profile: { name: "Режим знакомства", uid: "demo", plus: true },
+            queue: {
+              tracks: entries(demoTracks),
+              index: 0,
+              source: "Лад Session · пример",
+              owned: true,
+              repeat: "off",
+              shuffled: false,
+            },
+          };
+          state.playback = {
+            ...state.playback,
+            track: state.queue.tracks[0],
+            duration: 216,
+          };
+          out = state;
+          break;
+        case "logout":
+          state = structuredClone(initialState);
+          out = state;
+          break;
+        case "setVolumeSync":
+          state.syncVolume = !!p.enabled;
+          out = state;
+          break;
+        case "setContentFilter":
+          state.blockExplicit = !!p.enabled;
+          if (state.blockExplicit && state.playback.track?.explicit)
+            state.playback.playing = false;
+          out = state;
+          break;
+        case "home":
+          out = {
+            cards,
+            tracks: demoTracks,
+            tracksTitle: "Продолжить слушать",
+          };
+          break;
+        case "releases":
+          out = {
+            releases: [
+              {
+                ...cards[0],
+                id: "demo-release",
+                type: "album",
+                releaseDate: new Date().toISOString(),
+                releaseType: "single",
+                releaseArtist: {
+                  id: "demo-artist",
+                  type: "artist",
+                  title: "Лад Session",
+                },
+              },
+            ],
+            basis: "Пример новых релизов · без данных аккаунта",
+          };
+          break;
+        case "artist":
+          out = {
+            title: "Лад Session",
+            artist: { id: "demo-artist", type: "artist", title: "Лад Session" },
+            tracks: demoTracks,
+            albums: Array.from({ length: 9 }, (_, i) => ({
+              ...cards[i % 4],
+              id: `demo-album-${i}`,
+              type: "album",
+              title: `Альбом ${i + 1}`,
+              year: 2026 - i,
+            })),
+            followed,
+            listeners: null,
+          };
+          break;
+        case "artistTracks": {
+          const allTracks = [
+            ...demoTracks,
+            ...Array.from({ length: 56 }, (_, i) => ({
+              ...demoTracks[i % 6],
+              id: `demo-${i + demoTracks.length}`,
+              title: `Ещё один трек ${i + 1}`,
+            })),
+          ];
+          const page = Math.max(0, Number(p.page) || 0);
+          out = {
+            tracks: allTracks.slice(page * 50, (page + 1) * 50),
+            page,
+            hasMore: (page + 1) * 50 < allTracks.length,
+          };
+          break;
+        }
+        case "artistAlbums":
+          out = {
+            albums: [{ ...cards[0], type: "album", year: 2026 }],
+            page: 0,
+            hasMore: false,
+          };
+          break;
+        case "artistLike":
+          followed = !!p.liked;
+          out = true;
+          break;
+        case "dislikes": {
+          const tracks = demoTracks.filter((t) => t.disliked);
+          const offset = p.offset || 0,
+            limit = p.limit || 100;
+          out = {
+            tracks: tracks.slice(offset, offset + limit),
+            total: tracks.length,
+            nextOffset: Math.min(tracks.length, offset + limit),
+          };
+          break;
+        }
+        case "library":
+          out = { playlists: cards, albums: savedAlbums };
+          break;
+        case "albumLike":
+          savedAlbums = savedAlbums.filter((c) => c.id !== p.id);
+          if (p.liked) savedAlbums.push({ ...p.card, id: p.id, type: "album" });
+          out = true;
+          break;
+        case "liked":
+          out = { tracks: demoTracks.filter((t) => t.liked), total: 3 };
+          break;
+        case "search": {
+          const tracks = demoTracks.filter((t) =>
+            (t.title + " " + t.artist)
+              .toLowerCase()
+              .includes(String(p.query).toLowerCase()),
+          );
+          out = {
+            tracks,
+            albums: [],
+            playlists: [],
+            artists: [],
+            page: 0,
+            total: tracks.length,
+          };
+          break;
+        }
+        case "collection":
+        case "link":
+          out = {
+            title: p.type === "album" ? "Тихий город" : "Лад Session",
+            tracks: demoTracks,
+          };
+          break;
+        case "wave":
+          state.queue.tracks = structuredClone(demoTracks);
+          state.queue.source = "Моя волна · пример";
+          start(0);
+          out = state;
+          break;
+        case "devices":
+          out = [
+            {
+              id: "demo-midi",
+              name: "Станция Миди · пример",
+              platform: "yandexmidi",
+            },
+          ];
+          break;
+        case "output":
+          state.output = p.output;
+          out = state;
+          break;
+        case "connect":
+          state.deviceId = p.id;
+          state.connection = "connected";
+          state.devices = [{ id: p.id, name: "Станция Миди · пример" }];
+          out = state;
+          break;
+        case "play":
+          state.queue.tracks = entries(p.tracks);
+          state.queue.source = p.source;
+          start(p.index || 0);
+          out = state;
+          break;
+        case "queue":
+          if (p.entryId) {
+            const index = state.queue.tracks.findIndex(
+              (t) => t.queueEntryId === p.entryId,
+            );
+            if (index < 0) throw new Error("Трек уже удалён из очереди");
+            p = { ...p, index, from: index };
+            if (p.action === "move") {
+              const rest = state.queue.tracks.filter(
+                (t) => t.queueEntryId !== p.entryId,
+              );
+              p.to =
+                "beforeEntryId" in p
+                  ? p.beforeEntryId === null
+                    ? rest.length
+                    : rest.findIndex((t) => t.queueEntryId === p.beforeEntryId)
+                  : index + (p.delta || 0);
+              if (p.to < 0 || p.to >= state.queue.tracks.length)
+                throw new Error("Очередь изменилась");
+            }
+          }
+          if (p.action === "jump") start(p.index);
+          if (p.action === "add") {
+            state.queue.tracks.splice(
+              p.next ? state.queue.index + 1 : state.queue.tracks.length,
+              0,
+              ...entries(p.tracks),
+            );
+          }
+          if (p.action === "remove" && p.index !== state.queue.index) {
+            state.queue.tracks.splice(p.index, 1);
+            if (p.index < state.queue.index) state.queue.index--;
+          }
+          if (p.action === "move") {
+            const current = state.queue.tracks[state.queue.index];
+            state.queue.tracks.splice(
+              p.to,
+              0,
+              ...state.queue.tracks.splice(p.from, 1),
+            );
+            state.queue.index = state.queue.tracks.indexOf(current);
+          }
+          if (p.action === "clear") {
+            state.queue.tracks = state.playback.track
+              ? [state.playback.track]
+              : [];
+            state.queue.index = state.queue.tracks.length ? 0 : -1;
+          }
+          out = state;
+          break;
+        case "control": {
+          const playback = state.playback;
+          playback.position = Math.min(
+            playback.duration,
+            playback.position +
+              (playback.playing
+                ? (Date.now() - playback.positionAt) / 1000
+                : 0),
+          );
+          playback.positionAt = Date.now();
+          if (p.action === "toggle") playback.playing = !playback.playing;
+          if (p.action === "play") playback.playing = true;
+          if (p.action === "pause") playback.playing = false;
+          if (p.action === "seek") playback.position = p.value;
+          if (p.action === "volume") playback.volume = p.value;
+          if (
+            p.action === "next" &&
+            state.queue.index < state.queue.tracks.length - 1
+          )
+            start(state.queue.index + 1);
+          if (p.action === "previous" && state.queue.index > 0)
+            start(state.queue.index - 1);
+          if (p.action === "repeat") state.queue.repeat = p.value;
+          if (p.action === "shuffle") state.queue.shuffled = p.value;
+          out = state;
+          break;
+        }
+        case "lyrics":
+          out = {
+            synced: true,
+            lines: [
+              "За окном засыпает город",
+              "И стихают его голоса",
+              "Мы останемся на своей орбите",
+              "Пусть играет ещё одна",
+              "Свет проходит сквозь наши окна",
+              "И ведёт нас до самого утра",
+            ].map((text, i) => ({ text, time: i * 32 })),
+            writers: ["Демонстрационный текст Лад"],
+          };
+          break;
+        case "like":
+        case "dislike": {
+          const key = method === "like" ? "liked" : "disliked";
+          for (const t of [
+            ...demoTracks,
+            ...state.queue.tracks,
+            ...(state.playback.track ? [state.playback.track] : []),
+          ]) {
+            if (t.id !== p.id) continue;
+            t[key] = !!p[key];
+            if (p[key]) t[key === "liked" ? "disliked" : "liked"] = false;
+          }
+          if (
+            method === "dislike" &&
+            p.disliked &&
+            state.playback.track?.id === p.id
+          ) {
+            if (state.queue.index + 1 < state.queue.tracks.length)
+              start(state.queue.index + 1);
+            else state.playback.playing = false;
+          }
+          out = true;
+          break;
+        }
+        default:
+          throw new Error("Это действие доступно в настольном приложении Лад.");
+      }
+      emit();
+      return structuredClone(out) as T;
+    },
+  };
+}

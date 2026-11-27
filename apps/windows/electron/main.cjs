@@ -98,6 +98,7 @@ const allowed = new Set([
   "link",
   "like",
   "albumLike",
+  "releases", "artist", "artistTracks", "artistAlbums", "artistLike", "dislike", "dislikes",
   "wave",
   "waveSettings",
   "waveStream",
@@ -107,6 +108,14 @@ const dataPath = () => app.getPath("userData");
 const secretPath = () => path.join(dataPath(), "session.enc");
 const queuePath = () => path.join(dataPath(), "queue.json");
 const statePath = () => path.join(dataPath(), "window.json");
+const interfacePath = () => path.join(dataPath(), "interface-design");
+function interfaceDesign() {
+  try {
+    return fs.readFileSync(interfacePath(), "utf8") === "classic" ? "classic" : "orbit";
+  } catch {
+    return "orbit";
+  }
+}
 let secrets = {},
   queueState = {};
 let lastState;
@@ -388,6 +397,7 @@ function buildWindow() {
     show: false,
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
+      additionalArguments: [`--lad-interface-design=${interfaceDesign()}`],
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: true,
@@ -440,6 +450,16 @@ if (primaryInstance) app.whenReady().then(() => {
     cache:path.join(dataPath(),"updates"),execPath:process.execPath,appPath:app.getAppPath(),
     emit:state => { if(window && !window.isDestroyed())window.webContents.send("lad:update",state); },
     quit:() => app.quit()});
+  ipcMain.handle("lad:interface-design", (event, design) => {
+    if (event.sender !== window?.webContents || !["orbit", "classic"].includes(design) || quitting)
+      throw Error("Действие недоступно");
+    fs.mkdirSync(dataPath(), { recursive: true });
+    const pendingPath = interfacePath() + ".tmp";
+    fs.writeFileSync(pendingPath, design, { mode: 0o600 });
+    fs.renameSync(pendingPath, interfacePath());
+    app.relaunch({ args: process.argv.slice(1) });
+    app.quit();
+  });
   ipcMain.handle("lad:release-history", async (event) => {
     if (event.sender !== window?.webContents) throw Error("Действие недоступно");
     return require("./release-history.cjs").loadReleaseHistory();

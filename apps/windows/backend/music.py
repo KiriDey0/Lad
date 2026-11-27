@@ -2,6 +2,9 @@
 """Yandex Music catalog, library and lyrics, using yandex-music (LGPL-3.0)."""
 import asyncio
 import re
+import time
+from collections import Counter
+from datetime import date, timedelta
 from yandex_music import ClientAsync
 from core import cover_url, parse_lrc
 
@@ -29,7 +32,16 @@ def playlist(p):
 
 def album(a):
     return {'type': 'album', 'id': str(a.id), 'title': a.title,
-            'subtitle': ', '.join(x.name for x in (a.artists or [])), 'cover': cover_url(a.cover_uri)}
+            'subtitle': ', '.join(x.name for x in (a.artists or [])), 'cover': cover_url(a.cover_uri),
+            'likesCount': getattr(a, 'likes_count', None),
+            'year': a.year, 'releaseDate': getattr(a, 'release_date', None),
+            'releaseType': a.type or 'album',
+            'artists': [artist(x) for x in (a.artists or [])]}
+
+
+def artist(a):
+    return {'id': str(a.id), 'type': 'artist', 'title': a.name,
+            'cover': cover_url(getattr(getattr(a, 'cover', None), 'uri', None))}
 
 
 class Music:
@@ -40,9 +52,140 @@ class Music:
     async def login(self, token):
         client = await ClientAsync(token).init()
         self.client = client
+        self.cache.clear()
         status = await client.account_status()
         return {'name': status.account.display_name or status.account.login,
                 'uid': str(status.account.uid), 'plus': bool(status.plus and status.plus.has_plus)}
+
+    async def ratings(self, tracks):
+        # Read both lists together, but preserve unknown values on a failed request.
+        if not self.client: return tracks
+        cached = self.cache.get('ratings')
+        if not cached or time.monotonic() - cached[0] > 30:
+            async def fetch(name):
+                return await getattr(self.client, name)()
+            values = await asyncio.gather(fetch('users_likes_tracks'),
+                fetch('users_dislikes_tracks'), return_exceptions=True)
+            sets = [None if isinstance(v, Exception) else {str(t.id) for t in (v.tracks if v else []) or []} for v in values]
+            cached = (time.monotonic(), sets)
+            self.cache['ratings'] = cached
+        for t in tracks:
+            for name, ids in zip(('liked', 'disliked'), cached[1]):
+                if ids is not None:
+                    t[name] = str(t['id']) in ids
+        return tracks
+
+    async def set_rating(self, id_, kind, enabled):
+        if not str(id_).isdigit() or not isinstance(enabled, bool):
+            raise ValueError('Некорректная отметка трека.')
+        prefix = 'users_likes_tracks' if kind == 'liked' else 'users_dislikes_tracks'
+        method = getattr(self.client, prefix + ('_add' if enabled else '_remove'))
+        if not await method(id_):
+            raise ValueError('Яндекс не подтвердил изменение отметки.')
+        # Yandex's add endpoints atomically clear the opposite mark.
+        self.cache.pop('ratings', None)
+        self.cache.pop('releases', None)
+        return True
+
+    async def dislikes(self, offset=0, limit=100):
+        data = await self.client.users_dislikes_tracks()
+        ids = [str(t.id) for t in (data.tracks if data else []) or []]
+        found = await self.client.tracks(ids[offset:offset + limit]) if ids[offset:offset + limit] else []
+        by_id = {str(t.id): t for t in found}
+        return {'tracks': [{**(track(by_id[id_]) if id_ in by_id else {
+                    'id': id_, 'title': 'Недоступный трек', 'artist': '', 'duration': 0, 'available': False}),
+                    'disliked': True} for id_ in ids[offset:offset + limit]],
+                'total': len(ids), 'offset': offset, 'nextOffset': min(len(ids), offset + limit)}
+
+    async def artist_info(self, id_):
+        info, ranked, followed = await asyncio.gather(self.client.artists_brief_info(id_),
+            self.client.artists_direct_albums(id_, page_size=9, sort_by='rating'),
+            self.client.users_likes_artists(), return_exceptions=True)
+        if isinstance(info, Exception):
+            raise info
+        if not info or not info.artist:
+            raise ValueError('Исполнитель недоступен.')
+        a = info.artist
+        return {'artist': artist(a), 'title': a.name,
+                'tracks': await self.ratings([track(t) for t in info.popular_tracks or []]),
+                'albums': [] if isinstance(ranked, Exception) else [album(x) for x in (ranked.albums if ranked else [])[:9]],
+                'albumsError': 'Не удалось загрузить популярные альбомы' if isinstance(ranked, Exception) else '',
+                'followed': None if isinstance(followed, Exception) else any(str((getattr(x, 'artist', None) or x).id) == str(id_) for x in followed or []),
+                'listeners': getattr(info.stats, 'last_month_listeners', None)}
+
+    async def artist_tracks(self, id_, page=0):
+        result = await self.client.artists_tracks(id_, page=page, page_size=50)
+        if result is None:
+            raise ValueError('Не удалось загрузить треки исполнителя.')
+        pager = result.pager
+        return {'tracks': await self.ratings([track(t) for t in result.tracks or []]), 'page': page,
+                'hasMore': bool(pager and (page + 1) * pager.per_page < pager.total)}
+
+    async def artist_albums(self, id_, page=0):
+        result = await self.client.artists_direct_albums(id_, page=page, page_size=24, sort_by='year')
+        if result is None:
+            raise ValueError('Дискография пока недоступна.')
+        pager = result.pager
+        return {'albums': [album(x) for x in result.albums or []], 'page': page,
+                'hasMore': bool(pager and (page + 1) * pager.per_page < pager.total)}
+
+    async def releases(self):
+        cached = self.cache.get('releases')
+        if cached and time.monotonic() - cached[0] < 900:
+            return cached[1]
+        # The generic new-releases landing is not a personal artist feed.
+        # Build a bounded personal selection from explicit follows, history and liked tracks.
+        followed, history, likes = await asyncio.gather(self.client.users_likes_artists(),
+            self.client.music_history(full_models_count=100), self.liked(0, 100), return_exceptions=True)
+        if all(isinstance(x, Exception) for x in (followed, history, likes)):
+            raise ValueError('Не удалось загрузить исполнителей для новых релизов.')
+        weights, artists = Counter(), {}
+        def add(a, weight):
+            key = str(a['id'])
+            if not key.isdigit(): return
+            artists[key] = {**artists.get(key, {}), **{k: v for k, v in a.items() if v is not None}}
+            weights[key] += weight
+        if not isinstance(followed, Exception):
+            for x in followed or []:
+                add(artist(getattr(x, 'artist', None) or x), 5)
+        if not isinstance(history, Exception):
+            for tab in getattr(history, 'history_tabs', None) or []:
+                for group in tab.items or []:
+                    for item in group.tracks or []:
+                        model = getattr(item.data, 'full_model', None)
+                        for a in getattr(model, 'artists', None) or []:
+                            add(artist(a), 2)
+        if not isinstance(likes, Exception):
+            for t in likes['tracks']:
+                for a in t['artists']:
+                    add({'id': a['id'], 'type': 'artist', 'title': a['name']}, 1)
+        gate = asyncio.Semaphore(4)
+        today = date.today()
+        cutoff = (today - timedelta(days=90)).isoformat()
+        async def latest(id_):
+            async with gate:
+                result = await self.client.artists_direct_albums(id_, page_size=8, sort_by='year')
+            releases = []
+            for a in (result.albums if result else []) or []:
+                released = (getattr(a, 'release_date', None) or '')[:10]
+                if not cutoff <= released <= today.isoformat(): continue
+                primary = next((artist(x) for x in a.artists or [] if str(x.id) == id_), {})
+                releases.append({**album(a), 'releaseArtist': {**artists[id_], **{k: v for k, v in primary.items() if v is not None}}})
+            return releases
+        results = await asyncio.gather(*(latest(id_) for id_, _ in weights.most_common(24)), return_exceptions=True)
+        if results and all(isinstance(r, Exception) for r in results):
+            raise ValueError('Не удалось загрузить новые релизы. Попробуй ещё раз.')
+        seen, releases = set(), []
+        for result in results:
+            if isinstance(result, Exception): continue
+            for a in result:
+                if a['id'] not in seen:
+                    seen.add(a['id']); releases.append(a)
+        releases.sort(key=lambda x: x['releaseDate'] or '', reverse=True)
+        value = {'releases': releases[:36], 'partial': any(isinstance(r, Exception) for r in (*results, followed, history, likes)),
+                 'basis': 'За последние 90 дней · исполнители из подписок, лайков и недавней истории'}
+        self.cache['releases'] = (time.monotonic(), value)
+        return value
 
     async def wave_settings(self, selected=None):
         info = await self.client.rotor_station_info('user:onyourwave')
@@ -79,7 +222,7 @@ class Music:
         result = await self.client.search(query, type_=type_, page=page)
         def items(name):
             return getattr(getattr(result, name, None), 'results', None) or []
-        return {'tracks': [track(t) for t in items('tracks')],
+        return {'tracks': await self.ratings([track(t) for t in items('tracks')]),
                 'albums': [album(a) for a in items('albums')],
                 'playlists': [playlist(p) for p in items('playlists')],
                 'artists': [{'id': str(a.id), 'type': 'artist', 'title': a.name,
@@ -157,12 +300,12 @@ class Music:
             except Exception:
                 if not cards:
                     raise
-        return {'cards': cards, 'tracks': tracks, 'tracksTitle': title}
+        return {'cards': cards, 'tracks': await self.ratings(tracks), 'tracksTitle': title}
 
     async def collection(self, kind, id_, owner=None, page=0):
         if kind == 'album':
             data = await self.client.albums_with_tracks(id_)
-            return {'title': data.title, 'tracks': [track(t) for volume in (data.volumes or []) for t in volume], 'cover': cover_url(data.cover_uri)}
+            return {'title': data.title, 'tracks': await self.ratings([track(t) for volume in (data.volumes or []) for t in volume]), 'cover': cover_url(data.cover_uri)}
         if kind == 'playlist':
             data = await self.client.users_playlists(id_, user_id=owner)
             if not data:
@@ -175,10 +318,9 @@ class Music:
                 for t in await self.client.tracks(ids[start:start + 150]):
                     resolved[str(t.id)] = t
             tracks = [track(x.track or resolved[str(x.id)]) for x in short if x.track or str(x.id) in resolved]
-            return {'title': data.title, 'tracks': tracks, 'cover': playlist(data)['cover']}
+            return {'title': data.title, 'tracks': await self.ratings(tracks), 'cover': playlist(data)['cover']}
         if kind == 'artist':
-            info, data = await asyncio.gather(self.client.artists(id_), self.client.artists_tracks(id_, page=page, page_size=100))
-            return {'title': info[0].name if info else 'Исполнитель', 'tracks': [track(t) for t in data.tracks or []], 'page': page}
+            return await self.artist_info(id_)
         raise ValueError('Неизвестный тип коллекции.')
 
     async def from_link(self, url):

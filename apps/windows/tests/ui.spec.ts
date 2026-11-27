@@ -14,6 +14,11 @@ const root = path.resolve(__dirname, "..");
 let app: ElectronApplication, page: Page;
 test.beforeAll(async () => {
   test.setTimeout(90000);
+  // These scenarios exercise the compatibility renderer. Native Windows
+  // lifecycle checks exercise the default Orbit renderer in a separate profile.
+  const profile = process.env.LAD_TEST_PROFILE || path.resolve(root, "../../work/test-profile");
+  fs.mkdirSync(profile, { recursive: true });
+  fs.writeFileSync(path.join(profile, "interface-design"), "classic");
   app = await electron.launch({
     args: process.env.LAD_TEST_EXE ? [] : [root],
     executablePath: process.env.LAD_TEST_EXE || undefined,

@@ -1,0 +1,3051 @@
+/* App compositions use Orbit 0.2.0 surfaces, roles and interaction primitives. */
+:root {
+  --orbit-canvas: #111318;
+  --orbit-surface: #131417;
+  --orbit-raised: #202227;
+  --orbit-elevated: #282b32;
+  --orbit-text: #f0f2f6;
+  --orbit-muted: #a9afbb;
+  --orbit-rim: #ffffff24;
+  --orbit-accent: #bfcaf5;
+  --orbit-on-accent: #111728;
+  --orbit-tonal: #292f46;
+  --orbit-on-tonal: #dce4ff;
+  --orbit-focus: var(--orbit-accent);
+  --orbit-action-glass: #171a21d6;
+}
+.lad-orbit,
+.orbit-dialog,
+.track-menu,
+.explicit-tooltip {
+  --bg: var(--orbit-canvas);
+  --surface: var(--orbit-surface);
+  --raised: var(--orbit-raised);
+  --text: var(--orbit-text);
+  --muted: var(--orbit-muted);
+  --border: var(--orbit-rim);
+  --accent: var(--orbit-accent);
+  --tonal: var(--orbit-tonal);
+  --on-accent: var(--orbit-on-accent);
+  --glass-fill: var(--orbit-action-glass);
+  --glass-popup-fill: var(--orbit-elevated);
+  --glass-border: var(--orbit-rim);
+  --accent-soft: color-mix(in srgb, var(--orbit-accent) 14%, transparent);
+}
+body {
+  background: var(--orbit-canvas);
+}
+.lad-orbit {
+  min-height: 100dvh;
+}
+.lad-orbit .app-shell {
+  min-width: 0;
+  min-height: 540px;
+  --player-clearance: 138px;
+  background: var(--orbit-canvas);
+}
+.lad-orbit .titlebar {
+  height: 52px;
+}
+.lad-orbit .titlebar-label {
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  opacity: 0.7;
+}
+.lad-orbit .workspace {
+  padding: 4px 20px 0;
+  gap: 24px;
+}
+.lad-orbit .sidebar {
+  width: 210px;
+  padding: 12px 0 0;
+}
+.lad-orbit .brand {
+  margin: 0 0 26px 12px;
+  height: 42px;
+  gap: 10px;
+}
+.lad-orbit .brand svg {
+  color: var(--orbit-accent);
+  width: 27px;
+}
+.lad-orbit .brand > span:not(.brand-dot) {
+  font-size: 32px;
+  letter-spacing: -1.6px;
+}
+.lad-orbit .brand-dot {
+  background: var(--orbit-accent);
+  width: 5px;
+  height: 5px;
+}
+.lad-orbit .orbit-side-nav ul {
+  gap: 4px;
+}
+
+.lad-orbit .sidebar-heading {
+  margin-top: 26px;
+  padding-left: 14px;
+}
+.lad-orbit .sidebar-heading > span {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+}
+.lad-orbit .nav-item {
+  height: 46px;
+  min-height: 46px;
+  justify-content: flex-start;
+  padding: 10px 14px;
+  border-radius: 16px;
+  font-size: 14px;
+  gap: 12px;
+}
+.lad-orbit .sidebar-playlists {
+  gap: 2px;
+}
+.lad-orbit .playlist-shortcut {
+  height: 56px;
+  border-radius: 16px;
+  padding: 8px 12px;
+  gap: 10px;
+}
+.lad-orbit .playlist-shortcut strong {
+  font-size: 12px;
+}
+.lad-orbit .playlist-shortcut small {
+  font-size: 10px;
+}
+.lad-orbit .sidebar-actions {
+  gap: 4px;
+  padding-top: 14px;
+}
+.lad-orbit .account-button {
+  border-top: 1px solid var(--orbit-line);
+  border-radius: 0;
+  padding: 14px 10px 0;
+  margin-top: 8px;
+  height: 66px;
+}
+.lad-orbit .account-avatar {
+  background: var(--orbit-tonal);
+  color: var(--orbit-on-tonal);
+  border-radius: 50%;
+}
+.lad-orbit .main {
+  min-width: 0;
+  border: 1px solid var(--orbit-line);
+  border-radius: 28px 28px 0 0;
+  background: transparent;
+  overflow: visible;
+}
+.lad-orbit .main-header {
+  height: 66px;
+  padding: 0 24px;
+  gap: 12px;
+}
+.lad-orbit .header-location {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--orbit-muted);
+}
+.lad-orbit .device-selector {
+  height: 38px;
+  min-width: 0;
+  max-width: 260px;
+  border-radius: 999px;
+  background: var(--orbit-surface);
+  border: 1px solid var(--orbit-line);
+  padding: 0 10px;
+  font-size: 11px;
+}
+.lad-orbit .device-selector > span:not(.status-dot) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lad-orbit .page-content {
+  padding: 28px 32px calc(var(--player-clearance) + 28px);
+}
+.lad-orbit .page-content.page-wave {
+  margin-top: 0;
+  padding-top: 0;
+}
+.lad-orbit .page-heading {
+  margin-bottom: 28px;
+}
+.lad-orbit .page-heading h1 {
+  font-size: 34px;
+  letter-spacing: -1.2px;
+  font-weight: 650;
+  line-height: 1.15;
+}
+.lad-orbit .eyebrow {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--orbit-muted);
+  font-weight: 550;
+}
+.lad-orbit .section-title {
+  margin-bottom: 18px;
+  gap: 12px;
+}
+.lad-orbit .section-title h2 {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.4px;
+}
+
+.lad-orbit .home-hero .orbit-button {
+  font-size: 13px;
+}
+.lad-orbit .orbit-button {
+  box-shadow: none;
+}
+.lad-orbit button:disabled {
+  opacity: 1;
+}
+.lad-orbit .icon-button {
+  width: 38px;
+  height: 38px;
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 0;
+  border-radius: 50%;
+}
+.lad-orbit .icon-button svg {
+  width: 18px;
+  height: 18px;
+}
+.lad-orbit .icon-active {
+  color: var(--orbit-on-tonal);
+}
+.lad-orbit .track-row {
+  height: 66px;
+  border-radius: 16px;
+  padding: 8px 10px;
+  gap: 12px;
+}
+.lad-orbit .track-row:hover {
+  background: var(--orbit-surface);
+}
+.lad-orbit .track-row .art-xs {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+}
+.lad-orbit .track-name strong {
+  font-size: 13px;
+  font-weight: 550;
+}
+.lad-orbit .track-name small {
+  font-size: 11px;
+  color: var(--orbit-muted);
+}
+.lad-orbit .track-number {
+  width: 18px;
+  font-size: 11px;
+  color: var(--orbit-muted);
+}
+.lad-orbit .track-row .icon-button {
+  width: 36px;
+  height: 36px;
+  min-height: 36px;
+}
+.lad-orbit .track-like {
+  display: flex;
+}
+.lad-orbit .track-like:not(.is-liked) {
+  opacity: 0.45;
+}
+.lad-orbit .track-duration {
+  font-size: 11px;
+}
+.lad-orbit .music-card,
+.lad-orbit .music-card .art {
+  border-radius: 18px;
+}
+.lad-orbit .queue-panel {
+  width: 292px;
+  flex-shrink: 0;
+  border-radius: 26px;
+  background: var(--orbit-surface);
+  border: 1px solid var(--orbit-line);
+  padding: 18px 12px 10px;
+}
+.lad-orbit .queue-header {
+  padding: 0 4px 0 8px;
+  height: 42px;
+}
+.lad-orbit .queue-header h2 {
+  font-size: 18px;
+  letter-spacing: -0.5px;
+}
+.lad-orbit .queue-header h2 > span {
+  font-size: 11px;
+  color: var(--orbit-muted);
+}
+.lad-orbit .queue-source {
+  padding-left: 8px;
+  margin-bottom: 14px;
+}
+.lad-orbit .queue-source > span {
+  font-size: 10px;
+}
+.lad-orbit .queue-row {
+  height: 64px;
+  padding: 8px;
+  gap: 8px;
+  border-radius: 16px;
+}
+.lad-orbit .queue-current {
+  background: var(--orbit-tonal);
+}
+.lad-orbit .queue-current .queue-track strong {
+  color: var(--orbit-on-tonal);
+}
+.lad-orbit .queue-row .art-xs {
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+}
+.lad-orbit .queue-track strong {
+  font-size: 11px;
+  font-weight: 550;
+}
+.lad-orbit .queue-track small {
+  font-size: 10px;
+}
+.lad-orbit .queue-grip {
+  opacity: 0.3;
+  width: 12px;
+  flex: none;
+}
+.lad-orbit .queue-bottom {
+  font-size: 10px;
+  padding: 12px 8px;
+  color: var(--orbit-muted);
+}
+.queue-floating {
+  background: var(--orbit-elevated);
+  color: var(--orbit-text);
+  border: 1px solid var(--orbit-rim);
+  font-family: var(--orbit-font);
+}
+.lad-orbit .player-dock {
+  height: 128px;
+  z-index: 15;
+}
+.lad-orbit .player-dock > .player {
+  display: grid;
+  grid-template-columns: minmax(190px, 1fr) minmax(240px, 1.25fr) minmax(
+      200px,
+      1fr
+    );
+  gap: 24px;
+  height: 108px;
+  margin: 0 20px 16px;
+  padding: 12px 20px;
+  border-radius: 26px;
+  background: var(--orbit-action-glass);
+  border: 1px solid var(--orbit-rim);
+  backdrop-filter: blur(18px);
+}
+.lad-orbit .player-track {
+  width: auto;
+  min-width: 0;
+  gap: 12px;
+}
+.lad-orbit .player-track .art-sm {
+  width: 52px;
+  height: 52px;
+  border-radius: 13px;
+}
+.lad-orbit .player-track-name {
+  min-width: 0;
+  flex: 1;
+}
+.lad-orbit .player-track-name strong {
+  font-size: 13px;
+}
+.lad-orbit .player-track-name small {
+  font-size: 11px;
+}
+.lad-orbit .player-center {
+  width: auto;
+  min-width: 0;
+  gap: 4px;
+}
+.lad-orbit .player-controls {
+  gap: 12px;
+}
+.lad-orbit .main-play {
+  width: 42px;
+  height: 42px;
+  min-height: 42px;
+  border-radius: 50%;
+}
+.lad-orbit .main-play svg {
+  width: 18px;
+  height: 18px;
+}
+.lad-orbit .player-right {
+  width: auto;
+  min-width: 0;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.lad-orbit .volume-control {
+  max-width: 130px;
+  min-width: 70px;
+}
+.lad-orbit .volume-control input {
+  width: 70px;
+}
+.lad-orbit .volume-value {
+  display: none;
+}
+.lad-orbit .player-wash {
+  display: block;
+  opacity: 0.28;
+  filter: blur(28px);
+}
+.lad-orbit .progress-row {
+  display: flex;
+  width: 100%;
+  gap: 10px;
+  align-items: center;
+  margin-top: 0;
+  min-height: 26px;
+}
+.lad-orbit .progress-row > .orbit-scrubber {
+  flex: 1;
+  min-width: 0;
+  gap: 10px;
+}
+.lad-orbit .orbit-scrubber__scale {
+  height: 26px;
+  min-height: 26px;
+}
+.lad-orbit .progress-total,
+.lad-orbit .orbit-scrubber__time {
+  font-size: 10px;
+  color: var(--orbit-muted);
+  font-variant-numeric: tabular-nums;
+  min-width: 26px;
+}
+.lad-orbit .orbit-scrubber__time {
+  order: -1;
+}
+.lad-orbit .progress-row input[type="range"] {
+  height: 100%;
+}
+.lad-orbit .player-divider {
+  margin: 0 6px;
+  height: 20px;
+}
+.lad-orbit .settings-page,
+.lad-orbit .audio-settings-page {
+  max-width: 900px;
+  margin: 0 auto;
+}
+.lad-orbit .settings-section {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 24px 0;
+  margin-bottom: 16px;
+}
+.lad-orbit .settings-section ~ .settings-section {
+  border-top: 1px solid var(--orbit-line);
+}
+.lad-orbit .settings-section > h2 {
+  font-size: 17px;
+  margin-bottom: 12px;
+}
+.lad-orbit .setting-row {
+  gap: 20px;
+  padding: 18px 0;
+  border-color: var(--orbit-line);
+}
+.lad-orbit .setting-row strong {
+  font-size: 13px;
+  font-weight: 550;
+}
+.lad-orbit .setting-row p {
+  font-size: 12px;
+  line-height: 1.6;
+  max-width: 430px;
+}
+.lad-toggle {
+  flex-shrink: 0;
+  min-width: 48px;
+}
+.lad-orbit .audio-tabs-orbit {
+  max-width: 380px;
+  margin-bottom: 24px;
+}
+.lad-orbit .collection-group {
+  background: var(--orbit-surface);
+  border: 1px solid var(--orbit-line);
+  border-radius: 24px;
+}
+.lad-orbit .audio-hero-card,
+.lad-orbit .audio-settings-section,
+.lad-orbit .equalizer-card {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 24px 0;
+}
+.lad-orbit .audio-settings-section {
+  border-top: 1px solid var(--orbit-line);
+}
+.lad-orbit .compact-tracks .track-play-icon {
+  display: block;
+}
+.lad-orbit .audio-preset-card,
+.lad-orbit .audio-profile-card {
+  border-radius: 18px;
+  border-color: var(--orbit-line);
+  background: var(--orbit-field);
+}
+.lad-orbit .audio-preset-card.active,
+.lad-orbit .audio-profile-card.active {
+  border-color: var(--orbit-accent);
+  background: var(--orbit-tonal);
+}
+.lad-orbit .lad-search {
+  margin: 22px 0 14px;
+}
+.lad-orbit .orbit-filter-chips {
+  margin-bottom: 28px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.lad-orbit .orbit-filter-chips .orbit-button {
+  font-size: 12px;
+}
+.lad-orbit .orbit-search input {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.lad-orbit .welcome {
+  min-height: 480px;
+  padding: 54px 28px;
+  gap: 24px;
+}
+.lad-orbit .welcome h1 {
+  font-size: 48px;
+  letter-spacing: -2px;
+  line-height: 1.06;
+  margin: 20px 0;
+}
+.lad-orbit .welcome-copy p {
+  font-size: 14px;
+  line-height: 1.7;
+  max-width: 390px;
+}
+.orbit-dialog__overlay {
+  z-index: 100;
+  background: #0009;
+  backdrop-filter: blur(8px);
+}
+.orbit-dialog {
+  z-index: 101;
+  width: min(560px, calc(100% - 32px));
+  max-height: calc(100dvh - 48px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 24px;
+  border-radius: 28px;
+  background: var(--orbit-surface);
+}
+.orbit-dialog__head {
+  flex: none;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+.orbit-dialog__head h2 {
+  font-size: 22px;
+  letter-spacing: -0.6px;
+  line-height: 1.2;
+}
+.orbit-dialog > p {
+  flex: none;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.lad-dialog-content {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+}
+.lad-dialog-content > .modal-scroll {
+  min-height: 0;
+  overflow: auto;
+  padding: 2px;
+  margin: 0;
+  width: auto;
+  max-width: 100%;
+  max-height: calc(100dvh - 220px);
+}
+.lad-dialog-content .modal-footer {
+  padding: 18px 0 0;
+  margin-top: 16px;
+  border-top: 1px solid var(--orbit-line);
+  background: none;
+}
+.orbit-dialog .orbit-button {
+  font-size: 13px;
+}
+.orbit-dialog .device-option {
+  padding: 18px;
+  border-radius: 20px;
+  background: var(--orbit-field);
+}
+.orbit-dialog .device-option.selected {
+  background: var(--orbit-tonal);
+  border-color: var(--orbit-rim);
+}
+.orbit-dialog .device-option strong {
+  font-size: 14px;
+}
+.orbit-dialog .device-option small {
+  font-size: 12px;
+}
+.orbit-dialog .device-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+}
+.orbit-dialog input {
+  max-width: 100%;
+  min-width: 0;
+}
+.lad-toast {
+  position: fixed;
+  z-index: 150;
+  left: 50%;
+  bottom: 150px;
+  transform: translateX(-50%);
+  width: min(440px, calc(100% - 32px));
+}
+.lad-mobile-navigation,
+.queue-dismiss,
+.lad-orbit .mobile-queue-button {
+  display: none;
+}
+@media (min-width: 1600px) {
+  .lad-orbit .workspace {
+    max-width: 1800px;
+    width: 100%;
+    margin-inline: auto;
+  }
+  .lad-orbit .sidebar {
+    width: 232px;
+  }
+  .lad-orbit .queue-panel {
+    width: 316px;
+  }
+}
+@media (max-width: 1199px) {
+  .lad-orbit .workspace {
+    padding-inline: 16px;
+    gap: 20px;
+  }
+  .lad-orbit .sidebar {
+    width: 188px;
+  }
+  .lad-orbit .queue-panel {
+    position: fixed;
+    right: 20px;
+    top: 72px;
+    bottom: 142px;
+    width: 320px;
+    margin: 0;
+    z-index: 42;
+    box-shadow: 0 20px 80px #0009;
+  }
+  .queue-dismiss {
+    display: block;
+    position: fixed;
+    inset: 52px 0 128px;
+    z-index: 41;
+    background: #0008;
+  }
+  .lad-orbit .page-content {
+    padding-inline: 28px;
+  }
+  .lad-orbit .player-dock > .player {
+    grid-template-columns: minmax(170px, 1fr) minmax(230px, 1.2fr) auto;
+    gap: 14px;
+    margin-inline: 16px;
+    padding-inline: 16px;
+  }
+  .lad-orbit .volume-control {
+    display: none;
+  }
+  .lad-orbit .welcome-visual {
+    display: none;
+  }
+}
+@media (max-width: 760px) {
+  .lad-orbit .app-shell {
+    min-height: 0;
+    --player-clearance: 204px;
+  }
+  .lad-orbit .titlebar {
+    height: 44px;
+  }
+  .lad-orbit .titlebar-label {
+    font-size: 10px;
+  }
+  .lad-orbit .demo-badge {
+    right: 12px;
+    font-size: 8px;
+    padding: 4px 6px;
+  }
+  .lad-orbit .workspace {
+    padding: 0;
+    gap: 0;
+  }
+  .lad-orbit .sidebar {
+    display: none;
+  }
+  .lad-orbit .main {
+    border: 0;
+    border-radius: 0;
+  }
+  .lad-orbit .mobile-queue-button {
+    display: inline-flex;
+    width: 36px;
+    height: 44px;
+    min-height: 44px;
+    margin-left: -6px;
+  }
+  .lad-orbit .main-header {
+    height: 56px;
+    padding: 0 16px;
+  }
+  .lad-orbit .main-header > div {
+    gap: 2px;
+    min-width: 0;
+  }
+  .lad-orbit .header-location {
+    font-size: 11px;
+    white-space: nowrap;
+  }
+  .lad-orbit .device-selector {
+    max-width: 126px;
+    font-size: 10px;
+    padding: 0 10px;
+    height: 36px;
+    gap: 6px;
+  }
+  .lad-orbit .device-selector > svg {
+    width: 15px;
+  }
+  .lad-orbit .page-content {
+    padding: 22px 16px calc(var(--player-clearance) + 20px);
+  }
+  .lad-orbit .page-content.page-wave {
+    margin-top: 0;
+    padding-top: 0;
+  }
+  .lad-orbit .page-heading h1 {
+    font-size: 28px;
+    letter-spacing: -1px;
+  }
+  .lad-orbit .page-heading {
+    margin-bottom: 24px;
+  }
+
+  .lad-orbit .wave-track-meta {
+    width: 100%;
+    text-align: center;
+  }
+
+  .lad-orbit .section-title {
+    flex-wrap: wrap;
+  }
+  .lad-orbit .section-title h2 {
+    font-size: 17px;
+  }
+  .lad-orbit .card-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+  }
+  .lad-orbit .track-row {
+    gap: 8px;
+    height: 68px;
+    padding: 8px 0;
+  }
+  .lad-orbit .track-row .art-xs {
+    width: 40px;
+    height: 40px;
+  }
+  .lad-orbit .track-number {
+    width: 12px;
+  }
+  .lad-orbit .track-album,
+  .lad-orbit .track-duration,
+  .lad-orbit .track-like {
+    display: none !important;
+  }
+  .lad-orbit .track-name strong {
+    font-size: 12px;
+  }
+  .lad-orbit .track-name small {
+    font-size: 10px;
+  }
+  .lad-orbit .track-row > .icon-button {
+    width: 44px;
+    height: 44px;
+    min-height: 44px;
+  }
+  .lad-orbit .queue-panel {
+    left: 8px;
+    right: 8px;
+    top: 60px;
+    bottom: 90px;
+    width: auto;
+    padding: 16px 12px;
+    z-index: 62;
+  }
+  .queue-dismiss {
+    inset: 0;
+    z-index: 61;
+  }
+  .lad-orbit .queue-panel .queue-row {
+    height: 68px;
+  }
+  .lad-orbit .queue-panel .queue-grip {
+    width: 36px;
+    min-height: 44px;
+    display: flex;
+    justify-content: center;
+  }
+  .lad-orbit .queue-panel .queue-header .icon-button {
+    width: 44px;
+    height: 44px;
+    min-height: 44px;
+  }
+  .lad-orbit .queue-track-time {
+    display: block;
+  }
+  .lad-orbit .settings-section {
+    padding: 18px 0;
+  }
+  .lad-orbit .settings-section h2 {
+    font-size: 16px;
+  }
+  .lad-orbit .setting-row {
+    gap: 14px;
+    padding: 16px 0;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .lad-orbit .setting-row > div:first-child {
+    min-width: 0;
+    flex: 1 1 168px;
+  }
+  .lad-orbit .setting-row p {
+    font-size: 11px;
+    line-height: 1.6;
+  }
+  .lad-orbit .setting-row .orbit-button {
+    font-size: 12px;
+  }
+  .lad-orbit .orbit-segmented {
+    max-width: 100%;
+  }
+  .lad-orbit .orbit-segmented button {
+    font-size: 11px;
+    padding-inline: 10px;
+  }
+  .lad-orbit .settings-page select {
+    max-width: 100%;
+    font-size: 12px;
+  }
+  .lad-orbit .interface-scale-control {
+    max-width: 100%;
+    gap: 6px;
+  }
+  .lad-orbit .interface-scale-control select {
+    min-width: 0;
+    flex: 1;
+    width: 140px;
+  }
+  .lad-orbit .audio-page-heading {
+    flex-wrap: wrap;
+    gap: 18px;
+  }
+  .lad-orbit .audio-page-heading p {
+    font-size: 12px;
+  }
+  .lad-orbit .audio-profile-grid,
+  .lad-orbit .audio-preset-grid,
+  .lad-orbit .audio-two-columns {
+    grid-template-columns: 1fr;
+  }
+  .lad-orbit .audio-tabs-orbit {
+    width: 100%;
+  }
+  .lad-orbit .audio-tabs-orbit .orbit-tabbar {
+    min-height: 54px;
+  }
+  .lad-orbit .audio-tabs-orbit .orbit-tab {
+    flex-direction: row;
+    font-size: 12px;
+  }
+  .lad-orbit .audio-live {
+    display: none;
+  }
+  .lad-orbit .audio-hero-card,
+  .lad-orbit .audio-settings-section {
+    padding: 18px 0;
+  }
+  .lad-orbit .eq-bands {
+    overflow: auto;
+  }
+  .lad-orbit .collection-group-grid {
+    grid-template-columns: 1fr;
+  }
+  .lad-orbit .collection-browser-heading {
+    gap: 14px;
+  }
+  .lad-orbit .collection-browser-heading .collection-source {
+    max-width: 100%;
+  }
+  .lad-orbit .welcome {
+    padding: 24px 0;
+    min-height: 0;
+  }
+  .lad-orbit .welcome h1 {
+    font-size: 34px;
+    letter-spacing: -1.2px;
+  }
+  .lad-orbit .welcome-copy {
+    width: 100%;
+    max-width: 100%;
+  }
+  .lad-orbit .welcome-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .lad-orbit .welcome-actions > .orbit-button {
+    width: 100%;
+  }
+  .lad-orbit .welcome-features {
+    grid-template-columns: 1fr;
+  }
+  .lad-orbit .lyrics-heading {
+    gap: 10px;
+  }
+  .lad-orbit .lyrics-heading h1 {
+    font-size: 25px;
+  }
+  .lad-orbit .lyric-line {
+    font-size: 22px;
+    line-height: 1.45;
+  }
+  .lad-orbit .lyric-lines {
+    padding-inline: 0;
+  }
+  .lad-orbit .page-content.page-lyrics {
+    padding: 20px 16px 0;
+  }
+  .lad-toast {
+    bottom: 210px;
+  }
+  .orbit-dialog {
+    padding: 20px 16px;
+    border-radius: 24px;
+    width: calc(100% - 24px);
+    max-height: calc(100dvh - 24px);
+  }
+  .orbit-dialog__head h2 {
+    font-size: 19px;
+  }
+  .orbit-dialog .device-option {
+    padding: 14px;
+    gap: 10px;
+  }
+  .orbit-dialog .device-icon {
+    width: 36px;
+    height: 36px;
+  }
+  .orbit-dialog .device-option strong {
+    font-size: 12px;
+  }
+  .orbit-dialog .device-option small {
+    font-size: 10px;
+  }
+  .orbit-dialog .modal-footer .orbit-button {
+    width: 100%;
+    min-height: 48px;
+    white-space: normal;
+  }
+}
+
+.lad-toggle input {
+  padding: 0 !important;
+  border: 0 !important;
+  margin: 0;
+  pointer-events: none;
+}
+@media (max-width: 760px) {
+  .lad-orbit .shortcut-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .lad-orbit .shortcut-grid > div {
+    min-width: 0;
+    gap: 12px;
+  }
+  .lad-orbit .equalizer-card {
+    padding: 18px 0;
+  }
+  .lad-orbit .equalizer-toolbar,
+  .lad-orbit .equalizer-actions {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .lad-orbit .equalizer-bands {
+    max-width: 100%;
+    overflow-x: auto;
+    grid-template-columns: repeat(10, 48px);
+    padding-bottom: 12px;
+  }
+  .lad-orbit .eq-summary {
+    flex-wrap: wrap;
+    gap: 8px;
+    font-size: 10px;
+  }
+  .lad-orbit .audio-preset-select {
+    max-width: 100%;
+  }
+}
+
+.lad-orbit .icon-text-button {
+  font-size: 12px;
+  color: var(--orbit-muted);
+}
+.lad-orbit .icon-text-button.primary {
+  color: var(--orbit-on-accent);
+}
+.lad-orbit .audio-back-link {
+  font-size: 12px;
+}
+
+/* Preserve Lad's glass over scrolling content, using Orbit surface roles. */
+:root[data-transparency="true"] :is(.lad-orbit .queue-panel, .orbit-dialog) {
+  background: var(--orbit-glass);
+  backdrop-filter: blur(18px) saturate(1.12);
+}
+:root[data-transparency="true"] .lad-orbit .device-selector {
+  background: var(--orbit-glass);
+  backdrop-filter: blur(14px);
+}
+:root[data-transparency="false"]
+  :is(
+    .lad-orbit .player-dock > .player,
+    .lad-orbit .queue-panel,
+    .lad-orbit .device-selector,
+    .orbit-dialog,
+    .lad-mobile-navigation .orbit-tabbar
+  ) {
+  background: var(--orbit-surface);
+  backdrop-filter: none;
+}
+:root[data-transparency="false"] .orbit-dialog__overlay {
+  backdrop-filter: none;
+}
+:root[data-transparency="false"] .lad-orbit .player-wash {
+  display: none;
+}
+
+/* The scroll viewport clips artwork; only the canvas is portaled behind it. */
+.lad-orbit .main {
+  position: relative;
+  isolation: isolate;
+  /* Header plus its 16px gap and border rounding cover the scroll clip. */
+  --wave-fade-header: 84px;
+  --wave-fade-depth: 96px;
+}
+/* One fixed veil fades both the scrolling artwork and the decorative canvas. */
+.lad-orbit .main:has(.page-wave .wave-home)::after {
+  content: "";
+  position: absolute;
+  inset: -80px 0 auto;
+  height: calc(80px + var(--wave-fade-header) + var(--wave-fade-depth));
+  background: linear-gradient(
+    to bottom,
+    var(--orbit-canvas) calc(100% - var(--wave-fade-depth)),
+    transparent 100%
+  );
+  z-index: 1;
+  pointer-events: none;
+}
+@media (max-width: 760px) {
+  .lad-orbit .main {
+    --wave-fade-header: 74px;
+    --wave-fade-depth: 72px;
+  }
+}
+.wave-scene-anchor {
+  position: absolute;
+  inset: -160px 0 auto;
+  height: 780px;
+  pointer-events: none;
+}
+.wave-backdrop {
+  position: absolute;
+  pointer-events: none;
+  z-index: -1;
+}
+.wave-backdrop .wave-scene {
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* App color picker composed from Orbit Popover, Button, Slider and TextField. */
+.lad-color-trigger {
+  gap: 10px;
+  font-variant-numeric: tabular-nums;
+}
+.lad-color-chip {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid #ffffff35;
+}
+.orbit-popover:has(.lad-color-picker) {
+  z-index: 110;
+  width: min(340px, calc(100vw - 24px));
+  padding: 20px;
+  border-radius: 24px;
+  max-height: min(660px, var(--radix-popover-content-available-height));
+}
+.lad-color-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.lad-color-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.lad-color-heading strong {
+  font-size: 16px;
+  letter-spacing: -0.3px;
+}
+.lad-color-heading p,
+.lad-color-picker .lad-color-note {
+  font-size: 11px;
+  line-height: 1.5;
+  margin: 4px 0 0;
+}
+.lad-color-plane {
+  position: relative;
+  height: 150px;
+  flex: none;
+  border-radius: 14px;
+  touch-action: none;
+  cursor: crosshair;
+  background-image:
+    linear-gradient(to top, #000, transparent),
+    linear-gradient(to right, #fff, transparent);
+}
+.lad-color-cursor {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border: 2px solid white;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px #0008;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.lad-color-hue .orbit-slider__track {
+  background: linear-gradient(
+    to right,
+    #f00,
+    #ff0,
+    #0f0,
+    #0ff,
+    #00f,
+    #f0f,
+    #f00
+  );
+}
+.lad-color-hue .orbit-slider__position {
+  background: transparent;
+}
+.lad-color-hue .orbit-slider__head {
+  font-size: 12px;
+}
+.lad-color-presets {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 2px;
+}
+.lad-color-preset.orbit-button {
+  width: 100%;
+  min-width: 0;
+  min-height: 36px;
+  padding: 3px;
+}
+.lad-color-preset > span {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  color: #111318;
+  border: 1px solid #ffffff30;
+}
+.lad-color-preset[aria-pressed="true"] > span {
+  outline: 2px solid var(--orbit-accent);
+  outline-offset: 3px;
+}
+.lad-color-rgb {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.lad-color-picker .orbit-field {
+  min-width: 0;
+}
+.lad-color-picker .orbit-field input {
+  width: 100%;
+  min-width: 0;
+  font-variant-numeric: tabular-nums;
+}
+.lad-color-error {
+  color: var(--orbit-danger) !important;
+  font-size: 11px;
+  margin: 0 !important;
+}
+
+.lad-color-picker .orbit-field input {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 1.25rem 0 0.4rem;
+  font-size: 14px;
+}
+@media (max-width: 760px) {
+  [data-radix-popper-content-wrapper]:has(.lad-color-picker) {
+    position: fixed !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    min-width: 0 !important;
+    width: calc(100vw - 24px);
+    z-index: 110 !important;
+  }
+  .orbit-popover:has(.lad-color-picker) {
+    width: 100%;
+    max-height: calc(100dvh - 32px);
+    padding: 16px;
+  }
+  .lad-color-picker {
+    gap: 12px;
+  }
+  .lad-color-plane {
+    height: 132px;
+  }
+}
+
+/* Let labels and icons define their minimum width; never squeeze them outside a control. */
+.lad-orbit .setting-row {
+  flex-wrap: wrap;
+}
+.lad-orbit .setting-row > div:first-child {
+  flex: 1 1 240px;
+}
+.lad-orbit .setting-row > .orbit-segmented {
+  flex: 0 1 auto;
+}
+.lad-orbit .orbit-segmented {
+  max-width: 100%;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.lad-orbit .orbit-segmented button {
+  flex: 1 0 auto;
+  min-width: max-content;
+  white-space: nowrap;
+  padding: 8px 12px;
+  gap: 8px;
+}
+.lad-orbit .orbit-segmented button > span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+.lad-orbit .orbit-segmented button > span:empty {
+  display: none;
+}
+.lad-orbit .orbit-segmented button svg {
+  flex: none;
+}
+:is(.lad-orbit, .orbit-dialog, .orbit-popover) .orbit-field__member input {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 1.25rem 0 0.4rem;
+}
+.lad-orbit .eq-band .eq-number {
+  width: 54px;
+  min-width: 0;
+  height: 30px;
+  padding: 0 3px;
+  font-size: 11px;
+  border-radius: 8px;
+  appearance: textfield;
+}
+.lad-orbit .eq-band .eq-number::-webkit-inner-spin-button,
+.lad-orbit .eq-band .eq-number::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.lad-orbit .settings-section > .orbit-button {
+  max-width: 100%;
+  white-space: normal;
+  height: auto;
+}
+.lad-orbit .settings-section > .orbit-button svg {
+  flex: none;
+}
+
+/* Settings sections share spacing, including the preview information section. */
+.lad-orbit .settings-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.lad-orbit .settings-page > .settings-section {
+  margin: 0;
+}
+.lad-orbit .settings-page > .page-heading {
+  margin-bottom: 12px;
+}
+/* Keep the device chooser at two thirds of its previous maximum height. */
+.orbit-dialog:has(.device-dialog) {
+  max-height: calc(66.667dvh - 32px);
+}
+.device-dialog {
+  min-height: 0;
+  flex: 0 1 auto;
+}
+.device-dialog > .modal-scroll {
+  flex: 1 1 auto;
+  max-height: none;
+  overflow-y: auto;
+}
+.device-dialog > .modal-footer {
+  flex: none;
+}
+
+/* Orbit primitives own their internal spacing. Lad only composes the surrounding layout. */
+.lad-orbit {
+  --lad-space-xs: 4px;
+  --lad-space-sm: 8px;
+  --lad-space-md: 16px;
+  --lad-space-lg: 24px;
+  --lad-space-xl: 32px;
+}
+.orbit-button__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  padding: 0;
+}
+.lad-button-label {
+  min-width: 0;
+}
+.lad-orbit .lad-button {
+  gap: 8px;
+}
+.lad-orbit .orbit-filter-chips {
+  gap: 8px;
+}
+.lad-orbit .orbit-filter-chips .orbit-button {
+  min-height: 36px;
+  padding-inline: 14px;
+  font-size: 13px;
+  gap: 8px;
+}
+.lad-orbit .main-header > div {
+  gap: 4px;
+}
+.lad-orbit .main-header > div > .icon-button {
+  width: 32px;
+  height: 32px;
+  min-height: 32px;
+}
+.lad-orbit .main-header {
+  margin-bottom: 16px;
+}
+.lad-orbit .header-location {
+  font-size: 13px;
+  line-height: 20px;
+}
+.lad-orbit .section-title .lad-button {
+  font-size: 13px;
+  padding-inline: 16px;
+  min-height: 40px;
+}
+.lad-orbit .queue-header,
+.lad-orbit .queue-source {
+  padding-inline: 8px;
+}
+.lad-orbit .queue-source {
+  gap: 8px;
+  margin-bottom: 12px;
+  min-height: 40px;
+}
+.lad-orbit .queue-source > span {
+  flex: 1;
+  min-width: 0;
+  line-height: 18px;
+}
+.lad-orbit .queue-source > .icon-button,
+.lad-orbit .queue-header > .icon-button {
+  width: 32px;
+  height: 32px;
+  min-height: 32px;
+}
+.lad-orbit .queue-source > .icon-button svg {
+  width: 16px;
+  height: 16px;
+}
+.lad-orbit .lyric-line {
+  font-size: 28px;
+  font-weight: 500;
+  line-height: 1.45;
+  letter-spacing: -0.5px;
+}
+.lad-orbit .lyric-line.lyric-active {
+  font-size: 32px;
+  font-weight: 700;
+}
+.lad-orbit .now-heading h1 {
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.7px;
+}
+.lad-orbit .settings-page {
+  max-width: 820px;
+  gap: 16px;
+}
+.lad-orbit .settings-section {
+  padding: 24px 0;
+}
+.lad-orbit .settings-section > h2,
+.lad-orbit .settings-section .section-title h2 {
+  font-size: 18px;
+  font-weight: 650;
+  line-height: 24px;
+}
+.lad-orbit .setting-row {
+  padding: 16px 0;
+  min-height: 88px;
+  gap: 16px;
+}
+.lad-orbit .setting-row > div:first-child {
+  flex: 1 1 280px;
+}
+.lad-orbit
+  .setting-row
+  > :is(.orbit-field, .orbit-segmented, .interface-scale-control) {
+  flex: 0 1 auto;
+}
+.lad-orbit .setting-row strong {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+}
+.lad-orbit .setting-row p {
+  font-size: 13px;
+  line-height: 20px;
+  margin-top: 6px;
+  max-width: 390px;
+}
+.lad-orbit .setting-row > .orbit-field {
+  width: 200px;
+}
+.lad-orbit .interface-scale-control {
+  gap: 8px;
+}
+.lad-orbit .interface-scale-control > .orbit-field {
+  width: 112px;
+}
+.lad-orbit .orbit-field__member select {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 1.25rem 0 0.4rem;
+  max-width: 100%;
+  width: 100%;
+  font-size: 14px;
+}
+.lad-orbit .orbit-field__control {
+  min-height: 54px;
+}
+.lad-orbit .scale-step {
+  width: 32px;
+  height: 40px;
+  min-width: 32px;
+  background: transparent;
+}
+/* Row labels already name these controls, so the selected value uses one line. */
+.lad-orbit .settings-page .orbit-select-field .orbit-field__label {
+  display: none;
+}
+.lad-orbit .settings-page .orbit-field__control.orbit-select-field {
+  height: 40px;
+  min-height: 40px;
+  padding: 0 12px;
+  border-color: var(--orbit-line);
+  border-radius: 12px;
+  outline: none;
+}
+.lad-orbit .settings-page .orbit-select-field select {
+  height: 38px;
+  padding: 0;
+  font-size: 14px;
+  line-height: 20px;
+  cursor: pointer;
+}
+.lad-orbit .settings-page .orbit-field__control.orbit-select-field > svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  color: var(--orbit-muted);
+}
+.lad-orbit .settings-page .orbit-field__control.orbit-select-field:hover {
+  border-color: var(--orbit-edge);
+}
+.lad-orbit
+  .settings-page
+  .orbit-field__control.orbit-select-field:has(select:focus-visible) {
+  border-color: var(--orbit-focus);
+  box-shadow: inset 0 0 0 1px var(--orbit-focus);
+}
+/* Only the canvas escapes the hero; its controls stay above the dock. */
+.lad-orbit .wave-home {
+  --wave-card-height: min(680px, calc(100dvh - 300px));
+  height: var(--wave-card-height);
+  min-height: 0;
+  padding: 16px 24px;
+  margin-bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  position: relative;
+  isolation: auto;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+.lad-orbit .wave-home > :not(.wave-scene-anchor) {
+  position: relative;
+  z-index: 1;
+}
+.wave-backdrop {
+  z-index: 0;
+}
+.lad-orbit .wave-heading h1 {
+  font-size: 28px;
+  line-height: 34px;
+  font-weight: 700;
+  letter-spacing: -0.7px;
+  margin-top: 4px;
+}
+.lad-orbit .wave-heading .eyebrow {
+  line-height: 14px;
+}
+.lad-orbit .wave-home .wave-now-playing {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(100%, 500px);
+  margin: 0;
+  text-align: center;
+}
+.lad-orbit .wave-home .wave-now-playing > .art,
+.lad-orbit .wave-empty > .art {
+  width: clamp(96px, calc(var(--wave-card-height) - 394px), 220px);
+  height: clamp(96px, calc(var(--wave-card-height) - 394px), 220px);
+  border-radius: 20px;
+  flex: none;
+  box-shadow: 0 12px 36px #0004;
+}
+.lad-orbit .wave-track-meta strong {
+  font-size: 18px;
+  line-height: 24px;
+  font-weight: 650;
+  letter-spacing: -0.3px;
+}
+.lad-orbit .wave-track-meta small {
+  font-size: 13px;
+  line-height: 18px;
+  margin-top: 2px;
+}
+.lad-orbit .wave-lyrics {
+  font-size: 14px;
+  line-height: 20px;
+  min-height: 40px;
+}
+.lad-orbit .wave-expand {
+  font-size: 12px;
+  line-height: 20px;
+  min-height: 20px;
+}
+.lad-orbit .wave-home-controls {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin: 0;
+  flex: none;
+}
+.lad-orbit .wave-home-controls .lad-button {
+  min-height: 44px;
+  padding-inline: 18px;
+  font-size: 14px;
+}
+.lad-orbit .wave-empty {
+  min-height: 0;
+  gap: 16px;
+}
+.lad-orbit .wave-empty p {
+  font-size: 14px;
+  line-height: 22px;
+}
+@media (max-height: 850px) {
+  .lad-orbit .wave-home {
+    gap: 8px;
+  }
+  .lad-orbit .wave-home .wave-now-playing {
+    gap: 8px;
+  }
+  .lad-orbit .wave-heading .eyebrow {
+    display: none;
+  }
+  .lad-orbit .wave-heading h1 {
+    font-size: 26px;
+    line-height: 30px;
+    margin: 0;
+  }
+  .lad-orbit .wave-lyrics {
+    display: none;
+  }
+}
+@media (max-width: 760px) {
+  .lad-orbit .wave-home {
+    --wave-card-height: min(640px, calc(100dvh - 350px));
+    padding: 16px 12px;
+    gap: 10px;
+  }
+  .lad-orbit .wave-heading h1 {
+    font-size: 26px;
+    line-height: 32px;
+  }
+  .lad-orbit .wave-home .wave-now-playing {
+    gap: 8px;
+  }
+  .lad-orbit .wave-home-controls {
+    gap: 8px;
+    max-width: 100%;
+  }
+  .lad-orbit .wave-home-controls .lad-button {
+    font-size: 12px;
+    padding-inline: 12px;
+    min-height: 44px;
+  }
+  .lad-orbit .lyric-line {
+    font-size: 24px;
+    font-weight: 500;
+  }
+  .lad-orbit .lyric-line.lyric-active {
+    font-size: 26px;
+    font-weight: 700;
+  }
+  .lad-orbit .settings-section {
+    padding: 20px 0;
+  }
+  .lad-orbit .setting-row > div:first-child {
+    flex: 1 1 220px;
+  }
+  .lad-orbit .setting-row > .orbit-field {
+    width: 100%;
+  }
+}
+
+/* Zero-height marker follows the hero without adding decorative canvas height to scrolling. */
+.wave-scene-anchor {
+  height: 0;
+  --wave-canvas-height: 780px;
+}
+.lad-orbit .orbit-side-nav :is(a, button),
+.lad-orbit .nav-item {
+  font-size: 16px;
+  font-weight: 500;
+}
+.lad-orbit .orbit-side-nav [aria-current="page"],
+.lad-orbit .nav-item.icon-active {
+  font-weight: 600;
+}
+.lad-orbit .nav-item {
+  height: 44px;
+  min-height: 44px;
+  padding: 6px 12px;
+  gap: 9px;
+}
+.lad-orbit .playlist-shortcut strong {
+  font-weight: 550;
+}
+.lad-orbit .device-selector {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 18px;
+  gap: 6px;
+}
+.lad-orbit .device-selector > .status-dot {
+  margin-left: 0;
+}
+.lad-orbit .now-meta {
+  font-size: 12px;
+  line-height: 18px;
+}
+
+/* A compact player sits above the glass navigation capsule. */
+.mobile-dock {
+  display: none;
+}
+@media (max-width: 760px) {
+  .lad-orbit {
+    --player-clearance: calc(150px + env(safe-area-inset-bottom, 0px));
+  }
+  .lad-orbit > .player-dock,
+  .lad-orbit .player-dock {
+    display: none;
+  }
+  .lad-orbit .mobile-dock {
+    display: block;
+    position: fixed;
+    inset: auto 0 0;
+    z-index: 40;
+    padding: 8px 0 max(8px, env(safe-area-inset-bottom, 0px));
+    background: transparent;
+    isolation: isolate;
+  }
+  .lad-orbit .mobile-dock .lad-mobile-navigation {
+    position: relative;
+    inset: auto;
+    display: block;
+    padding: 6px 12px 0;
+    z-index: auto;
+  }
+  .lad-orbit .mobile-dock .orbit-tabbar {
+    background: var(--orbit-mobile-glass);
+    border: 1px solid var(--orbit-rim);
+    box-shadow: inset 0 1px 0 #ffffff05;
+    border-radius: 999px;
+    backdrop-filter: blur(18px) saturate(1.12);
+    min-height: 60px;
+    padding: 3px;
+    gap: 4px;
+  }
+  .lad-orbit .mobile-dock .orbit-tab {
+    flex: 1 1 0;
+    flex-direction: column;
+    padding: 6px 0;
+    gap: 4px;
+    min-height: 52px;
+    min-width: 0;
+    border-radius: 999px;
+    font-size: 10px;
+  }
+  .lad-orbit .mobile-dock .orbit-tab__label {
+    position: static;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip-path: none;
+    font-size: 10px;
+    line-height: 14px;
+  }
+  .lad-orbit .mobile-dock .orbit-tabbar__lens {
+    top: 3px;
+    bottom: 3px;
+  }
+  .lad-orbit .mobile-dock .orbit-tabbar__lens > span {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    align-self: center;
+    border-radius: 999px;
+    background: var(--orbit-tonal);
+  }
+  .mobile-player-viewport {
+    overflow: hidden;
+    touch-action: pan-y;
+    user-select: none;
+    -webkit-user-select: none;
+    width: 100%;
+    outline-offset: -2px;
+  }
+  .mobile-player-strip {
+    --swipe-x: 0px;
+    display: flex;
+    gap: 8px;
+    width: 100%;
+    transform: translate3d(calc(40px - 100% + var(--swipe-x)), 0, 0);
+  }
+  .mobile-player-viewport[data-phase="settling"] .mobile-player-strip {
+    transition: transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  .mobile-track-card {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    gap: 0;
+    flex: 0 0 calc(100% - 32px);
+    min-width: 0;
+    height: 56px;
+    padding: 5px 7px;
+    border-radius: 20px;
+    background: color-mix(
+      in srgb,
+      var(--mobile-card-color) 19%,
+      var(--orbit-canvas)
+    );
+    border: 1px solid var(--orbit-rim);
+    backdrop-filter: blur(16px);
+    color: var(--orbit-text);
+  }
+  .mobile-track-fill {
+    position: absolute;
+    inset: 0 auto 0 0;
+    z-index: -1;
+    background: color-mix(in srgb, var(--mobile-card-color) 16%, transparent);
+    pointer-events: none;
+  }
+  .mobile-track-open {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+    text-align: left;
+    height: 46px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    touch-action: pan-y;
+    cursor: pointer;
+  }
+  .mobile-track-open .art-sm,
+  .mobile-idle-art {
+    width: 36px;
+    height: 36px;
+    border-radius: 9px;
+    flex: none;
+  }
+  .mobile-idle-art {
+    display: grid;
+    place-items: center;
+    background: var(--orbit-raised);
+  }
+  .mobile-track-open img {
+    pointer-events: none;
+    -webkit-user-drag: none;
+  }
+  .mobile-track-name {
+    min-width: 0;
+    flex: 1;
+  }
+  .mobile-track-name strong,
+  .mobile-track-name small {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .mobile-track-name strong {
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 19px;
+  }
+  .mobile-track-name small {
+    font-size: 11px;
+    line-height: 17px;
+    color: var(--orbit-muted);
+  }
+  .lad-orbit .mobile-track-card .icon-button {
+    width: 40px;
+    min-width: 40px;
+    height: 44px;
+    min-height: 44px;
+    padding: 0;
+    background: transparent;
+    color: inherit;
+  }
+  .mobile-track-card .mobile-like svg {
+    width: 21px;
+    height: 21px;
+  }
+  .mobile-track-card .mobile-like[aria-pressed="true"] svg {
+    fill: currentColor;
+  }
+  .mobile-track-card .mobile-play svg {
+    width: 24px;
+    height: 24px;
+    fill: currentColor;
+  }
+  .mobile-track-card[data-current="false"] {
+    pointer-events: none;
+  }
+  .mobile-track-card[data-empty="true"][data-current="false"] {
+    visibility: hidden;
+  }
+  .lad-orbit .queue-panel {
+    bottom: calc(156px + env(safe-area-inset-bottom, 0px));
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mobile-player-strip {
+    transition: none !important;
+  }
+}
+
+/* Final control geometry and focus rings stay inside their rounded surfaces. */
+:is(.lad-orbit, .orbit-dialog, .orbit-popover) button:focus-visible {
+  outline-offset: -3px;
+}
+:is(.lad-orbit, .orbit-dialog, .orbit-popover)
+  .orbit-field__control:focus-within {
+  outline: none;
+  border-color: var(--orbit-focus);
+  box-shadow: inset 0 0 0 1px var(--orbit-focus);
+}
+.lad-orbit .device-selector {
+  position: relative;
+}
+.lad-orbit .device-selector > svg {
+  flex: none;
+}
+.lad-orbit .device-selector > svg:first-child {
+  margin-right: 3px;
+}
+.lad-orbit .device-selector > .status-dot {
+  position: absolute;
+  left: 24px;
+  top: 9px;
+}
+.lad-orbit .collection-browser .filter-tabs > button {
+  border-radius: 999px;
+}
+.lad-orbit .lyric-line {
+  color: color-mix(in srgb, var(--orbit-text) 52%, var(--orbit-canvas));
+  opacity: 1;
+}
+.lad-orbit .lyric-line.lyric-active {
+  color: var(--orbit-text);
+  opacity: 1;
+}
+.lad-orbit .lyric-line:not(.lyric-active):hover {
+  color: color-mix(in srgb, var(--orbit-text) 66%, var(--orbit-canvas));
+}
+.lad-orbit .settings-page .orbit-field__control.orbit-select-field {
+  border-radius: 999px;
+}
+.lad-orbit .account-summary,
+.lad-orbit .account-button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  height: 60px;
+  padding: 8px 12px;
+  margin-top: 12px;
+  border: 1px solid var(--orbit-line);
+  border-radius: 999px;
+  background: transparent;
+}
+.lad-orbit .account-summary strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 500;
+}
+.lad-orbit .account-summary small {
+  display: block;
+  margin-top: 4px;
+  font-size: 10px;
+  color: var(--orbit-muted);
+}
+.orbit-dialog .link-form .orbit-field__control {
+  min-height: 44px;
+  padding-inline: 14px;
+  border-radius: 999px;
+}
+.orbit-dialog .link-form .orbit-field__label {
+  display: none;
+}
+.orbit-dialog .link-form .orbit-field__member input {
+  height: 42px;
+  padding: 0;
+  font-size: 14px;
+}
+.orbit-dialog .link-form input::placeholder {
+  color: var(--orbit-muted);
+}
+
+.orbit-popover:has(.lad-color-picker) {
+  width: min(300px, calc(100vw - 24px));
+  padding: 16px;
+  border-radius: 20px;
+}
+.lad-color-picker {
+  gap: 10px;
+}
+.lad-color-heading strong {
+  font-size: 14px;
+}
+.lad-color-heading .orbit-button {
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  min-height: 32px;
+}
+.lad-color-plane {
+  height: 120px;
+  border-radius: 12px;
+}
+.lad-color-hue .orbit-slider__head {
+  font-size: 11px;
+}
+.lad-color-hue .orbit-slider__track {
+  height: 4px;
+}
+.lad-color-hue .orbit-slider__stage {
+  height: 36px;
+}
+.lad-color-hue .orbit-slider__position > span {
+  width: 14px;
+  height: 14px;
+  margin-inline-end: -7px;
+  border-radius: 50%;
+  background: var(--orbit-text);
+  box-shadow: 0 0 0 1px #0004;
+}
+.lad-color-preset.orbit-button {
+  min-height: 30px;
+}
+.lad-color-preset > span {
+  width: 22px;
+  height: 22px;
+}
+.lad-color-picker .orbit-field__control {
+  min-height: 36px;
+  padding: 0 10px;
+  border-radius: 999px;
+}
+.lad-color-picker .orbit-field__member {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.lad-color-picker .orbit-field__label {
+  position: static;
+  order: -1;
+  flex: none;
+  transform: none !important;
+  font-size: 11px;
+}
+.lad-color-picker .orbit-field__member input {
+  height: 34px;
+  padding: 0;
+  font-size: 12px;
+  line-height: 18px;
+}
+.lad-color-picker .lad-color-rgb {
+  gap: 6px;
+}
+.lad-color-picker .lad-color-note {
+  font-size: 10px;
+}
+@media (max-width: 760px) {
+  .orbit-popover:has(.lad-color-picker) {
+    width: 100%;
+  }
+  .lad-color-picker {
+    gap: 10px;
+  }
+  .lad-color-plane {
+    height: 112px;
+  }
+}
+
+/* Keep the progress wavelength stable, continuous and separate from the rest track. */
+.lad-orbit .orbit-scrubber__track,
+.lad-orbit .orbit-scrubber__buffer {
+  left: min(100%, calc(var(--orbit-range-fill) + 7px));
+  width: max(0px, calc(100% - var(--orbit-range-fill) - 7px));
+  height: 3px;
+}
+.lad-orbit .orbit-scrubber__buffer {
+  width: max(0px, calc(var(--orbit-buffer) - var(--orbit-range-fill) - 7px));
+}
+.lad-orbit .orbit-scrubber__line,
+.lad-orbit .orbit-scrubber[data-playing="true"] .orbit-scrubber__line {
+  width: max(0px, calc(var(--orbit-range-fill) - 6px));
+  height: 20px;
+  overflow: hidden;
+  background: none;
+  border-radius: 0;
+}
+.lad-orbit .orbit-scrubber__line::before {
+  content: "";
+  position: absolute;
+  inset: calc(50% - 1.5px) 0 auto;
+  height: 3px;
+  background: var(--orbit-accent);
+  border-radius: 999px;
+  opacity: 1;
+  transition: opacity 250ms ease;
+}
+.lad-orbit .orbit-scrubber__line svg,
+.lad-orbit .orbit-scrubber[data-playing="true"] .orbit-scrubber__line svg {
+  display: block;
+  max-width: none;
+  overflow: visible;
+  opacity: 0;
+  transform-origin: 50% 50%;
+  scale: 1 0.15;
+  animation: lad-progress-flow 1.6s linear infinite;
+  animation-play-state: paused;
+  transition:
+    opacity 250ms ease,
+    scale 500ms ease;
+}
+.lad-orbit .orbit-scrubber__line path {
+  stroke-width: 3;
+}
+.lad-orbit .orbit-scrubber[data-playing="true"] .orbit-scrubber__line::before {
+  opacity: 0;
+}
+.lad-orbit .orbit-scrubber[data-playing="true"] .orbit-scrubber__line svg {
+  opacity: 1;
+  scale: 1 1;
+  animation-play-state: running;
+}
+@keyframes lad-progress-flow {
+  from {
+    transform: translateX(-32px);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lad-orbit .orbit-scrubber__line svg {
+    animation: none !important;
+    opacity: 0 !important;
+    transition: none;
+  }
+  .lad-orbit .orbit-scrubber__line::before {
+    opacity: 1 !important;
+    transition: none;
+  }
+}
+
+/* The compact accent trigger is a value control, not a prominent action. */
+.lad-color-trigger.orbit-button {
+  min-height: 36px;
+  padding: 6px 12px;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 500;
+}
+.lad-color-trigger .lad-color-chip {
+  width: 18px;
+  height: 18px;
+}
+.lad-color-trigger > svg {
+  width: 13px;
+  height: 13px;
+}
+
+/* Choice controls across dialogs and secondary menus use the same capsule shape. */
+.orbit-dialog .wave-preference-values .orbit-filter-chips {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.orbit-dialog .wave-preference-values button {
+  min-height: 40px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+}
+.lad-orbit .filter-tabs > button,
+.lad-orbit .collection-section-tabs > button,
+.lad-orbit .icon-text-button,
+.track-context-menu > button {
+  border-radius: 999px;
+}
+.lad-orbit .audio-preset-select select {
+  min-height: 40px;
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-size: 13px;
+}
+.orbit-dialog .local-field :is(input, select) {
+  min-height: 44px;
+  border-radius: 999px;
+}
+.orbit-dialog .local-field :is(input, select):focus-visible {
+  outline: none;
+  border-color: var(--orbit-focus);
+  box-shadow: inset 0 0 0 1px var(--orbit-focus);
+}
+.orbit-dialog .field-label > input {
+  border-radius: 999px;
+}
+.orbit-dialog .field-label > input:focus-visible {
+  outline: none;
+  border-color: var(--orbit-focus);
+  box-shadow: inset 0 0 0 1px var(--orbit-focus);
+}
+
+/* Desktop player: a compact track group, central transport and readable volume. */
+@media (min-width: 761px) {
+  .lad-orbit .player-dock > .player {
+    grid-template-columns: minmax(0, 1fr) minmax(260px, 1.25fr) minmax(
+        max-content,
+        1fr
+      );
+  }
+  .lad-orbit .player-track > button:first-child {
+    flex: none;
+  }
+  .lad-orbit .player-track-name {
+    flex: 0 1 auto;
+    width: max-content;
+  }
+  .lad-orbit .player-track-name strong {
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 22px;
+  }
+  .lad-orbit .player-track-name small {
+    font-size: 13px;
+    line-height: 19px;
+    margin-top: 3px;
+  }
+  .lad-orbit .player-track > .icon-button {
+    flex: none;
+    margin-left: 0;
+    width: 40px;
+    height: 40px;
+    min-height: 40px;
+  }
+  .lad-orbit .progress-row {
+    max-width: none;
+  }
+  .lad-orbit .volume-control {
+    display: flex;
+    max-width: none;
+    min-width: 0;
+    gap: 7px;
+  }
+  .lad-orbit .volume-control input[type="range"] {
+    flex: none;
+    width: 105px;
+    height: 44px;
+  }
+  .lad-orbit .volume-control input::-webkit-slider-runnable-track {
+    height: 6px;
+  }
+  .lad-orbit .volume-control input::-webkit-slider-thumb {
+    width: 18px;
+    height: 18px;
+    margin-top: -6px;
+  }
+  .lad-orbit .volume-value {
+    display: inline-flex;
+    position: static;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    min-width: 46px;
+    height: 28px;
+    padding: 3px 7px;
+    border: 1px solid var(--orbit-line);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--orbit-raised) 70%, transparent);
+    color: var(--orbit-text);
+    font-size: 11px;
+    line-height: 18px;
+    font-variant-numeric: tabular-nums;
+    opacity: 1;
+  }
+  .lad-orbit .volume-control:focus-within .volume-value {
+    background: var(--orbit-tonal);
+    color: var(--orbit-on-tonal);
+    border-color: var(--orbit-rim);
+  }
+}
+@media (min-width: 761px) and (max-width: 1050px) {
+  .lad-orbit .app-shell {
+    --player-clearance: 166px;
+  }
+  .lad-orbit .wave-home {
+    --wave-card-height: min(680px, calc(100dvh - 312px));
+  }
+  .lad-orbit .player-dock {
+    height: 156px;
+  }
+  .lad-orbit .player-dock > .player {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: 56px 50px;
+    height: 136px;
+    padding: 10px 16px;
+    gap: 8px 16px;
+  }
+  .lad-orbit .player-track {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .lad-orbit .player-right {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .lad-orbit .player-center {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 18px;
+  }
+  .lad-orbit .player-controls {
+    gap: 6px;
+  }
+  .lad-orbit .queue-panel {
+    bottom: 170px;
+  }
+  .lad-orbit .queue-dismiss {
+    bottom: 156px;
+  }
+}
+
+/* Track feedback uses a plain icon, with no selected surface. */
+.lad-orbit .like-button,
+.lad-orbit .like-button.is-liked,
+.lad-orbit .dislike-button {
+  background: transparent;
+  box-shadow: none;
+  color: var(--orbit-text);
+  flex-shrink: 0;
+}
+.lad-orbit .like-button svg {
+  transform-origin: center;
+}
+.lad-orbit .like-button:hover,
+.lad-orbit .dislike-button:hover {
+  background: color-mix(in srgb, var(--orbit-text) 6%, transparent);
+}
+.lad-orbit .dislike-button {
+  color: var(--orbit-muted);
+}
+.lad-orbit .dislike-button[aria-pressed="true"] {
+  color: var(--orbit-text);
+}
+.lad-orbit .player-track .like-button {
+  width: 40px;
+  height: 40px;
+  margin-left: 0;
+}
+.lad-orbit .player-track > .dislike-button {
+  width: 32px;
+  height: 40px;
+  margin-left: -8px;
+}
+.lad-orbit .artist-heading {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  padding: 16px 0 28px;
+}
+.lad-orbit .artist-heading > .art {
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  flex: none;
+}
+.lad-orbit .artist-heading-copy {
+  min-width: 0;
+}
+.lad-orbit .artist-heading h1 {
+  font-size: clamp(32px, 3.5vw, 48px);
+  font-weight: 700;
+  line-height: 1.08;
+  letter-spacing: -0.035em;
+  margin: 8px 0;
+  overflow-wrap: anywhere;
+}
+.lad-orbit .artist-heading p {
+  color: var(--orbit-muted);
+}
+.lad-orbit .artist-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-top: 24px;
+  flex-wrap: wrap;
+}
+.lad-orbit .artist-actions .like-button {
+  width: 44px;
+  height: 44px;
+}
+.lad-orbit .discovery-heading {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  text-align: left;
+  border-radius: 999px;
+  margin-bottom: 20px;
+}
+.lad-orbit .discovery-heading h2 {
+  margin: 0;
+}
+.lad-orbit .back-to-artist {
+  font-size: 13px;
+  color: var(--orbit-muted);
+}
+.lad-orbit .text-link {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  border-radius: 999px;
+}
+.lad-orbit .release-basis {
+  margin: 8px 0 20px;
+  font-size: 12px;
+}
+.lad-orbit .release-carousel {
+  display: flex;
+  gap: 20px;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  padding-bottom: 14px;
+}
+.lad-orbit .release-card {
+  flex: 0 0 280px;
+  min-width: 0;
+  scroll-snap-align: start;
+}
+.lad-orbit .release-artist {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  gap: 12px;
+  padding: 4px 16px 16px;
+  border-radius: 24px;
+}
+.lad-orbit .release-artist .art {
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+}
+.lad-orbit .release-artist strong {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 18px;
+}
+.lad-orbit .release-record {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--orbit-rim);
+  border-radius: 20px;
+  background: var(--orbit-surface);
+}
+.lad-orbit .release-album {
+  display: flex;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  border-radius: 12px;
+  text-align: left;
+}
+.lad-orbit .release-album .art {
+  width: 48px;
+  height: 48px;
+  flex: none;
+}
+.lad-orbit .release-album > span {
+  min-width: 0;
+}
+.lad-orbit .release-album strong,
+.lad-orbit .release-album small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lad-orbit .release-album strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+.lad-orbit .release-album small {
+  font-size: 11px;
+  color: var(--orbit-muted);
+  margin-top: 5px;
+}
+.lad-orbit .release-record > .icon-button {
+  width: 36px;
+  height: 36px;
+  flex: none;
+}
+.lad-orbit .dislikes-entry .collection-section-heading {
+  gap: 12px;
+  justify-content: flex-start;
+}
+.lad-orbit .dislikes-entry .collection-section-heading > span {
+  flex: 1;
+  min-width: 0;
+}
+.lad-orbit .dislikes-entry strong,
+.lad-orbit .dislikes-entry small {
+  display: block;
+}
+.lad-orbit .dislikes-entry small {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--orbit-muted);
+  margin-top: 4px;
+}
+.lad-orbit .disliked-tracks {
+  margin: 24px 0;
+}
+.lad-orbit .disliked-track {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 68px;
+  border-bottom: 1px solid var(--orbit-rim);
+}
+.lad-orbit .disliked-track .track-name {
+  flex: 1;
+  min-width: 0;
+}
+.lad-orbit .disliked-play {
+  position: relative;
+  flex: none;
+  border-radius: 12px;
+}
+.lad-orbit .disliked-play > svg {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  opacity: 0;
+}
+.lad-orbit .disliked-play:hover > svg,
+.lad-orbit .disliked-play:focus-visible > svg {
+  opacity: 1;
+}
+.lad-orbit .disliked-play:hover img {
+  opacity: 0.4;
+}
+@media (max-width: 760px) {
+  .lad-orbit .artist-heading {
+    gap: 16px;
+    padding: 8px 0 20px;
+    align-items: flex-start;
+  }
+  .lad-orbit .artist-heading > .art {
+    width: 96px;
+    height: 96px;
+  }
+  .lad-orbit .artist-heading h1 {
+    font-size: clamp(32px, 3.5vw, 48px);
+    font-weight: 700;
+    line-height: 1.08;
+    letter-spacing: -0.035em;
+    font-size: 28px;
+    line-height: 1.1;
+  }
+  .lad-orbit .artist-actions {
+    gap: 8px;
+    margin-top: 16px;
+  }
+  .lad-orbit .artist-actions .lad-button {
+    padding-inline: 14px;
+  }
+  .lad-orbit .release-card {
+    flex-basis: 248px;
+  }
+  .lad-orbit .release-artist .art {
+    width: 156px;
+    height: 156px;
+  }
+  .lad-orbit .dislikes-entry small {
+    line-height: 1.45;
+  }
+}
+
+.lad-orbit .track-like.is-liked {
+  opacity: 1;
+}
+
+/* Overview collections are single horizontal galleries; full catalogs keep grids. */
+.lad-orbit .horizontal-gallery {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: var(--gallery-card-width, 160px);
+  grid-template-columns: none;
+  gap: 18px;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  padding: 2px 0 14px;
+  align-items: start;
+}
+.lad-orbit .horizontal-gallery > * {
+  min-width: 0;
+  width: 100%;
+  scroll-snap-align: start;
+}
+.lad-orbit .horizontal-gallery .music-card {
+  padding: 0;
+  text-align: left;
+}
+.lad-orbit .horizontal-gallery > .music-card .art {
+  width: 100%;
+  height: auto;
+  max-width: none;
+  aspect-ratio: 1;
+}
+.lad-orbit .horizontal-gallery .music-card strong {
+  display: block;
+  margin-top: 12px;
+  font-size: 15px;
+  font-weight: 550;
+  line-height: 1.4;
+}
+.lad-orbit .horizontal-gallery .music-card small {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--orbit-muted);
+  line-height: 1.4;
+}
+.lad-orbit .horizontal-gallery .collection-artist {
+  text-align: center;
+}
+.lad-orbit .horizontal-gallery .collection-artist strong {
+  font-size: 17px;
+  font-weight: 600;
+}
+.lad-orbit .artist-page .artist-section-title,
+.lad-orbit .main[data-page="collection"] .music-section > h2,
+.lad-orbit .main[data-page="collection"] .liked-preview-heading strong,
+.lad-orbit .main[data-page="collection"] .collection-section-heading h2,
+.lad-orbit .main[data-page="home"] .music-section > h2 {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.025em;
+}
+.lad-orbit .artist-page .artist-section-title {
+  margin: 0 0 22px;
+}
+.lad-orbit .artist-section-link {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  text-align: left;
+  border-radius: 12px;
+  font: inherit;
+  letter-spacing: inherit;
+}
+.lad-orbit .artist-section-link > svg {
+  flex: none;
+  color: var(--orbit-muted);
+}
+.lad-orbit .artist-page .music-section {
+  margin-top: 32px;
+}
+.lad-orbit .artist-page .artist-heading {
+  padding-bottom: 8px;
+}
+.lad-orbit .artist-page :is(.artist-all-tracks, .artist-discography) {
+  margin-top: 8px;
+}
+.lad-orbit .artist-page :is(.artist-all-tracks, .artist-discography) > h1 {
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1.15;
+  margin: 0 0 28px;
+  letter-spacing: -0.025em;
+}
+.lad-orbit .artist-page .artist-discography > p {
+  margin: -12px 0 24px;
+}
+.lad-orbit .artist-track-row {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 40px 46px;
+  gap: 14px;
+  align-items: center;
+  min-height: 64px;
+  border-radius: 12px;
+}
+.lad-orbit .artist-track-row:hover,
+.lad-orbit .artist-track-row.is-current {
+  background: color-mix(in srgb, var(--orbit-text) 5%, transparent);
+}
+.lad-orbit .artist-track-cover {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.lad-orbit .artist-track-cover .art {
+  width: 100%;
+  height: 100%;
+}
+.lad-orbit .artist-track-cover > svg {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  opacity: 0;
+}
+.lad-orbit .artist-track-cover:hover > svg,
+.lad-orbit .artist-track-cover:focus-visible > svg {
+  opacity: 1;
+}
+.lad-orbit .artist-track-cover:hover .art {
+  opacity: 0.5;
+}
+.lad-orbit .artist-track-row .track-name strong {
+  font-size: 14px;
+  font-weight: 550;
+  line-height: 1.4;
+}
+.lad-orbit .artist-track-row .track-name small {
+  font-size: 12px;
+  line-height: 1.4;
+  margin-top: 3px;
+}
+.lad-orbit .artist-track-duration {
+  font-size: 12px;
+  color: var(--orbit-muted);
+  text-align: right;
+  padding-right: 4px;
+  font-variant-numeric: tabular-nums;
+}
+.lad-orbit .artist-all-tracks > .lad-button,
+.lad-orbit .artist-discography > .lad-button {
+  margin-top: 24px;
+}
+.lad-orbit .artist-popular-albums .music-card strong {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.lad-orbit .main[data-page="collection"] .collection-section-heading {
+  margin-bottom: 28px;
+}
+.lad-orbit .main[data-page="collection"] .music-section > h2 {
+  margin-bottom: 28px;
+}
+.lad-orbit .dislikes-entry {
+  margin-top: 32px;
+}
+.lad-orbit .dislikes-entry > .collection-group {
+  width: calc((100% - 12px) / 2);
+}
+.lad-orbit .dislikes-entry .collection-group > span {
+  min-width: 0;
+}
+.lad-orbit .dislikes-entry .collection-group strong {
+  font-size: 16px;
+}
+.lad-orbit .dislikes-entry .collection-group small {
+  font-size: 12px;
+  line-height: 1.4;
+}
+@media (min-width: 761px) {
+  .lad-orbit .player-feedback-row {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr) 44px;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    min-width: 0;
+  }
+  .lad-orbit .player-feedback-row .progress-row {
+    width: 100%;
+    min-width: 0;
+  }
+  .lad-orbit .player-feedback-row :is(.like-button, .dislike-button) {
+    width: 44px;
+    height: 44px;
+    min-height: 44px;
+    padding: 7px;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    box-shadow: none;
+  }
+  .lad-orbit .player-feedback-row :is(.like-button, .dislike-button) svg {
+    width: 30px;
+    height: 30px;
+  }
+  .lad-orbit .player-feedback-row :is(.like-button, .dislike-button):hover {
+    background: color-mix(in srgb, var(--orbit-text) 10%, transparent);
+  }
+  .lad-orbit .player-feedback-row .feedback-placeholder {
+    width: 44px;
+    height: 44px;
+  }
+  .lad-orbit .player-dock > .player {
+    grid-template-columns: minmax(0, 1fr) minmax(340px, 1.6fr) minmax(
+        max-content,
+        1fr
+      );
+  }
+}
+@media (min-width: 761px) and (max-width: 1050px) {
+  .lad-orbit .player-dock > .player {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+}
+@media (max-width: 760px) {
+  .lad-orbit .artist-page .artist-section-title,
+  .lad-orbit .main[data-page="collection"] .music-section > h2,
+  .lad-orbit .main[data-page="collection"] .collection-section-heading h2,
+  .lad-orbit .main[data-page="home"] .music-section > h2 {
+    font-size: 22px;
+  }
+  .lad-orbit .artist-page :is(.artist-all-tracks, .artist-discography) > h1 {
+    font-size: 28px;
+  }
+  .lad-orbit .artist-track-row {
+    grid-template-columns: 40px minmax(0, 1fr) 36px 38px;
+    gap: 8px;
+    min-height: 60px;
+  }
+  .lad-orbit .artist-track-cover {
+    width: 40px;
+    height: 40px;
+  }
+  .lad-orbit .artist-track-row .track-name strong {
+    font-size: 13px;
+  }
+  .lad-orbit .artist-track-row .track-name small {
+    font-size: 11px;
+  }
+  .lad-orbit .artist-track-duration {
+    font-size: 11px;
+  }
+  .lad-orbit .dislikes-entry > .collection-group {
+    width: 100%;
+  }
+}
+
+/* Section navigation uses the same readable scale as the content headings. */
+.lad-orbit .main-header > div {
+  flex: 1;
+  min-width: 0;
+  gap: 8px;
+}
+.lad-orbit .main-header .header-location {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 28px;
+  line-height: 1.2;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+.lad-orbit .main-header > div > .icon-button {
+  width: 40px;
+  height: 40px;
+  min-height: 40px;
+  flex: none;
+}
+.lad-orbit .main-header > div > .icon-button svg {
+  width: 24px;
+  height: 24px;
+}
+.lad-orbit .track-play:not([data-ranked="true"]) .track-play-icon {
+  display: block;
+}
+.lad-orbit
+  :is(
+    .artist-section-link,
+    .collection-section-heading,
+    .liked-preview-heading,
+    .collection-group
+  )
+  > svg:last-child {
+  transition: transform 180ms ease-out;
+}
+.lad-orbit
+  :is(
+    .artist-section-link,
+    .collection-section-heading,
+    .liked-preview-heading,
+    .collection-group
+  ):is(:hover, :focus-visible)
+  > svg:last-child {
+  transform: translateX(5px);
+}
+@media (max-width: 760px) {
+  .lad-orbit .main-header .header-location {
+    font-size: 22px;
+  }
+  .lad-orbit .release-carousel.horizontal-gallery {
+    grid-auto-columns: 248px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lad-orbit
+    :is(
+      .artist-section-link,
+      .collection-section-heading,
+      .liked-preview-heading,
+      .collection-group
+    )
+    > svg:last-child {
+    transition: none;
+    transform: none !important;
+  }
+}
+
+/* Release information overlaps the portrait; desktop surfaces stay neutral. */
+.lad-orbit .release-card {
+  --release-portrait: 231px;
+}
+.lad-orbit .release-artist {
+  position: relative;
+  display: block;
+  padding: 0;
+  height: var(--release-portrait);
+}
+.lad-orbit .release-artist .art {
+  width: var(--release-portrait);
+  height: var(--release-portrait);
+  margin-inline: auto;
+}
+.lad-orbit .release-artist::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: calc((100% - var(--release-portrait)) / 2);
+  width: var(--release-portrait);
+  height: var(--release-portrait);
+  border-radius: 50%;
+  background: linear-gradient(transparent 50%, #0006);
+  pointer-events: none;
+}
+.lad-orbit .release-artist strong {
+  position: absolute;
+  z-index: 1;
+  bottom: 32px;
+  left: 16px;
+  right: 16px;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: #fff;
+  text-shadow: 0 1px 8px #0009;
+  text-align: center;
+}
+.lad-orbit .release-record {
+  position: relative;
+  z-index: 2;
+  margin-top: -22px;
+}
+.lad-orbit .release-card:not(:has(.release-artist)) .release-record {
+  margin-top: 0;
+}
+.lad-orbit .release-section-title {
+  margin-bottom: 0;
+}
+.lad-orbit .releases-page > h1 {
+  font-size: 32px;
+  line-height: 1.2;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  margin: 0 0 16px;
+}
+.lad-orbit .release-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(248px, 100%), 1fr));
+  gap: 32px 20px;
+  margin-top: 28px;
+}
+.lad-orbit .release-grid .release-card {
+  width: 100%;
+  max-width: 320px;
+  margin-inline: auto;
+}
+.lad-orbit .new-releases .text-link {
+  margin-left: 8px;
+}
+@media (max-width: 760px) {
+  .lad-orbit .release-card {
+    --release-portrait: 206px;
+  }
+  .lad-orbit .release-artist strong {
+    font-size: 18px;
+  }
+  .lad-orbit .releases-page > h1 {
+    font-size: 28px;
+  }
+}
+
+/* Leave the Windows caption buttons and their native hit targets clear. */
+.lad-orbit .titlebar[data-platform="win32"] {
+  padding-inline: 150px;
+}
+.lad-orbit .titlebar[data-platform="win32"] .demo-badge {
+  right: 150px;
+}

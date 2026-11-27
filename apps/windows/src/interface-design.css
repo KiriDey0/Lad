@@ -1,0 +1,30 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+.interface-design-switch {
+  appearance: none;
+  width: 44px;
+  height: 26px;
+  flex: none;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--raised);
+  cursor: pointer;
+}
+.interface-design-switch::before {
+  display: block;
+  content: "";
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+.interface-design-switch:checked {
+  background: var(--accent);
+}
+.interface-design-switch:checked::before {
+  transform: translateX(18px);
+  background: var(--on-accent);
+}
+.interface-design-switch:disabled {
+  cursor: progress;
+}

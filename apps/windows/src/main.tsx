@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react";
 import { createRoot } from "react-dom/client";
-import "@fontsource-variable/golos-text";
-import "./style.css";
-import App from "./App";
+import "./interface-design.css";
+import { isClassicDesign } from "./InterfaceDesignSetting";
+const App = React.lazy(() => isClassicDesign() ? import("./ClassicRenderer") : import("./orbit/Renderer"));
 class ErrorBoundary extends React.Component<
   { children: React.ReactNode },
   { failed: boolean }
@@ -26,6 +26,6 @@ class ErrorBoundary extends React.Component<
 }
 createRoot(document.getElementById("root")!).render(
   <ErrorBoundary>
-    <App />
+    <React.Suspense fallback={null}><App /></React.Suspense>
   </ErrorBoundary>,
 );
