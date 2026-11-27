@@ -43,6 +43,8 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 
+private data class BrowseEntry(val card: Card?, val artistView: String?, val page: Int, val liked: Boolean)
+
 private data class Destination(val label: String, val icon: ImageVector)
 
 private val destinations =
@@ -108,7 +110,7 @@ fun Action(
         onClick,
         modifier.heightIn(min = 48.dp),
         enabled = enabled,
-        shape = RoundedCornerShape(16.dp),
+        shape = if (LocalOrbitDesign.current) CircleShape else RoundedCornerShape(16.dp),
         colors =
             ButtonDefaults.buttonColors(
                 containerColor = if (tonal) p.tonal else p.accent,
@@ -296,8 +298,9 @@ fun CardRow(cards: List<Card>, open: (Card) -> Unit, menu: (Card) -> Unit) {
 @Composable
 fun NavBar(selected: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier) {
     val p = LocalPalette.current
+    val orbit = LocalOrbitDesign.current
     Row(
-        modifier.padding(6.dp).height(48.dp),
+        modifier.fillMaxWidth().padding(if (orbit) 4.dp else 6.dp).height(48.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
@@ -311,7 +314,7 @@ fun NavBar(selected: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier
             Box(
                 Modifier.weight(1f)
                     .fillMaxHeight()
-                    .clip(RoundedCornerShape(18.dp))
+                    .clip(if (orbit) CircleShape else RoundedCornerShape(18.dp))
                     .background(selection)
                     .clickable { onSelect(i) }
                     .semantics {
@@ -320,12 +323,15 @@ fun NavBar(selected: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier
                     },
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(
-                    d.icon,
-                    null,
-                    Modifier.size(24.dp),
-                    tint = if (i == selected) p.accent else Color(0xFFD2D8E0),
-                )
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        d.icon,
+                        null,
+                        Modifier.size(if (orbit) 19.dp else 24.dp),
+                        tint = if (i == selected) p.accent else p.muted,
+                    )
+                    if (orbit) Label(d.label, 9, if (i == selected) p.accent else p.muted, maxLines = 1)
+                }
             }
         }
     }
@@ -677,14 +683,17 @@ fun MenuItem(label: String, icon: ImageVector, enabled: Boolean = true, onClick:
 }
 
 @Composable
-fun LadApp(engine: MusicEngine) {
+fun LadApp(engine: MusicEngine, restartInterface: () -> Unit) {
     val s by engine.uiState.collectAsStateWithLifecycle()
     val auth by engine.auth.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
     var tab by rememberSaveable { mutableIntStateOf(0) }
+    val orbit = !s.settings.classicDesign
     var detail by remember { mutableStateOf<Card?>(null) }
-    val history = remember { mutableStateListOf<Card?>() }
+    var artistView by remember { mutableStateOf<String?>(null) }
+    var releasesPage by remember { mutableStateOf(false) }
+    val history = remember { mutableStateListOf<BrowseEntry>() }
     var overlay by rememberSaveable { mutableStateOf<String?>(null) }
     var overlayParent by rememberSaveable { mutableStateOf<String?>(null) }
     fun showOverlay(target: String, retain: Boolean = false) {
@@ -754,15 +763,36 @@ fun LadApp(engine: MusicEngine) {
     val viewLiked=Catalog("Мне нравится",(if(remoteVisible)liked.tracks else emptyList())+(if(localVisible)localLikes.tracks else emptyList()),total=(if(remoteVisible)liked.total else 0)+(if(localVisible)localLikes.total else 0))
     val ui = rememberCoroutineScope()
     val uid = s.profile?.uid
+    fun browseKey(card: Card?, section: String?, likes: Boolean) =
+        listOf(tab, card?.key, section, likes, query.takeIf { tab == 1 && card == null && !likes },
+            searchType.takeIf { tab == 1 && card == null && !likes }).joinToString("/")
+    val catalogKey = browseKey(detail, artistView, likedPage)
+    val catalogs = remember(uid, s.demo, refresh) { mutableStateMapOf<String, Pair<Int, Catalog>>() }
+    val listStates = remember(uid, s.demo) { linkedMapOf<String, LazyListState>() }
+    val listState = if (orbit) listStates.getOrPut(catalogKey) {
+        if (listStates.size >= 30) listStates.remove(listStates.keys.first())
+        LazyListState()
+    } else remember { LazyListState() }
+    val releaseListState = remember(uid, s.demo) { LazyListState() }
+    val releaseShelfState = remember(uid, s.demo) { LazyListState() }
+    var releaseResult by remember(uid, s.demo) { mutableStateOf<PersonalReleases?>(null) }
+    var releaseError by remember(uid, s.demo) { mutableStateOf("") }
+    var releaseRetry by remember { mutableIntStateOf(0) }
+    var releaseRefresh by remember { mutableIntStateOf(0) }
+    val overviews = remember(uid, s.demo) { mutableStateMapOf<String, ArtistOverview>() }
+    val artist = detail?.takeIf { orbit && it.type == "artist" && !it.isLocal }
+    val overview = artist?.let { overviews[it.id] }
+    val shownCatalog = if (orbit) catalogs[catalogKey]?.second ?: Catalog() else catalog
     fun open(card: Card) {
         overlay = null
         overlayParent = null
         trackMenu = null
         cardMenu = null
-        history.add(detail)
+        history.add(BrowseEntry(detail, artistView, page, likedPage))
         detail = card
+        artistView = null
         likedPage = false
-        page = 0
+        page = if (orbit) catalogs[browseKey(card, null, false)]?.first ?: 0 else 0
     }
     fun run(action: suspend () -> Unit) {
         engine.task(action)
@@ -829,18 +859,63 @@ fun LadApp(engine: MusicEngine) {
             }
         }
     }
-    LaunchedEffect(uid, s.demo, tab, detail, likedPage, query, searchType, page, refresh) {
+    LaunchedEffect(uid, s.demo, orbit, s.track?.id) {
+        if (orbit) engine.refreshTrackMarks()
+    }
+    LaunchedEffect(uid, s.demo, orbit, releaseRetry, releaseRefresh) {
+        if (!orbit || uid == null) return@LaunchedEffect
+        releaseError = ""
+        try {
+            releaseResult = if (s.demo) {
+                val track = MusicEngine.demoTracks.first()
+                PersonalReleases(
+                    listOf(PersonalRelease(
+                        track.albumCard().copy(title = track.title),
+                        Card("demo-artist", "artist", "Лад Session", cover = track.cover),
+                        java.time.LocalDate.now(),
+                        "single",
+                    )),
+                    false,
+                )
+            } else engine.api.personalReleases(uid)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            releaseError = e.message ?: "Не удалось загрузить новые релизы"
+        }
+    }
+    LaunchedEffect(uid, s.demo, tab, detail, likedPage, query, searchType, page, refresh, artistView, orbit) {
         if ((uid == null && detail?.isLocal != true) || tab == 3) return@LaunchedEffect
+        val target = detail
+        val pendingArtist = artist
+        val loaded = catalogs[catalogKey]
+        if (orbit && loaded?.first == page) {
+            loading = false
+            error = ""
+            return@LaunchedEffect
+        }
         loading = true
         error = ""
         try {
             if (tab == 1 && detail == null && !likedPage && query.isBlank()) {
                 catalog = Catalog()
+                catalogs[catalogKey] = 0 to Catalog()
                 return@LaunchedEffect
             }
             if (tab == 1 && detail == null) delay(300)
             val data =
                 when {
+                    pendingArtist != null && artistView == null -> {
+                        val info = if (s.demo) ArtistOverview(
+                            pendingArtist, MusicEngine.demoTracks,
+                            listOf(MusicEngine.demoTracks.first().albumCard()), null, false,
+                        ) else engine.api.artistOverview(pendingArtist)
+                        overviews[pendingArtist.id] = info
+                        Catalog(info.artist.title, info.popularTracks.take(5), info.popularAlbums)
+                    }
+                    pendingArtist != null && artistView == "albums" ->
+                        if (s.demo) Catalog(pendingArtist.title, cards = listOf(MusicEngine.demoTracks.first().albumCard()))
+                        else engine.api.artistDiscography(pendingArtist, page)
                     s.demo ->
                         if (likedPage)
                             Catalog(
@@ -864,18 +939,20 @@ fun LadApp(engine: MusicEngine) {
                                 MusicEngine.demoCards,
                             )
                     likedPage -> engine.api.liked(uid ?: error("Войди в аккаунт"), page * 100)
-                    detail != null -> engine.collection(detail!!, page)
+                    target != null -> engine.collection(target, page)
                     tab == 1 -> engine.api.search(query, searchType, page)
                     tab == 0 -> engine.api.home()
                     else -> Catalog()
                 }
-            catalog =
-                if (page == 0) data
-                else
-                    data.copy(
-                        tracks = catalog.tracks + data.tracks,
-                        cards = catalog.cards + data.cards,
-                    )
+            val previous = if (orbit) loaded?.second ?: Catalog() else catalog
+            val next = if (page == 0) data else data.copy(
+                tracks = (previous.tracks + data.tracks).distinctBy(Track::id),
+                cards = (previous.cards + data.cards).distinctBy(Card::key),
+            )
+            if (orbit) {
+                if (catalogs.size >= 30 && catalogKey !in catalogs) catalogs.remove(catalogs.keys.first())
+                catalogs[catalogKey] = page to next
+            } else catalog = next
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -919,6 +996,8 @@ fun LadApp(engine: MusicEngine) {
     }
     LaunchedEffect(uid) {
         detail = null
+        artistView = null
+        releasesPage = false
         history.clear()
         overlay = null
         overlayParent = null
@@ -940,10 +1019,18 @@ fun LadApp(engine: MusicEngine) {
                 likedPage = false
                 page = 0
             }
-            detail != null -> {
-                detail = if (history.isNotEmpty()) history.removeAt(history.lastIndex) else null
+            detail != null && artistView != null -> {
+                artistView = null
                 page = 0
             }
+            detail != null -> {
+                val previous = history.removeLastOrNull()
+                detail = previous?.card
+                artistView = previous?.artistView
+                likedPage = previous?.liked ?: false
+                page = previous?.page ?: 0
+            }
+            releasesPage -> releasesPage = false
             tab == 2 && collectionSection != null -> collectionSection = null
             else -> tab = 0
         }
@@ -955,11 +1042,12 @@ fun LadApp(engine: MusicEngine) {
             cardMenu != null ||
             overlay != null ||
             detail != null ||
+            releasesPage ||
             likedPage ||
             tab != 0,
         onBack = goBack,
     )
-    LadTheme(s.settings) {
+    LadTheme(s.settings, orbit = !s.settings.classicDesign) {
         val p = LocalPalette.current
         val config = LocalConfiguration.current
         val density = LocalDensity.current
@@ -1061,17 +1149,23 @@ fun LadApp(engine: MusicEngine) {
                             ) {
                                 if (
                                     detail != null ||
+                                        releasesPage ||
                                         likedPage ||
                                         (tab == 2 && collectionSection != null)
                                 )
                                     Tool(Icons.Outlined.ChevronLeft, "Назад", onClick = goBack)
                                 Label(
-                                    if (likedPage) "Мне нравится"
-                                    else
-                                        detail?.title
+                                    when {
+                                        likedPage -> "Мне нравится"
+                                        artistView == "tracks" -> "Все треки"
+                                        artistView == "albums" -> "Альбомы"
+                                        releasesPage && detail == null -> "Новые релизы"
+                                        else -> detail?.title
                                             ?: if (tab == 0) "лад"
+                                            else if (tab == 2 && collectionSection == "dislikes") "Мои дизлайки"
                                             else if (tab == 2) collectionTitle(collectionSection)
-                                            else destinations[tab].label,
+                                            else destinations[tab].label
+                                    },
                                     if (tab == 2 && detail == null && !likedPage) 24
                                     else if (detail == null) 28 else 22,
                                     weight = FontWeight.SemiBold,
@@ -1091,7 +1185,31 @@ fun LadApp(engine: MusicEngine) {
                             if (s.profile == null && tab != 2 && tab != 3 && detail?.isLocal != true)
                                 LoginView(engine, auth, ::browser, clipboard, bottom) { tab = 2; collectionSource = "local" }
                             else if (tab == 3 && detail == null && !likedPage)
-                                SettingsView(s, engine, Modifier.weight(1f), bottom)
+                                SettingsView(s, engine, Modifier.weight(1f), bottom, restartInterface)
+                            else if (orbit && releasesPage && detail == null) {
+                                LazyColumn(
+                                    Modifier.weight(1f).fillMaxWidth(),
+                                    state = releaseListState,
+                                    contentPadding = PaddingValues(bottom = bottom),
+                                    verticalArrangement = Arrangement.spacedBy(18.dp),
+                                ) {
+                                    item { Label("За последние 90 дней", 13, p.muted) }
+                                    if (releaseError.isNotBlank()) item { ErrorBox(releaseError) { releaseRetry++ } }
+                                    if (releaseResult == null && releaseError.isBlank())
+                                        item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
+                                    if (releaseResult?.partial == true)
+                                        item { ErrorBox("Часть релизов недоступна") { releaseRetry++ } }
+                                    val releases = releaseResult?.items.orEmpty()
+                                    if (releaseResult != null && releases.isEmpty())
+                                        item { Label("Новых релизов пока нет", 16, p.muted) }
+                                    items(releases, key = { it.album.id }) { release ->
+                                        ReleaseTile(release, ::open, { batch(it, null, start = true) }, Modifier.fillMaxWidth())
+                                    }
+                                }
+                            }
+                            else if (orbit && tab == 2 && collectionSection == "dislikes" && detail == null) {
+                                OrbitDislikes(s, engine, Modifier.weight(1f), bottom)
+                            }
                             else if (tab == 2 && detail == null && !likedPage) {
                                 CollectionSources(collectionSource,{collectionSource=it;collectionSection=null},engine)
                                 if(collectionSection=="folders") LocalFoldersView(engine,localFolders,bottom,::open,Modifier.weight(1f))
@@ -1126,6 +1244,7 @@ fun LadApp(engine: MusicEngine) {
                                     modifier = Modifier.weight(1f),
                                     localFolders = if(localVisible) localFolders else null,
                                     localTracks = { open(Card("local-tracks","playlist","На устройстве")) },
+                                    dislikes = if (orbit && uid != null && remoteVisible) ({ collectionSection = "dislikes" }) else null,
                                 )
                             } else {
                                 if (tab == 1 && detail == null && !likedPage) {
@@ -1173,14 +1292,23 @@ fun LadApp(engine: MusicEngine) {
                                         }
                                     }
                                 }
+                                val wavePage = orbit && detail == null && !likedPage && tab == 0
                                 LazyColumn(
-                                    Modifier.weight(1f),
+                                    Modifier.weight(1f).then(if (wavePage) Modifier.drawWithContent {
+                                        drawContent()
+                                        if (listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 0) {
+                                            val edge = 42.dp.toPx().coerceAtMost(size.height)
+                                            drawRect(Brush.verticalGradient(listOf(p.bg, Color.Transparent), endY = edge),
+                                                size = androidx.compose.ui.geometry.Size(size.width, edge))
+                                        }
+                                    } else Modifier),
+                                    state = listState,
                                     contentPadding = PaddingValues(bottom = bottom),
                                     verticalArrangement = Arrangement.spacedBy(12.dp),
                                 ) {
                                     if (s.demo)
                                         item { Label("Демонстрация · без звука", 12, p.muted) }
-                                    if (detail != null)
+                                    if (detail != null && artistView == null)
                                         item {
                                             val c = detail!!
                                             Row(
@@ -1189,10 +1317,11 @@ fun LadApp(engine: MusicEngine) {
                                                 verticalAlignment = Alignment.CenterVertically,
                                             ) {
                                                 Artwork(
-                                                    c.cover,
+                                                    overview?.artist?.cover ?: c.cover,
                                                     c.title,
                                                     112.dp,
-                                                    Modifier.combinedClickable(
+                                                    cornerRadius = if (artist != null) 56.dp else null,
+                                                    modifier = Modifier.combinedClickable(
                                                         onClick = {},
                                                         onLongClick = { cardMenu = c },
                                                     ),
@@ -1206,17 +1335,45 @@ fun LadApp(engine: MusicEngine) {
                                                         p.muted,
                                                     )
                                                     MarqueeLabel(
-                                                        catalog.title.ifBlank { c.title },
+                                                        shownCatalog.title.ifBlank { c.title },
                                                         24,
                                                         weight = FontWeight.SemiBold,
                                                     )
                                                     MarqueeLabel(
-                                                        c.subtitle,
+                                                        overview?.listeners?.let { "${java.text.NumberFormat.getIntegerInstance(java.util.Locale.forLanguageTag("ru-RU")).format(it)} слушателей в месяц" }
+                                                            ?: c.subtitle,
                                                         12,
                                                         p.muted,
                                                         modifier = Modifier.fillMaxWidth(),
                                                     )
                                                     Row {
+                                                        if (artist != null && overview != null) {
+                                                            val followed = library.artists.any { it.id == c.id }
+                                                            Tool(
+                                                                Icons.Outlined.PlayArrow,
+                                                                "Слушать исполнителя",
+                                                                enabled = overview.popularTracks.any { it.available && !(s.settings.blockExplicit && it.explicit) },
+                                                                onClick = {
+                                                                    run {
+                                                                        val tracks = overview.popularTracks.filter { it.available && !(s.settings.blockExplicit && it.explicit) }
+                                                                        engine.play(tracks, 0, c.title)
+                                                                    }
+                                                                },
+                                                            )
+                                                            if (!s.demo && uid != null && !libraryLoading && library.artistsError.isBlank()) {
+                                                                Tool(
+                                                                    if (followed) Icons.Outlined.Favorite else Icons.Outlined.FavoriteBorder,
+                                                                    if (followed) "Убрать исполнителя из любимых" else "Добавить исполнителя в любимые",
+                                                                    onClick = {
+                                                                        run {
+                                                                            engine.api.like(uid, c.id, "artist", !followed)
+                                                                            refresh++
+                                                                            releaseRefresh++
+                                                                        }
+                                                                    },
+                                                                )
+                                                            }
+                                                        }
                                                         if (c.type == "album")
                                                             Tool(
                                                                 Icons.Outlined.FavoriteBorder,
@@ -1273,6 +1430,42 @@ fun LadApp(engine: MusicEngine) {
                                                 }
                                             }
                                         }
+                                    if (wavePage && (releaseResult != null || releaseError.isNotBlank())) {
+                                        item("personal-releases") {
+                                            val releases = releaseResult?.items.orEmpty()
+                                            if (releases.isNotEmpty())
+                                                ReleaseShelf(releases, releaseShelfState, { releasesPage = true }, ::open) {
+                                                    batch(it, null, start = true)
+                                                }
+                                            else {
+                                                OrbitSectionLink("Новые релизы") { releasesPage = true }
+                                                if (releaseError.isNotBlank()) ErrorBox(releaseError) { releaseRetry++ }
+                                                else Label("Новых релизов пока нет", 14, p.muted)
+                                            }
+                                        }
+                                    }
+                                    if (artist != null && artistView == null && overview != null) {
+                                        item {
+                                            OrbitSectionLink("Популярные треки") {
+                                                artistView = "tracks"
+                                                page = catalogs[browseKey(artist, "tracks", false)]?.first ?: 0
+                                            }
+                                        }
+                                        itemsIndexed(shownCatalog.tracks, key = { i, t -> "popular:${t.id}:$i" }) { i, track ->
+                                            TrackRow(track, s, { run { engine.play(shownCatalog.tracks, i, artist.title) } },
+                                                ::open, { trackMenu = track })
+                                        }
+                                        item {
+                                            OrbitSectionLink("Популярные альбомы") {
+                                                artistView = "albums"
+                                                page = catalogs[browseKey(artist, "albums", false)]?.first ?: 0
+                                            }
+                                            if (overview.albumsUnavailable)
+                                                Label("Популярные альбомы пока недоступны", 13, p.muted)
+                                            if (shownCatalog.cards.isNotEmpty())
+                                                CardRow(shownCatalog.cards, ::open, { cardMenu = it })
+                                        }
+                                    }
                                     run {
                                         if (loading && page == 0)
                                             item {
@@ -1287,21 +1480,35 @@ fun LadApp(engine: MusicEngine) {
                                             }
                                         if (error.isNotBlank())
                                             item { ErrorBox(error) { refresh++ } }
-                                        if (!loading || page > 0) {
-                                            if (catalog.cards.isNotEmpty())
+                                        if ((!loading || page > 0 || shownCatalog.tracks.isNotEmpty()) && (artist == null || artistView != null)) {
+                                            if (shownCatalog.cards.isNotEmpty())
                                                 item {
                                                     Section(
-                                                        if (detail?.type == "artist") "Альбомы"
+                                                        if (artistView == "albums") "От новых к старым"
+                                                        else if (detail?.type == "artist") "Альбомы"
                                                         else if (tab == 1) "Подборки и исполнители"
                                                         else "Собрано для тебя"
                                                     )
-                                                    CardRow(
-                                                        catalog.cards,
-                                                        ::open,
-                                                        { cardMenu = it },
-                                                    )
+                                                    if (artistView != "albums") CardRow(shownCatalog.cards, ::open, { cardMenu = it })
                                                 }
-                                            if (catalog.tracks.isNotEmpty())
+                                            if (artistView == "albums") {
+                                                items(shownCatalog.cards, key = { it.key }) { album ->
+                                                    Row(
+                                                        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
+                                                            .background(p.surface).clickable { open(album) }.padding(12.dp),
+                                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                    ) {
+                                                        Artwork(album.cover, album.title, 64.dp)
+                                                        Column(Modifier.weight(1f)) {
+                                                            Label(album.title, 16, weight = FontWeight.SemiBold)
+                                                            Label(album.subtitle, 12, p.muted)
+                                                        }
+                                                        Icon(Icons.Outlined.ChevronRight, null, tint = p.muted)
+                                                    }
+                                                }
+                                            }
+                                            if (shownCatalog.tracks.isNotEmpty())
                                                 item {
                                                     Row(
                                                         verticalAlignment =
@@ -1310,7 +1517,7 @@ fun LadApp(engine: MusicEngine) {
                                                         Label(
                                                             if (detail != null) "Треки"
                                                             else if (likedPage) "Любимые треки"
-                                                            else catalog.title,
+                                                            else shownCatalog.title,
                                                             20,
                                                             weight = FontWeight.SemiBold,
                                                             modifier = Modifier.weight(1f),
@@ -1321,7 +1528,7 @@ fun LadApp(engine: MusicEngine) {
                                                             onClick = {
                                                                 run {
                                                                     val index =
-                                                                        catalog.tracks
+                                                                        shownCatalog.tracks
                                                                             .indexOfFirst {
                                                                                 it.available &&
                                                                                     !(s.settings
@@ -1329,9 +1536,9 @@ fun LadApp(engine: MusicEngine) {
                                                                                         it.explicit)
                                                                             }
                                                                     engine.play(
-                                                                        catalog.tracks,
+                                                                        shownCatalog.tracks,
                                                                         index,
-                                                                        catalog.title,
+                                                                        shownCatalog.title,
                                                                     )
                                                                 }
                                                             },
@@ -1339,7 +1546,7 @@ fun LadApp(engine: MusicEngine) {
                                                     }
                                                 }
                                             itemsIndexed(
-                                                catalog.tracks,
+                                                shownCatalog.tracks,
                                                 key = { i, t -> "${t.id}:$i" },
                                             ) { i, t ->
                                                 TrackRow(
@@ -1348,9 +1555,9 @@ fun LadApp(engine: MusicEngine) {
                                                     {
                                                         run {
                                                             engine.play(
-                                                                catalog.tracks,
+                                                                shownCatalog.tracks,
                                                                 i,
-                                                                catalog.title,
+                                                                shownCatalog.title,
                                                             )
                                                         }
                                                     },
@@ -1358,7 +1565,7 @@ fun LadApp(engine: MusicEngine) {
                                                     { trackMenu = t },
                                                 )
                                             }
-                                            if (catalog.more)
+                                            if (shownCatalog.more)
                                                 item {
                                                     Action(
                                                         "Показать ещё",
@@ -1370,8 +1577,8 @@ fun LadApp(engine: MusicEngine) {
                                                     }
                                                 }
                                             if (
-                                                catalog.tracks.isEmpty() &&
-                                                    catalog.cards.isEmpty() &&
+                                                shownCatalog.tracks.isEmpty() &&
+                                                    shownCatalog.cards.isEmpty() &&
                                                     error.isBlank()
                                             )
                                                 item {
@@ -1410,6 +1617,8 @@ fun LadApp(engine: MusicEngine) {
                                                 collectionSection = null
                                                 detail = null
                                                 history.clear()
+                                                artistView = null
+                                                releasesPage = false
                                                 likedPage = false
                                                 page = 0
                                             },
@@ -1425,11 +1634,18 @@ fun LadApp(engine: MusicEngine) {
                                     end = 16.dp,
                                     bottom = 12.dp,
                                 ),
-                            verticalArrangement = Arrangement.spacedBy(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(if (s.settings.classicDesign) 16.dp else 6.dp),
                         ) {
-                            MiniPlayer(s, engine, { showOverlay("now") }, { trackMenu = it })
+                            if (s.settings.classicDesign)
+                                MiniPlayer(s, engine, { showOverlay("now") }, { trackMenu = it })
+                            else
+                                OrbitMiniPlayer(s, engine, { showOverlay("now") }, { trackMenu = it })
                             if (!landscape)
-                                Glass(Modifier.fillMaxWidth(), s.settings.glass) {
+                                Glass(
+                                    Modifier.fillMaxWidth(),
+                                    s.settings.glass,
+                                    shape = if (s.settings.classicDesign) RoundedCornerShape(24.dp) else RoundedCornerShape(50),
+                                ) {
                                     NavBar(
                                         tab,
                                         {
@@ -1437,6 +1653,8 @@ fun LadApp(engine: MusicEngine) {
                                             collectionSection = null
                                             detail = null
                                             history.clear()
+                                            artistView = null
+                                            releasesPage = false
                                             likedPage = false
                                             page = 0
                                         },
@@ -1592,6 +1810,16 @@ fun LadApp(engine: MusicEngine) {
                                                 }
                                         )
                                     refresh++
+                                }
+                            }
+                            if (orbit && !t.isLocal && uid != null) {
+                                val rated = s.track?.takeIf { it.id == t.id } ?: t
+                                MenuItem(
+                                    if (rated.disliked) "Снять дизлайк" else "Не нравится",
+                                    Icons.Outlined.HeartBroken,
+                                ) {
+                                    trackMenu = null
+                                    run { engine.dislike(rated, !rated.disliked); refresh++ }
                                 }
                             }
                             if (t.albumId.isNotBlank())

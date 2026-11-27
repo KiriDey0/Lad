@@ -184,15 +184,7 @@ class YandexApi(
         }
         val artists = async {
             try {
-                val cards =
-                    arr("/users/${encode(uid)}/likes/artists", mapOf("with-timestamps" to "true"))
-                        .objects()
-                        .mapNotNull {
-                            it.optJSONObject("artist")
-                                ?: it.takeIf { j -> j.has("name") && j.has("id") }
-                        }
-                        .map(Card::artist)
-                        .distinctBy { it.key }
+                val cards = favoriteArtists(uid)
                 cards to ""
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
@@ -292,9 +284,8 @@ class YandexApi(
         )
     }
 
-    suspend fun home(): Catalog {
-        val history =
-            runCatching { obj("/music-history", mapOf("fullModelsCount" to "30")) }.getOrNull()
+    internal suspend fun recentTracks(limit: Int): List<Track> {
+        val history = obj("/music-history", mapOf("fullModelsCount" to "$limit"))
         val found = mutableListOf<Track>()
         fun walk(value: Any?) {
             when (value) {
@@ -308,6 +299,11 @@ class YandexApi(
             }
         }
         walk(history)
+        return found.take(limit)
+    }
+
+    suspend fun home(): Catalog {
+        val found = catalogResult { recentTracks(30) }.getOrDefault(emptyList())
         val landing =
             runCatching { obj("/landing3", mapOf("blocks" to "personalplaylists,new-releases")) }
                 .getOrNull()
@@ -419,13 +415,29 @@ class YandexApi(
                 }
         }
 
+    internal suspend fun ratingIds(uid: String, disliked: Boolean): List<String> {
+        val kind = if (disliked) "dislikes" else "likes"
+        return obj("/users/${encode(uid)}/$kind/tracks").optJSONObject("library")
+            ?.array("tracks")?.objects().orEmpty().map { it.text("id") }.filter { it.isNotBlank() }.distinct()
+    }
+
+    internal suspend fun dislike(uid: String, id: String, value: Boolean) {
+        val action = if (value) "add-multiple" else "remove"
+        val result = request(
+            "/users/${encode(uid)}/dislikes/tracks/$action",
+            form = mapOf("track-ids" to id.substringBefore(':')),
+        )
+        if (result !is JSONObject || !result.has("revision"))
+            throw ApiError(400, "Яндекс не сохранил дизлайк")
+    }
+
     suspend fun like(uid: String, id: String, type: String, value: Boolean) {
         val result =
             request(
                 "/users/${encode(uid)}/likes/${type}s/${if(value) "add-multiple" else "remove"}",
                 form = mapOf("$type-ids" to id),
             )
-        if (type == "album" && result != "ok") throw ApiError(400, "Яндекс не сохранил лайк")
+        if (type in setOf("album", "artist") && result != "ok") throw ApiError(400, "Яндекс не сохранил лайк")
         if (type == "track" && (result !is JSONObject || !result.has("revision")))
             throw ApiError(400, "Яндекс не сохранил лайк")
     }

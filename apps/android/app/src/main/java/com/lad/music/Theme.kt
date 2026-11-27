@@ -40,19 +40,24 @@ val LocalPalette = staticCompositionLocalOf {
         Color(0xFFE2E6EC),
     )
 }
+val LocalOrbitDesign = staticCompositionLocalOf { false }
 val Golos = FontFamily(Font(R.font.golos))
 
 @Composable
-fun LadTheme(settings: Settings, content: @Composable () -> Unit) {
-    val accent = Color(settings.accent)
+fun LadTheme(settings: Settings, orbit: Boolean = false, content: @Composable () -> Unit) {
+    val accent = Color(if (orbit && settings.accent == Settings().accent) 0xFFBFCAF5 else settings.accent)
     val tinted = settings.tinted
+    val dark = Color(if (orbit) 0xFF111318 else 0xFF0C0D0F)
+    val surface = Color(if (orbit) 0xFF191B23 else 0xFF17191D)
+    val raised = Color(if (orbit) 0xFF212430 else 0xFF282B31)
+    val tonal = Color(if (orbit) 0xFF292F46 else 0xFF282B31)
     val p =
         Palette(
             if (settings.oled) Color.Black
-            else if (tinted) lerp(Color(0xFF0C0D0F), accent, .035f) else Color(0xFF0C0D0F),
-            if (tinted) lerp(Color(0xFF17191D), accent, .08f) else Color(0xFF17191D),
-            if (tinted) lerp(Color(0xFF282B31), accent, .08f) else Color(0xFF282B31),
-            lerp(Color(0xFF282B31), accent, .08f),
+            else if (tinted) lerp(dark, accent, .035f) else dark,
+            if (tinted) lerp(surface, accent, .08f) else surface,
+            if (tinted) lerp(raised, accent, .08f) else raised,
+            lerp(tonal, accent, .08f),
             accent,
             scale = 1f,
         )
@@ -81,6 +86,7 @@ fun LadTheme(settings: Settings, content: @Composable () -> Unit) {
     }
     CompositionLocalProvider(
         LocalPalette provides p,
+        LocalOrbitDesign provides orbit,
         LocalDensity provides Density(density.density * factor, density.fontScale),
         LocalConfiguration provides configuration,
         LocalMinimumInteractiveComponentSize provides (48f / factor.coerceAtMost(1f)).dp,

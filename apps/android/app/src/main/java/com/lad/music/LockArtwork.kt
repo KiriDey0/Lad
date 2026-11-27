@@ -12,7 +12,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
-data class LockArtwork(val cover: Bitmap, val backdrop: Bitmap)
+data class LockArtwork(val cover: Bitmap, val backdrop: Bitmap, val waveColor: Int? = null)
 
 /** Small, pre-blurred texture; drawing this never invokes a live blur or an FFT. */
 internal fun lockBackdrop(source: Bitmap): Bitmap {
@@ -62,7 +62,17 @@ class LockArtworkRepository(private val context: Context) {
                         val cover = drawable.toBitmap((drawable.intrinsicWidth * scale).toInt().coerceAtLeast(1),
                             (drawable.intrinsicHeight * scale).toInt().coerceAtLeast(1), Bitmap.Config.ARGB_8888)
                         ensureActive()
-                        LockArtwork(cover, lockBackdrop(cover)).also { cache.put(url, it) }
+                        val side = minOf(cover.width, cover.height)
+                        val crop = Bitmap.createBitmap(cover, (cover.width - side) / 2, (cover.height - side) / 2, side, side)
+                        val sample = Bitmap.createScaledBitmap(crop, 96, 96, true)
+                        val pixels = IntArray(96 * 96)
+                        sample.getPixels(pixels, 0, 96, 0, 0, 96, 96)
+                        val palette = com.lad.music.wave.WavePalette.extract(pixels, 96, 96)
+                        val rgb = palette.colors.firstOrNull()
+                        val color = rgb?.let { android.graphics.Color.rgb(it[0].toInt(), it[1].toInt(), it[2].toInt()) }
+                        if (sample !== crop && sample !== cover) sample.recycle()
+                        if (crop !== cover) crop.recycle()
+                        LockArtwork(cover, lockBackdrop(cover), color).also { cache.put(url, it) }
                     }
                 }
             } catch (_: TimeoutCancellationException) { null }

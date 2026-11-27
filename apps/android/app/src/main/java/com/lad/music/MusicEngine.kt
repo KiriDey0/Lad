@@ -114,6 +114,9 @@ class MusicEngine(
     val auth = mutableAuth.asStateFlow()
     private val mutex = Mutex()
     private val volumeMutex = Mutex()
+    private val ratingMutex = Mutex()
+    private data class TrackMarks(val uid: String, val time: Long, val liked: Set<String>, val disliked: Set<String>)
+    private var trackMarks: TrackMarks? = null
     private var station: StationClient? = null
     private var phoneVolumeBeforeCast: Float? = null
     private var authJob: Job? = null
@@ -643,12 +646,15 @@ class MusicEngine(
         direction: Int,
         automatic: Boolean = false,
         coverSelection: Pair<CoverWindow, Int>? = null,
+        expectedEntryId: String? = null,
     ) = playbackLock {
         if (advancing) return@playbackLock
         val epoch = operationEpoch
         advancing = true
         try {
             val s = state.value
+            if (expectedEntryId != null && s.track?.queueEntryId != expectedEntryId)
+                return@playbackLock
             if (
                 coverSelection != null &&
                     !acceptsCoverSelection(s, coverSelection.first, coverSelection.second)
@@ -949,19 +955,69 @@ class MusicEngine(
         persist()
     }
 
-    suspend fun like(track: Track) {
+    internal suspend fun refreshTrackMarks() = ratingMutex.withLock {
         val s = state.value
-        val liked = !track.liked
-        if (track.isLocal) localLibrary.like(track.id,liked) else if (!s.demo) api.like(s.profile?.uid ?: error("Войди в аккаунт"), track.id, "track", liked)
-        update {
-            it.copy(
-                queue = it.queue.map { t -> if (t.id == track.id) t.copy(liked = liked) else t },
-                externalTrack =
-                    it.externalTrack?.let { t ->
-                        if (t.id == track.id) t.copy(liked = liked) else t
-                    },
-            )
+        val uid = s.profile?.uid ?: return@withLock
+        if (s.demo || s.track == null || s.track?.isLocal == true) return@withLock
+        val now = SystemClock.elapsedRealtime()
+        val cached = trackMarks?.takeIf { it.uid == uid && now - it.time < 60_000 }
+        val marks = cached ?: catalogResult {
+            coroutineScope {
+                val liked = async { api.ratingIds(uid, false).toSet() }
+                val disliked = async { api.ratingIds(uid, true).toSet() }
+                TrackMarks(uid, now, liked.await(), disliked.await())
+            }
+        }.getOrNull() ?: return@withLock
+        if (state.value.profile?.uid != uid || state.value.demo) return@withLock
+        trackMarks = marks
+        fun apply(track: Track): Track {
+            val id = track.id.substringBefore(':')
+            return if (track.isLocal) track else track.copy(liked = id in marks.liked, disliked = id in marks.disliked)
         }
+        update { it.copy(queue = it.queue.map(::apply), externalTrack = it.externalTrack?.let(::apply)) }
+    }
+
+    suspend fun like(track: Track) = ratingMutex.withLock {
+        val s = state.value
+        val uid = s.profile?.uid
+        val latest = s.track?.takeIf { it.id == track.id } ?: track
+        val id = track.id.substringBefore(':')
+        val marks = trackMarks?.takeIf { it.uid == uid && !s.demo && !track.isLocal }
+        val liked = !(marks?.let { id in it.liked } ?: latest.liked)
+        if (track.isLocal) localLibrary.like(track.id, liked)
+        else if (!s.demo) api.like(uid ?: error("Войди в аккаунт"), id, "track", liked)
+        if (state.value.profile?.uid != uid || state.value.demo != s.demo) return@withLock
+        if (marks != null) trackMarks = marks.copy(
+            liked = if (liked) marks.liked + id else marks.liked - id,
+            disliked = if (liked) marks.disliked - id else marks.disliked,
+        )
+        updateTrackRating(track.id) { it.copy(liked = liked, disliked = !liked && it.disliked) }
+    }
+
+    internal suspend fun dislike(track: Track, disliked: Boolean) {
+        if (track.isLocal) return
+        val entry = ratingMutex.withLock {
+            val s = state.value
+            val uid = s.profile?.uid ?: error("Войди в аккаунт")
+            val id = track.id.substringBefore(':')
+            if (!s.demo) api.dislike(uid, id, disliked)
+            if (state.value.profile?.uid != uid || state.value.demo != s.demo) return@withLock null
+            val marks = trackMarks?.takeIf { it.uid == uid }
+            if (marks != null) trackMarks = marks.copy(
+                liked = if (disliked) marks.liked - id else marks.liked,
+                disliked = if (disliked) marks.disliked + id else marks.disliked - id,
+            )
+            updateTrackRating(track.id) { it.copy(disliked = disliked, liked = !disliked && it.liked) }
+            notice(if (disliked) "Не нравится" else "Дизлайк снят")
+            s.track?.queueEntryId?.takeIf { disliked && s.owned && s.track?.id == track.id && it.isNotBlank() }
+        }
+        if (entry != null) advance(1, expectedEntryId = entry)
+    }
+
+    private fun updateTrackRating(id: String, rating: (Track) -> Track) {
+        val canonical = id.substringBefore(':')
+        fun updateIf(track: Track) = if (track.id.substringBefore(':') == canonical) rating(track) else track
+        update { it.copy(queue = it.queue.map(::updateIf), externalTrack = it.externalTrack?.let(::updateIf)) }
         persist()
     }
 

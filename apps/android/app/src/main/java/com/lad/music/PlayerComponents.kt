@@ -125,7 +125,15 @@ fun PlayerMetadata(
 
 /** Three real queue occurrences, frozen during a drag and its playback commit. */
 @Composable
-fun CoverCarousel(s: MusicState, engine: MusicEngine, modifier: Modifier = Modifier) {
+fun CoverCarousel(
+    s: MusicState,
+    engine: MusicEngine,
+    modifier: Modifier = Modifier,
+    compact: Boolean = false,
+    pageContent: @Composable (Track, Boolean) -> Unit = { track, _ ->
+        Artwork(track.cover, track.title, modifier = Modifier.fillMaxSize())
+    },
+) {
     var window by remember { mutableStateOf(coverWindow(s)) }
     var engaged by remember { mutableStateOf(false) }
     var pending by remember { mutableStateOf(false) }
@@ -145,8 +153,9 @@ fun CoverCarousel(s: MusicState, engine: MusicEngine, modifier: Modifier = Modif
     }
     if (window.entries.isEmpty()) return
     BoxWithConstraints(modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-        val viewport = maxWidth.coerceAtMost(390.dp)
-        val edge = (viewport * .7846f).coerceAtMost(306.dp)
+        val viewport = if (compact) maxWidth else maxWidth.coerceAtMost(390.dp)
+        val edge = if (compact) (viewport - 24.dp).coerceAtLeast(64.dp)
+            else (viewport * .7846f).coerceAtMost(306.dp)
         val inset = (viewport - edge) / 2
         key(window) {
             val pager =
@@ -180,6 +189,8 @@ fun CoverCarousel(s: MusicState, engine: MusicEngine, modifier: Modifier = Modif
                                     }
                                 ui.launch {
                                     job.join()
+                                    if (engine.state.value.index == window.origin)
+                                        pager.animateScrollToPage(window.center)
                                     pending = false
                                 }
                             }
@@ -191,9 +202,9 @@ fun CoverCarousel(s: MusicState, engine: MusicEngine, modifier: Modifier = Modif
             }
             HorizontalPager(
                 state = pager,
-                modifier = Modifier.width(viewport).height(edge),
+                modifier = Modifier.width(viewport).height(if (compact) 58.dp else edge),
                 contentPadding = PaddingValues(horizontal = inset),
-                pageSpacing = 12.dp,
+                pageSpacing = if (compact) 6.dp else 12.dp,
                 pageSize = PageSize.Fixed(edge),
                 beyondViewportPageCount = 1,
                 userScrollEnabled = !pending && !s.loading && window.entries.size > 1,
@@ -205,7 +216,7 @@ fun CoverCarousel(s: MusicState, engine: MusicEngine, modifier: Modifier = Modif
                 key = { "$it:${window.entries[it].index}:${window.entries[it].track.id}" },
             ) { page ->
                 val track = window.entries[page].track
-                Artwork(track.cover, track.title, modifier = Modifier.fillMaxSize())
+                pageContent(track, page == window.center)
             }
         }
     }

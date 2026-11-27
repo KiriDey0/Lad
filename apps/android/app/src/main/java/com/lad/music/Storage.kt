@@ -76,6 +76,7 @@ class Storage(private val context: Context) {
             prefs.getBoolean("audioEnabled", true),
             prefs.getString("audioPreset", "warm") ?: "warm",
             prefs.getFloat("audioPreampDb", -1f),
+            prefs.getBoolean("classicDesign", false),
             runCatching { JSONArray(prefs.getString("audioBands", "") ?: "").let { (0 until it.length()).map { n -> it.optDouble(n, 0.0).toFloat() } }.takeIf { it.size == 10 } }.getOrNull()
                 ?: Settings().audioBands,
         )
@@ -84,6 +85,7 @@ class Storage(private val context: Context) {
         prefs
             .edit()
             .putBoolean("oled", s.oled)
+            .putBoolean("classicDesign", s.classicDesign)
             .putBoolean("glass", s.glass)
             .putBoolean("tinted", s.tinted)
             .putLong("accent", s.accent)

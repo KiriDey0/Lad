@@ -159,7 +159,13 @@ fun SettingToggle(title: String, subtitle: String, value: Boolean, onChange: (Bo
 }
 
 @Composable
-fun SettingsView(s: MusicState, engine: MusicEngine, modifier: Modifier, bottom: Dp) {
+fun SettingsView(
+    s: MusicState,
+    engine: MusicEngine,
+    modifier: Modifier,
+    bottom: Dp,
+    restartInterface: () -> Unit,
+) {
     val p = LocalPalette.current
     val settings = s.settings
     var audioEditor by remember { mutableStateOf(false) }
@@ -327,6 +333,7 @@ fun SettingsView(s: MusicState, engine: MusicEngine, modifier: Modifier, bottom:
                     blockExplicit = settings.blockExplicit,
                     lyricOffsetMs = settings.lyricOffsetMs,
                     syncVolume = settings.syncVolume,
+                    classicDesign = settings.classicDesign,
                 )
             )
         }
@@ -344,6 +351,15 @@ fun SettingsView(s: MusicState, engine: MusicEngine, modifier: Modifier, bottom:
             12,
             p.muted,
         )
+        Section("Версия интерфейса")
+        SettingToggle(
+            "Вернуться к старому дизайну",
+            "Интерфейс перезапустится после смены дизайна.",
+            settings.classicDesign,
+        ) { classic ->
+            engine.settings(engine.state.value.settings.copy(classicDesign = classic))
+            restartInterface()
+        }
     }
     if (audioEditor) AudioEqualizerDialog(settings, engine) { audioEditor = false }
 }

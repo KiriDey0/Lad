@@ -37,6 +37,7 @@ data class Track(
     val explicit: Boolean = false,
     val liked: Boolean = false,
     val queueEntryId: String = "",
+    val disliked: Boolean = false,
 ) {
     val isLocal get() = id.startsWith("local-track-")
 
@@ -66,6 +67,7 @@ data class Track(
             .put("available", available)
             .put("explicit", explicit)
             .put("liked", liked)
+            .put("disliked", disliked)
             .put("queueEntryId", queueEntryId)
 
     companion object {
@@ -97,6 +99,7 @@ data class Track(
                 j.optBoolean("explicit"),
                 j.optBoolean("liked"),
                 j.text("queueEntryId"),
+                j.optBoolean("disliked"),
             )
     }
 }
@@ -211,6 +214,7 @@ data class Settings(
     val audioEnabled: Boolean = true,
     val audioPreset: String = "warm",
     val audioPreampDb: Float = -1f,
+    val classicDesign: Boolean = false,
     val audioBands: List<Float> = listOf(2.5f, 2f, 1f, 0f, -.5f, 0f, .5f, 1f, 1f, .5f),
 )
 

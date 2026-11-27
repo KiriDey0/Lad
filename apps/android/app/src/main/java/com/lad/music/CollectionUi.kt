@@ -84,7 +84,9 @@ fun CollectionView(
     modifier: Modifier = Modifier,
     localFolders: List<LocalFolder>? = null,
     localTracks: () -> Unit = {},
+    dislikes: (() -> Unit)? = null,
 ) {
+    val orbit = LocalOrbitDesign.current
     val p = LocalPalette.current
     val favorites =
         remember(liked.total) {
@@ -186,7 +188,7 @@ fun CollectionView(
                         ) {
                             Label(
                                 "Любимые исполнители",
-                                20,
+                                if (orbit) 23 else 20,
                                 weight = FontWeight.SemiBold,
                                 modifier = Modifier.weight(1f),
                                 maxLines = 1,
@@ -198,7 +200,7 @@ fun CollectionView(
                             LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                                 items(library.artists.take(12), key = { it.key }) { artist ->
                                     Column(
-                                        Modifier.width(100.dp)
+                                        Modifier.width(if (orbit) 132.dp else 100.dp)
                                             .combinedClickable(
                                                 onClick = { open(artist) },
                                                 onLongClick = { menu(artist) },
@@ -219,6 +221,7 @@ fun CollectionView(
                     }
                     item {
                         Section("В коллекции")
+                        if (orbit) Spacer(Modifier.height(16.dp))
                         Row(
                             Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -263,6 +266,16 @@ fun CollectionView(
                                 )
                             }
                         }
+                    }
+                    if (dislikes != null) item {
+                        Spacer(Modifier.height(18.dp))
+                        CollectionTile(
+                            "Мои дизлайки",
+                            "Треки, исключённые из рекомендаций",
+                            Icons.Outlined.HeartBroken,
+                            Modifier.fillMaxWidth(),
+                            dislikes,
+                        )
                     }
                 } else {
                     if (section == "artists" && library.artistsError.isNotBlank())
