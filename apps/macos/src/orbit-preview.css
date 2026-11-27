@@ -1620,26 +1620,6 @@ body {
   border-color: var(--orbit-focus);
   box-shadow: inset 0 0 0 1px var(--orbit-focus);
 }
-.lad-orbit .settings-page .orbit-segmented {
-  padding: 3px;
-  gap: 3px;
-  border: 1px solid var(--orbit-line);
-  border-radius: 12px;
-  background: var(--orbit-field);
-}
-.lad-orbit .settings-page .orbit-segmented button {
-  min-height: 32px;
-  padding: 6px 12px;
-  border-radius: 8px;
-  background: transparent;
-  font-size: 13px;
-  font-weight: 500;
-}
-.lad-orbit .settings-page .orbit-segmented button[aria-checked="true"] {
-  background: var(--orbit-tonal);
-  color: var(--orbit-on-tonal);
-  font-weight: 600;
-}
 /* Only the canvas escapes the hero; its controls stay above the dock. */
 .lad-orbit .wave-home {
   --wave-card-height: min(680px, calc(100dvh - 300px));
