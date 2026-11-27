@@ -14,6 +14,11 @@ import {
   Button as OrbitButton,
 } from "@kiridey/orbit-ui";
 import { AccentColorPicker } from "./components/AccentColorPicker";
+import {
+  ArtistPage,
+  NewReleases,
+  DislikesPage,
+} from "./components/CatalogDiscovery";
 import { MobileDock } from "./components/MobileDock";
 import { QueuePanel } from "./components/QueuePanel";
 import { Modal } from "./components/Modal";
@@ -37,6 +42,7 @@ import {
   AudioLines,
   Search,
   Heart,
+  HeartOff,
   Library,
   Settings,
   ChevronRight,
@@ -97,6 +103,7 @@ import {
 import {
   Button,
   IconButton,
+  LikeButton,
   Art,
   Empty,
   Skeleton,
@@ -143,6 +150,7 @@ type Page =
   | "search"
   | "collection"
   | "liked"
+  | "dislikes"
   | "now"
   | "settings"
   | "audio"
@@ -193,6 +201,14 @@ export default function App() {
     playlists: Card[];
     albums: Card[];
   } | null>(null);
+  const [ratings, setRatings] = useState<
+    Record<string, { liked?: boolean; disliked?: boolean }>
+  >({});
+  const ratingBusy = useRef(new Set<string>());
+  useEffect(() => {
+    setRatings({});
+    ratingBusy.current.clear();
+  }, [scope]);
   const [refreshKey, setRefreshKey] = useState(0);
   const [theme, setTheme] = useState<Theme>(loadTheme);
   const [audioSettings, setAudioSettings] =
@@ -312,6 +328,10 @@ export default function App() {
   useEffect(() => {
     if (
       page === "collection" ||
+      page === "dislikes" ||
+      (page === "detail" &&
+        detail?.type === "artist" &&
+        !detail.id.startsWith("local-")) ||
       page === "now" ||
       page === "settings" ||
       (!authenticated &&
@@ -431,17 +451,30 @@ export default function App() {
     if (result) setPage("home");
   };
   const current = state.playback.track;
+  const rating = (track: Track): Track => ({
+    ...track,
+    ...(state.queue.tracks.find((t) => t.id === track.id) || {}),
+    ...(state.playback.track?.id === track.id ? state.playback.track : {}),
+    ...ratings[track.id],
+  });
   const liked = (track: Track) => {
-    const value =
-      track.liked ??
-      state.queue.tracks.find((t) => t.id === track.id)?.liked ??
-      false;
-    return value;
+    return !!rating(track).liked;
   };
   const toggleLike = async (track: Track) => {
+    if (ratingBusy.current.has(track.id)) return;
+    ratingBusy.current.add(track.id);
     const value = !liked(track);
     const ok = await act("like", { id: track.id, liked: value });
+    ratingBusy.current.delete(track.id);
     if (ok) {
+      setRatings((prev) => ({
+        ...prev,
+        [track.id]: {
+          ...prev[track.id],
+          liked: value,
+          ...(value ? { disliked: false } : {}),
+        },
+      }));
       setContent((prev) => ({
         ...prev,
         tracks:
@@ -465,12 +498,64 @@ export default function App() {
             }
           : null,
       );
-      if (current?.id === track.id)
-        setState((prev) => ({
-          ...prev,
-          playback: { ...prev.playback, track: { ...track, liked: value } },
-        }));
+      window.dispatchEvent(
+        new CustomEvent("lad:rating-changed", {
+          detail: {
+            id: track.id,
+            liked: value,
+            ...(value ? { disliked: false } : {}),
+          },
+        }),
+      );
+      setState((prev) =>
+        prev.playback.track?.id !== track.id
+          ? prev
+          : {
+              ...prev,
+              playback: {
+                ...prev.playback,
+                track: {
+                  ...prev.playback.track,
+                  liked: value,
+                  ...(value ? { disliked: false } : {}),
+                },
+              },
+            },
+      );
     }
+  };
+  const toggleDislike = async (track: Track) => {
+    if (
+      track.source === "local" ||
+      track.id.startsWith("local-") ||
+      ratingBusy.current.has(track.id)
+    )
+      return false;
+    ratingBusy.current.add(track.id);
+    const value = !rating(track).disliked;
+    const ok = await act("dislike", { id: track.id, disliked: value });
+    ratingBusy.current.delete(track.id);
+    if (!ok) return false;
+    setRatings((prev) => ({
+      ...prev,
+      [track.id]: {
+        ...prev[track.id],
+        disliked: value,
+        ...(value ? { liked: false } : {}),
+      },
+    }));
+    window.dispatchEvent(
+      new CustomEvent("lad:rating-changed", {
+        detail: {
+          id: track.id,
+          disliked: value,
+          ...(value ? { liked: false } : {}),
+        },
+      }),
+    );
+    setRefreshKey((x) => x + 1);
+    notice(value ? "Не нравится · учтём в рекомендациях" : "Дизлайк снят");
+    return true;
   };
   const add = async (track: Track, next = false) => {
     const ok = await act("queue", { action: "add", tracks: [track], next });
@@ -488,6 +573,8 @@ export default function App() {
         play={play}
         add={add}
         like={toggleLike}
+        dislike={toggleDislike}
+        rating={rating}
         act={act}
         notice={notice}
       >
@@ -701,6 +788,7 @@ export default function App() {
                           search: "Поиск",
                           collection: "Коллекция",
                           liked: "Мне нравится",
+                          dislikes: "Мои дизлайки",
                           now: "Сейчас играет",
                           settings: "Настройки",
                           audio: "Звук",
@@ -809,8 +897,38 @@ export default function App() {
                       }
                       notice={notice}
                     />
+                  ) : page === "dislikes" ? (
+                    <DislikesPage
+                      state={state}
+                      play={play}
+                      undo={toggleDislike}
+                    />
+                  ) : page === "detail" &&
+                    detail?.type === "artist" &&
+                    !detail.id.startsWith("local-") ? (
+                    <ArtistPage
+                      key={`${scope}:${detail.id}`}
+                      card={detail}
+                      state={state}
+                      open={openCard}
+                      play={play}
+                      changed={() => setRefreshKey((x) => x + 1)}
+                      notice={notice}
+                      tracksView={(tracks, title) => (
+                        <TrackList
+                          tracks={tracks}
+                          title={title}
+                          state={state}
+                          source={detail.title}
+                          play={play}
+                          add={add}
+                          like={toggleLike}
+                        />
+                      )}
+                    />
                   ) : page === "collection" ? (
                     <CollectionBrowser
+                      dislikes={() => nav("dislikes")}
                       state={state}
                       refresh={refreshKey}
                       open={openCard}
@@ -1098,6 +1216,14 @@ export default function App() {
                         </>
                       ) : (
                         <>
+                          {page === "home" && (
+                            <NewReleases
+                              key={scope}
+                              open={openCard}
+                              play={play}
+                              notice={notice}
+                            />
+                          )}
                           {page === "home" && content.cards.length > 0 && (
                             <CardGrid
                               title="Собрано для тебя"
@@ -1241,6 +1367,7 @@ export default function App() {
               queueOpen={queueOpen}
               onDevice={() => setModal("devices")}
               like={() => current && void toggleLike(current)}
+              dislike={() => current && void toggleDislike(current)}
             />
             {modal === "wave" && (
               <WaveSettingsModal
@@ -1594,13 +1721,14 @@ function TrackList({
                 <TrackAlbumLink track={t}>{t.album}</TrackAlbumLink>
               </span>
               <span className="track-duration">{duration(t.duration)}</span>
-              <IconButton
-                icon={Heart}
-                active={
-                  t.liked ||
-                  state.queue.tracks.find((x) => x.id === t.id)?.liked
+              <LikeButton
+                identity={t.id}
+                active={!!actions.rating(t).liked}
+                aria-label={
+                  actions.rating(t).liked
+                    ? "Убрать из любимых"
+                    : "Добавить в любимые"
                 }
-                label={t.liked ? "Убрать из любимых" : "Добавить в любимые"}
                 onClick={() => like(t)}
                 className="track-like"
               />
@@ -1727,6 +1855,7 @@ function Player({
   queueOpen,
   onDevice,
   like,
+  dislike,
 }: {
   state: State;
   act: Act;
@@ -1735,6 +1864,7 @@ function Player({
   queueOpen: boolean;
   onDevice: () => void;
   like: () => void;
+  dislike: () => void;
 }) {
   const actions = useTrackActions();
   const p = state.playback,
@@ -1777,12 +1907,23 @@ function Player({
               <div className="player-track-name">
                 <TrackMetadata track={t} />
               </div>
-              <IconButton
-                icon={Heart}
-                label={t.liked ? "Убрать из любимых" : "Добавить в любимые"}
+              <LikeButton
+                identity={t.id}
+                aria-label={
+                  t.liked ? "Убрать из любимых" : "Добавить в любимые"
+                }
                 active={!!t.liked}
                 onClick={like}
               />
+              {t.source !== "local" && !t.id.startsWith("local-") && (
+                <IconButton
+                  icon={HeartOff}
+                  className="dislike-button"
+                  label={t.disliked ? "Снять дизлайк" : "Не нравится"}
+                  aria-pressed={!!t.disliked}
+                  onClick={dislike}
+                />
+              )}
             </>
           ) : (
             <>
@@ -2018,9 +2159,9 @@ function LyricsPage({
             )}
           </p>
         </div>
-        <IconButton
-          icon={Heart}
-          label="Отметить текущий трек"
+        <LikeButton
+          identity={track.id}
+          aria-label="Отметить текущий трек"
           active={!!track.liked}
           onClick={toggleLike}
         />

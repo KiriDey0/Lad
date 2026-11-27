@@ -8,7 +8,7 @@ import {
   type PointerEvent,
 } from "react";
 import { Heart, LoaderCircle, Music2, Pause, Play } from "lucide-react";
-import { Art, IconButton } from "./ui";
+import { Art, IconButton, LikeButton } from "./ui";
 import { loadCoverColors } from "../wave/coverColors";
 import type { State, Track } from "../types";
 
@@ -101,10 +101,10 @@ function TrackCard({
           <small>{track?.artist || "Выбери, с чего начать"}</small>
         </span>
       </button>
-      <IconButton
+      <LikeButton
+        identity={track?.id}
         className="mobile-like"
-        icon={Heart}
-        label={track?.liked ? "Убрать из любимых" : "Добавить в любимые"}
+        aria-label={track?.liked ? "Убрать из любимых" : "Добавить в любимые"}
         active={!!track?.liked}
         disabled={!track || !current}
         tabIndex={current ? 0 : -1}

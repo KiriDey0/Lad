@@ -17,6 +17,7 @@ export interface Track {
   cover?: string | null;
   available?: boolean;
   liked?: boolean;
+  disliked?: boolean;
   explicit?: boolean;
   art?: number;
 }
@@ -30,6 +31,20 @@ export interface Card {
   ownerLogin?: string;
   cover?: string | null;
   art?: number;
+  year?: number;
+  releaseDate?: string | null;
+  releaseType?: string;
+  releaseArtist?: Card;
+  artists?: Card[];
+}
+export interface ArtistDetail {
+  title: string;
+  artist: Card;
+  tracks: Track[];
+  albums: Card[];
+  albumsError?: string;
+  followed: boolean | null;
+  listeners?: number | null;
 }
 export interface Playback {
   track: Track | null;
@@ -129,7 +144,11 @@ export interface ReleaseHistoryEntry {
 }
 export interface Bridge {
   releaseHistory?: () => Promise<ReleaseHistoryEntry[]>;
-  wavePower?: (request?: {mode: "auto" | "eco" | "smooth"; active: boolean; pressure?: number}) => Promise<{ fps: number }>;
+  wavePower?: (request?: {
+    mode: "auto" | "eco" | "smooth";
+    active: boolean;
+    pressure?: number;
+  }) => Promise<{ fps: number }>;
   localFiles?(
     action: "add" | "restore" | "locate" | "lyrics" | "reveal",
     id?: string,

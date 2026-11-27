@@ -180,6 +180,8 @@ for (const width of [1440, 320])
               cards: [],
               tracksTitle: "Проверка",
             };
+          if (method === "releases")
+            return { releases: [], basis: "Тестовая подборка" };
           if (method === "lyrics") return { lines: [], synced: false };
           if (method === "liked") return { tracks: [], total: 0 };
           if (method === "library")

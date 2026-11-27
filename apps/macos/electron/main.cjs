@@ -62,6 +62,7 @@ const allowed = new Set([
   "link",
   "like",
   "albumLike",
+  "artist", "artistAlbums", "artistLike", "releases", "dislikes", "dislike",
   "wave",
   "waveSettings",
   "waveStream",

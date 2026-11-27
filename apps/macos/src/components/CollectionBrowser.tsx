@@ -7,6 +7,7 @@ import {
   Folder,
   FolderPlus,
   Heart,
+  HeartOff,
   ListMusic,
   RefreshCw,
   Search,
@@ -59,6 +60,7 @@ export function CollectionBrowser({
   refresh,
   open,
   favorite,
+  dislikes,
   tracksView,
   notice,
 }: {
@@ -66,7 +68,13 @@ export function CollectionBrowser({
   refresh: number;
   open: (card: Card) => void;
   favorite: () => void;
-  tracksView: (tracks: Track[], title: string, compact?: boolean, collectionId?:string) => ReactNode;
+  dislikes: () => void;
+  tracksView: (
+    tracks: Track[],
+    title: string,
+    compact?: boolean,
+    collectionId?: string,
+  ) => ReactNode;
   notice: (message: string) => void;
 }) {
   const actions = useCollectionActions();
@@ -382,7 +390,10 @@ export function CollectionBrowser({
         <Skeleton />
       ) : section === "overview" ? (
         <>
-          <section className="liked-preview" aria-label="Любимые треки в коллекции">
+          <section
+            className="liked-preview"
+            aria-label="Любимые треки в коллекции"
+          >
             <button className="liked-preview-heading" onClick={openFavorites}>
               <span className="liked-cover">
                 <Heart size={26} />
@@ -394,7 +405,16 @@ export function CollectionBrowser({
               <ChevronRight size={20} />
             </button>
             {favorites.length ? (
-              tracksView(favorites, "Мне нравится", true, source==="yandex"?"liked":source==="local"?"local-liked":"local-all-liked")
+              tracksView(
+                favorites,
+                "Мне нравится",
+                true,
+                source === "yandex"
+                  ? "liked"
+                  : source === "local"
+                    ? "local-liked"
+                    : "local-all-liked",
+              )
             ) : (
               <p className="muted">Отмечай любимые треки сердечком</p>
             )}
@@ -438,6 +458,18 @@ export function CollectionBrowser({
               ))}
             </div>
           </section>
+          {state.profile && (
+            <section className="music-section dislikes-entry">
+              <button className="collection-section-heading" onClick={dislikes}>
+                <HeartOff size={22} />
+                <span>
+                  <strong>Мои дизлайки</strong>
+                  <small>Треки, которые ты исключил из рекомендаций</small>
+                </span>
+                <ChevronRight size={20} />
+              </button>
+            </section>
+          )}
         </>
       ) : (
         <>

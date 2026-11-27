@@ -53,7 +53,7 @@ for (const width of [1440, 1100, 800])
             .querySelector(".player-track-name")!
             .getBoundingClientRect(),
           like = el
-            .querySelector(".player-track > .icon-button")!
+            .querySelector(".player-track > .like-button")!
             .getBoundingClientRect(),
           group = el.querySelector(".player-track")!.getBoundingClientRect();
         const input = el.querySelector<HTMLInputElement>(
@@ -175,7 +175,7 @@ for (const width of [1440, 1100, 800])
       const overflow = await player.evaluate((el) => {
         const r = el.getBoundingClientRect(),
           like = el
-            .querySelector(".player-track > .icon-button")!
+            .querySelector(".player-track > .like-button")!
             .getBoundingClientRect(),
           name = el
             .querySelector(".player-track-name")!
@@ -191,7 +191,7 @@ for (const width of [1440, 1100, 800])
       expect(overflow.scroll).toBeLessThanOrEqual(overflow.width + 1);
       expect(overflow.inside).toBe(true);
       expect(overflow.actions).toBe(true);
-      const heart = player.locator(".player-track > .icon-button");
+      const heart = player.locator(".player-track > .like-button");
       await heart.click();
       await expect(heart).toHaveAttribute("aria-pressed", "true");
       await capture("desktop-player-long-title");

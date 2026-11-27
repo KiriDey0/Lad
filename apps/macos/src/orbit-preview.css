@@ -256,7 +256,7 @@ body {
 .lad-orbit .track-like {
   display: flex;
 }
-.lad-orbit .track-like:not(.icon-active) {
+.lad-orbit .track-like:not(.is-liked) {
   opacity: 0.45;
 }
 .lad-orbit .track-duration {
@@ -2361,4 +2361,268 @@ body {
   .lad-orbit .queue-dismiss {
     bottom: 156px;
   }
+}
+
+/* Track feedback uses a plain icon, with no selected surface. */
+.lad-orbit .like-button,
+.lad-orbit .like-button.is-liked,
+.lad-orbit .dislike-button {
+  background: transparent;
+  box-shadow: none;
+  color: var(--orbit-text);
+  flex-shrink: 0;
+}
+.lad-orbit .like-button svg {
+  transform-origin: center;
+}
+.lad-orbit .like-button:hover,
+.lad-orbit .dislike-button:hover {
+  background: color-mix(in srgb, var(--orbit-text) 6%, transparent);
+}
+.lad-orbit .dislike-button {
+  color: var(--orbit-muted);
+}
+.lad-orbit .dislike-button[aria-pressed="true"] {
+  color: var(--orbit-text);
+}
+.lad-orbit .player-track .like-button {
+  width: 40px;
+  height: 40px;
+  margin-left: 0;
+}
+.lad-orbit .player-track > .dislike-button {
+  width: 32px;
+  height: 40px;
+  margin-left: -8px;
+}
+.lad-orbit .artist-heading {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  padding: 16px 0 28px;
+}
+.lad-orbit .artist-heading > .art {
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  flex: none;
+}
+.lad-orbit .artist-heading-copy {
+  min-width: 0;
+}
+.lad-orbit .artist-heading h1 {
+  font-size: clamp(32px, 3.5vw, 48px);
+  font-weight: 700;
+  line-height: 1.08;
+  letter-spacing: -0.035em;
+  margin: 8px 0;
+  overflow-wrap: anywhere;
+}
+.lad-orbit .artist-heading p {
+  color: var(--orbit-muted);
+}
+.lad-orbit .artist-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-top: 24px;
+  flex-wrap: wrap;
+}
+.lad-orbit .artist-actions .like-button {
+  width: 44px;
+  height: 44px;
+}
+.lad-orbit .discovery-heading {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  text-align: left;
+  border-radius: 999px;
+  margin-bottom: 20px;
+}
+.lad-orbit .discovery-heading h2 {
+  margin: 0;
+}
+.lad-orbit .back-to-artist {
+  font-size: 13px;
+  color: var(--orbit-muted);
+}
+.lad-orbit .text-link {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  border-radius: 999px;
+}
+.lad-orbit .release-basis {
+  margin: 8px 0 20px;
+  font-size: 12px;
+}
+.lad-orbit .release-carousel {
+  display: flex;
+  gap: 20px;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  padding-bottom: 14px;
+}
+.lad-orbit .release-card {
+  flex: 0 0 280px;
+  min-width: 0;
+  scroll-snap-align: start;
+}
+.lad-orbit .release-artist {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  gap: 12px;
+  padding: 4px 16px 16px;
+  border-radius: 24px;
+}
+.lad-orbit .release-artist .art {
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+}
+.lad-orbit .release-artist strong {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 18px;
+}
+.lad-orbit .release-record {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--orbit-rim);
+  border-radius: 20px;
+  background: var(--orbit-surface);
+}
+.lad-orbit .release-album {
+  display: flex;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  border-radius: 12px;
+  text-align: left;
+}
+.lad-orbit .release-album .art {
+  width: 48px;
+  height: 48px;
+  flex: none;
+}
+.lad-orbit .release-album > span {
+  min-width: 0;
+}
+.lad-orbit .release-album strong,
+.lad-orbit .release-album small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lad-orbit .release-album strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+.lad-orbit .release-album small {
+  font-size: 11px;
+  color: var(--orbit-muted);
+  margin-top: 5px;
+}
+.lad-orbit .release-record > .icon-button {
+  width: 36px;
+  height: 36px;
+  flex: none;
+}
+.lad-orbit .dislikes-entry .collection-section-heading {
+  gap: 12px;
+  justify-content: flex-start;
+}
+.lad-orbit .dislikes-entry .collection-section-heading > span {
+  flex: 1;
+  min-width: 0;
+}
+.lad-orbit .dislikes-entry strong,
+.lad-orbit .dislikes-entry small {
+  display: block;
+}
+.lad-orbit .dislikes-entry small {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--orbit-muted);
+  margin-top: 4px;
+}
+.lad-orbit .disliked-tracks {
+  margin: 24px 0;
+}
+.lad-orbit .disliked-track {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 68px;
+  border-bottom: 1px solid var(--orbit-rim);
+}
+.lad-orbit .disliked-track .track-name {
+  flex: 1;
+  min-width: 0;
+}
+.lad-orbit .disliked-play {
+  position: relative;
+  flex: none;
+  border-radius: 12px;
+}
+.lad-orbit .disliked-play > svg {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  opacity: 0;
+}
+.lad-orbit .disliked-play:hover > svg,
+.lad-orbit .disliked-play:focus-visible > svg {
+  opacity: 1;
+}
+.lad-orbit .disliked-play:hover img {
+  opacity: 0.4;
+}
+@media (max-width: 760px) {
+  .lad-orbit .artist-heading {
+    gap: 16px;
+    padding: 8px 0 20px;
+    align-items: flex-start;
+  }
+  .lad-orbit .artist-heading > .art {
+    width: 96px;
+    height: 96px;
+  }
+  .lad-orbit .artist-heading h1 {
+    font-size: clamp(32px, 3.5vw, 48px);
+    font-weight: 700;
+    line-height: 1.08;
+    letter-spacing: -0.035em;
+    font-size: 28px;
+    line-height: 1.1;
+  }
+  .lad-orbit .artist-actions {
+    gap: 8px;
+    margin-top: 16px;
+  }
+  .lad-orbit .artist-actions .lad-button {
+    padding-inline: 14px;
+  }
+  .lad-orbit .release-card {
+    flex-basis: 248px;
+  }
+  .lad-orbit .release-artist .art {
+    width: 156px;
+    height: 156px;
+  }
+  .lad-orbit .dislikes-entry small {
+    line-height: 1.45;
+  }
+}
+
+.lad-orbit .track-like.is-liked {
+  opacity: 1;
 }

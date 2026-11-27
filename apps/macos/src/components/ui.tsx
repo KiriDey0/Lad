@@ -1,6 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { useState, type ButtonHTMLAttributes, type ReactNode } from "react";
-import { AudioLines, Music2, type LucideIcon } from "lucide-react";
+import {
+  useState,
+  useEffect,
+  useRef,
+  type ButtonHTMLAttributes,
+  type ReactNode,
+} from "react";
+import { AudioLines, Heart, Music2, type LucideIcon } from "lucide-react";
 import clsx from "clsx";
 import {
   Button as OrbitButton,
@@ -59,12 +65,88 @@ export function IconButton({
   );
 }
 
+// Only a deliberate press animates; hydration and track changes stay quiet.
+export function LikeButton({
+  active,
+  identity,
+  onClick,
+  className,
+  ...props
+}: ButtonHTMLAttributes<HTMLButtonElement> & {
+  active: boolean;
+  identity?: string;
+}) {
+  const root = useRef<HTMLButtonElement>(null);
+  const intent = useRef<{ identity?: string; value: boolean } | null>(null);
+  const animation = useRef<Animation | null>(null);
+  useEffect(() => {
+    const requested = intent.current;
+    if (
+      !requested ||
+      requested.identity !== identity ||
+      requested.value !== active
+    )
+      return;
+    intent.current = null;
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    animation.current?.cancel();
+    animation.current =
+      root.current
+        ?.querySelector("svg")
+        ?.animate(
+          active
+            ? [
+                { transform: "scale(1)" },
+                { transform: "scale(1.2)", offset: 0.38 },
+                { transform: "scale(.94)", offset: 0.7 },
+                { transform: "scale(1)" },
+              ]
+            : [
+                { transform: "translateX(0)" },
+                { transform: "translateX(-3px) rotate(-7deg)", offset: 0.22 },
+                { transform: "translateX(3px) rotate(7deg)", offset: 0.5 },
+                { transform: "translateX(-2px)", offset: 0.75 },
+                { transform: "translateX(0)" },
+              ],
+          { duration: active ? 340 : 280, easing: "ease-out" },
+        ) || null;
+  }, [active, identity]);
+  useEffect(
+    () => () => {
+      animation.current?.cancel();
+      intent.current = null;
+    },
+    [identity],
+  );
+  return (
+    <OrbitButton
+      ref={root}
+      {...props}
+      iconOnly
+      variant="ghost"
+      className={clsx(
+        "icon-button",
+        "like-button",
+        active && "is-liked",
+        className,
+      )}
+      aria-pressed={active}
+      onClick={(event) => {
+        intent.current = { identity, value: !active };
+        onClick?.(event);
+      }}
+    >
+      <Heart size={20} fill={active ? "currentColor" : "none"} />
+    </OrbitButton>
+  );
+}
+
 export function Art({
   item,
   size = "md",
   className,
 }: {
-  item: Partial<Track & Card>;
+  item: Partial<Pick<Track, "id" | "title" | "cover" | "art">>;
   size?: "xs" | "sm" | "md" | "lg";
   className?: string;
 }) {
