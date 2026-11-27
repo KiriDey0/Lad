@@ -104,11 +104,11 @@ test('a late startup snapshot cannot replace a newer account and device list', a
       const w=window as any;
       w.stateListener({event:'state',data:{...w.initialFixture,profile:{uid:'qa',name:'QA identity',plus:true},demo:true}});
     });
-    await expect(page.getByRole('button',{name:/QA identity/})).toBeVisible();
+    await expect(page.locator('.account-summary').getByText('QA identity',{exact:true})).toBeVisible();
     await page.evaluate(async()=>{
       const w=window as any;w.resolveSnapshot(w.initialFixture);
       await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
     });
-    await expect(page.getByRole('button',{name:/QA identity/})).toBeVisible();
+    await expect(page.locator('.account-summary').getByText('QA identity',{exact:true})).toBeVisible();
   } finally {await app.close();fs.rmSync(profile,{recursive:true,force:true});}
 });

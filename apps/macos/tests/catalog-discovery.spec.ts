@@ -403,6 +403,7 @@ test("dislike pagination keeps server offsets after unresolved tracks and removi
 test("artist overview has six albums in one horizontal row and preserves the gallery on return", async () => {
   const { app, page, profile } = await launch(1680);
   try {
+    await page.setViewportSize({ width: 1680, height: 900 });
     await page.getByRole("button", { name: "Для тебя", exact: true }).click();
     await page.locator(".release-artist").first().click();
     await expect(

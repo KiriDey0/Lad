@@ -9,6 +9,7 @@ test.beforeAll(async () => {
   profile = fs.mkdtempSync(path.join(os.tmpdir(), 'lad-queue-ui-'));
   app = await electron.launch({ executablePath: process.env.LAD_TEST_EXE || undefined, args: process.env.LAD_TEST_EXE ? [] : [path.resolve(__dirname, '..')], env: { ...process.env, LAD_USER_DATA: profile, LAD_PYTHON: process.env.LAD_PYTHON } });
   page = await app.firstWindow();
+  await page.setViewportSize({ width: 1440, height: 940 });
   await page.waitForLoadState('domcontentloaded');
   await page.evaluate(() => window.lad!.rpc('snapshot'));
   await page.getByRole('button', { name: 'Посмотреть демо', exact: true }).click();
@@ -32,7 +33,9 @@ async function fillQueue(count: number, index: number) {
 }
 
 test('opening queue anchors current occurrence at two thirds and never follows manual scrolling', async () => {
-  await page.getByRole('button', { name: 'Скрыть очередь', exact: true }).click();
+  if (await page.locator('.queue-panel').count()) {
+    await page.getByRole('button', { name: 'Скрыть очередь', exact: true }).click();
+  }
   await fillQueue(100, 40);
   await page.getByRole('button', { name: 'Показать очередь', exact: true }).click();
   const scroll = page.locator('.queue-scroll');

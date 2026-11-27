@@ -7,6 +7,7 @@ test('content scrolls behind glass while the final card stays reachable',async()
  const app=await electron.launch({executablePath:process.env.LAD_TEST_EXE||undefined,args:process.env.LAD_TEST_EXE?[]:[root],env:{...process.env,LAD_USER_DATA:process.env.LAD_UNDERLAY_PROFILE||path.resolve(root,'../../work/underlay-'+Date.now())},timeout:60000});
  try {
   const page=await app.firstWindow();
+  await page.setViewportSize({width:1440,height:900});
   await expect.poll(()=>page.evaluate(async()=>{
    try {await window.lad!.rpc('snapshot');return true;} catch {return false;}
   })).toBe(true);
@@ -16,6 +17,9 @@ test('content scrolls behind glass while the final card stays reachable',async()
   await page.getByRole('button',{name:'Коллекция',exact:true}).click();
   await page.locator('.collection-group').filter({hasText:'Плейлисты'}).click();
   await expect(page.locator('.music-card').first()).toBeVisible();
+  if (!(await page.locator('.queue-panel').count())) {
+   await page.getByRole('button',{name:'Показать очередь',exact:true}).click();
+  }
   await page.locator('.collection-card-grid').first().evaluate(el=>{const seed=el.firstElementChild!;for(let i=0;i<28;i++)el.append(seed.cloneNode(true));(el.lastElementChild as HTMLElement).dataset.lastFixture='true'});
   const geometry=await page.evaluate(()=>{
    const r=(s:string)=>document.querySelector(s)!.getBoundingClientRect();

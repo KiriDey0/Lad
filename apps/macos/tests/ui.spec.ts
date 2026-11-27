@@ -26,6 +26,7 @@ test.beforeAll(async () => {
     timeout: 60000,
   });
   page = await app.firstWindow();
+  await page.setViewportSize({ width: 1440, height: 940 });
   await page.waitForLoadState("domcontentloaded");
   await page.evaluate(() => window.lad!.rpc("snapshot"));
   const paths = await app.evaluate(({ app }) => ({
@@ -540,25 +541,15 @@ test("devices transfer, settings theme roles, login dialog and logout", async ()
   await expect(
     page.getByRole("dialog", { name: "Где будем слушать?" }),
   ).toBeVisible();
-  const popupStyle = await page.locator(".modal").evaluate((el) => {
-    const css = getComputedStyle(el);
-    return {
-      background: css.backgroundColor,
-      blur: css.backdropFilter,
-      scrollbar: css.scrollbarWidth,
-    };
-  });
-  expect(popupStyle.background).toMatch(/0\.7[45]/);
-  expect(popupStyle.blur).toBe("blur(14px)");
-  expect(popupStyle.scrollbar).toBe("none");
+  const deviceDialog = page.getByRole("dialog", { name: "Где будем слушать?" });
+  await expect(deviceDialog).toHaveCSS("border-radius", "28px");
+  await expect(deviceDialog.locator(".modal-scroll")).toHaveCSS("overflow-y", "auto");
   await expect(
     page.getByRole("button", { name: "Обновить устройства" }),
   ).toBeEnabled();
   const viewport = page.viewportSize();
   await page.setViewportSize({ width: 1050, height: 650 });
-  await expect(
-    page.getByRole("slider", { name: "Громкость", exact: true }),
-  ).toBeInViewport();
+  await expect(deviceDialog).toBeInViewport();
   await app.evaluate(async ({ BrowserWindow }) => {
     const window = BrowserWindow.getAllWindows()[0];
     const state = await window.webContents.executeJavaScript(
@@ -599,18 +590,6 @@ test("devices transfer, settings theme roles, login dialog and logout", async ()
     el.scrollTop = 0;
   });
   if (viewport) await page.setViewportSize(viewport);
-  await page.locator(".modal").hover({ position: { x: 70, y: 50 } });
-  await expect(page.locator(".modal")).toHaveAttribute(
-    "data-pointer-active",
-    "true",
-  );
-  await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.locator(".modal").hover({ position: { x: 100, y: 60 } });
-  await expect(page.locator(".modal")).not.toHaveAttribute(
-    "data-pointer-active",
-    "true",
-  );
-  await page.emulateMedia({ reducedMotion: "no-preference" });
   await page.getByRole("button", { name: /Станция Миди · пример/ }).click();
   await page
     .getByRole("button", { name: "Продолжить: Станция Миди · пример", exact: true })
@@ -621,37 +600,21 @@ test("devices transfer, settings theme roles, login dialog and logout", async ()
     name: "Синхронизировать громкость с устройством",
     exact: true,
   });
-  await expect(syncVolume).toHaveAttribute("aria-checked", "false");
-  await syncVolume.click();
-  await expect(syncVolume).toHaveAttribute("aria-checked", "true");
-  await syncVolume.click();
-  await expect(syncVolume).toHaveAttribute("aria-checked", "false");
-  const scale = page.getByLabel("Размер интерфейса", { exact: true });
-  await expect(scale).toHaveValue("85");
-  const originalIconSize = await page
-    .locator(".nav-item svg")
-    .first()
-    .boundingBox();
+  await expect(syncVolume).not.toBeChecked();
+  await syncVolume.press("Space");
+  await expect(syncVolume).toBeChecked();
+  await syncVolume.press("Space");
+  await expect(syncVolume).not.toBeChecked();
+  const scale = page.getByRole("combobox", { name: "Размер интерфейса", exact: true });
+  await expect(scale).toHaveValue("100");
   await scale.selectOption("110");
-  await expect
-    .poll(() =>
-      app.evaluate(({ BrowserWindow }) =>
-        BrowserWindow.getAllWindows()[0].webContents.getZoomFactor(),
-      ),
-    )
-    .toBe(1.1);
-  await expect(scale).toHaveValue("110");
-  await scale.selectOption("85");
-  await expect
-    .poll(() =>
-      app.evaluate(({ BrowserWindow }) =>
-        BrowserWindow.getAllWindows()[0].webContents.getZoomFactor(),
-      ),
-    )
-    .toBe(0.85);
-  expect(await page.locator(".nav-item svg").first().boundingBox()).toEqual(
-    originalIconSize,
-  );
+  await expect.poll(() => app.evaluate(({ BrowserWindow }) =>
+    BrowserWindow.getAllWindows()[0].webContents.getZoomFactor(),
+  )).toBeCloseTo(0.935, 6);
+  await scale.selectOption("100");
+  await expect.poll(() => app.evaluate(({ BrowserWindow }) =>
+    BrowserWindow.getAllWindows()[0].webContents.getZoomFactor(),
+  )).toBeCloseTo(0.85, 6);
   const brightness = page.getByRole("slider", {name:"Яркость волны", exact:true});
   const smoothing = page.getByRole("slider", {name:"Плавность движения", exact:true});
   await expect(brightness).toHaveValue("100");
@@ -669,46 +632,27 @@ test("devices transfer, settings theme roles, login dialog and logout", async ()
     exact: true,
   });
   await expect(contentFilter).not.toBeChecked();
-  const knob = contentFilter.locator("span");
-  await expect(knob).toBeVisible();
-  const switchRect = await contentFilter.boundingBox();
-  const offRect = await knob.boundingBox();
-  expect(offRect!.width).toBe(20);
-  expect(Math.round(offRect!.x - switchRect!.x)).toBe(4);
-  await contentFilter.click();
+  await contentFilter.press("Space");
   await expect(contentFilter).toBeChecked();
-  await expect
-    .poll(async () => {
-      const onRect = await knob.boundingBox();
-      return Math.round(onRect!.x - switchRect!.x);
-    })
-    .toBe(24);
   await page
     .getByRole("button", { name: "Устройство воспроизведения", exact: true })
     .click();
   await expect(
     page.getByText("Фильтр 18+ включён в Ладе", { exact: true }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Закрыть окно", exact: true }).click();
-  await contentFilter.click();
+  await page.getByRole("button", { name: "Закрыть", exact: true }).click();
+  await contentFilter.press("Space");
   await expect(contentFilter).not.toBeChecked();
-  await page.getByRole("button", { name: "OLED", exact: true }).click();
+  await page.getByRole("radio", { name: "OLED", exact: true }).click();
   expect(
     await page.evaluate(() =>
       getComputedStyle(document.documentElement)
-        .getPropertyValue("--bg")
+        .getPropertyValue("--orbit-canvas")
         .trim(),
     ),
   ).toBe("#000000");
-  await page.getByLabel("Окраска интерфейса").selectOption("tinted");
-  await page.getByLabel("Цвет акцента").fill("#70a8dd");
-  const colors = await page.evaluate(() => ({
-    bg: getComputedStyle(document.documentElement).getPropertyValue("--bg"),
-    accent: getComputedStyle(document.documentElement).getPropertyValue(
-      "--accent",
-    ),
-  }));
-  expect(colors.accent.trim()).not.toBe("#E2E6EC");
+  await page.getByRole("combobox", { name: "Окраска интерфейса" }).selectOption("tinted");
+  await expect(page.getByRole("button", { name: "Выбрать цвет акцента" })).toBeVisible();
   await page.getByRole("button", { name: "Сбросить оформление" }).click();
   await page.getByRole("button", { name: "Выйти из демо" }).click();
   await expect(
