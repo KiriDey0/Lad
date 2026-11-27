@@ -28,17 +28,19 @@ test('release history stays compact, scrolls internally and retries a failed req
     await trigger.click();
     const dialog = page.getByRole('dialog', { name: 'История версий', exact: true });
     await expect(dialog.locator('article')).toHaveCount(12);
+    await expect(dialog).toHaveCSS('max-height', '640px');
+    await expect.poll(async () => (await dialog.boundingBox())!.height).toBeLessThanOrEqual(640);
     expect(await dialog.innerText()).not.toContain('##');
     const box = await dialog.boundingBox();
     expect(box!.width).toBeLessThanOrEqual(560);
     expect(box!.height).toBeLessThanOrEqual(640);
-    const header = await dialog.locator('.modal-header').boundingBox();
+    const header = await dialog.locator('.orbit-dialog__head').boundingBox();
     const scroll = dialog.locator('.modal-scroll');
     expect(await scroll.evaluate(el => el.scrollHeight > el.clientHeight)).toBe(true);
     await scroll.focus();
     await page.keyboard.press('PageDown');
     await expect.poll(() => scroll.evaluate(el => el.scrollTop)).toBeGreaterThan(0);
-    expect((await dialog.locator('.modal-header').boundingBox())!.y).toBe(header!.y);
+    expect((await dialog.locator('.orbit-dialog__head').boundingBox())!.y).toBe(header!.y);
     await page.screenshot({ path: '/tmp/lad-history-desktop.png' });
     await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setContentSize(1050, 600));
     const small = await dialog.boundingBox();
@@ -59,7 +61,7 @@ test('release history stays compact, scrolls internally and retries a failed req
     });
     await dialog.getByRole('button', { name: 'Попробовать снова' }).click();
     await expect(dialog.getByText('Публичных выпусков пока нет.')).toBeVisible();
-    await dialog.getByRole('button', { name: 'Закрыть окно' }).click();
+    await dialog.getByRole('button', { name: 'Закрыть' }).click();
     await expect(dialog).toHaveCount(0);
   } finally {
     await app.close();

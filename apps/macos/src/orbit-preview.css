@@ -590,6 +590,13 @@ body {
   border-radius: 28px;
   background: var(--orbit-surface);
 }
+.orbit-dialog:has(.release-history-modal) {
+  max-height: min(640px, calc(100dvh - 48px));
+}
+.orbit-dialog .lad-dialog-content.release-history-modal {
+  width: auto;
+  height: auto;
+}
 .orbit-dialog__head {
   flex: none;
   gap: 16px;

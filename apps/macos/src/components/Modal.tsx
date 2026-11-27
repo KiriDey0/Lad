@@ -35,7 +35,12 @@ export function Modal({
       }
     >
       <div className={clsx("lad-dialog-content", className)}>
-        <div className="modal-scroll">{children}</div>
+        <div
+          className="modal-scroll"
+          tabIndex={className === "release-history-modal" ? 0 : undefined}
+        >
+          {children}
+        </div>
         {footer && <div className="modal-footer">{footer}</div>}
       </div>
     </Dialog>
