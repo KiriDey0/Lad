@@ -2240,3 +2240,125 @@ body {
   border-color: var(--orbit-focus);
   box-shadow: inset 0 0 0 1px var(--orbit-focus);
 }
+
+/* Desktop player: a compact track group, central transport and readable volume. */
+@media (min-width: 761px) {
+  .lad-orbit .player-dock > .player {
+    grid-template-columns: minmax(0, 1fr) minmax(260px, 1.25fr) minmax(
+        max-content,
+        1fr
+      );
+  }
+  .lad-orbit .player-track > button:first-child {
+    flex: none;
+  }
+  .lad-orbit .player-track-name {
+    flex: 0 1 auto;
+    width: max-content;
+  }
+  .lad-orbit .player-track-name strong {
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 22px;
+  }
+  .lad-orbit .player-track-name small {
+    font-size: 13px;
+    line-height: 19px;
+    margin-top: 3px;
+  }
+  .lad-orbit .player-track > .icon-button {
+    flex: none;
+    margin-left: 0;
+    width: 40px;
+    height: 40px;
+    min-height: 40px;
+  }
+  .lad-orbit .progress-row {
+    max-width: none;
+  }
+  .lad-orbit .volume-control {
+    display: flex;
+    max-width: none;
+    min-width: 0;
+    gap: 7px;
+  }
+  .lad-orbit .volume-control input[type="range"] {
+    flex: none;
+    width: 105px;
+    height: 44px;
+  }
+  .lad-orbit .volume-control input::-webkit-slider-runnable-track {
+    height: 6px;
+  }
+  .lad-orbit .volume-control input::-webkit-slider-thumb {
+    width: 18px;
+    height: 18px;
+    margin-top: -6px;
+  }
+  .lad-orbit .volume-value {
+    display: inline-flex;
+    position: static;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    min-width: 46px;
+    height: 28px;
+    padding: 3px 7px;
+    border: 1px solid var(--orbit-line);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--orbit-raised) 70%, transparent);
+    color: var(--orbit-text);
+    font-size: 11px;
+    line-height: 18px;
+    font-variant-numeric: tabular-nums;
+    opacity: 1;
+  }
+  .lad-orbit .volume-control:focus-within .volume-value {
+    background: var(--orbit-tonal);
+    color: var(--orbit-on-tonal);
+    border-color: var(--orbit-rim);
+  }
+}
+@media (min-width: 761px) and (max-width: 1050px) {
+  .lad-orbit .app-shell {
+    --player-clearance: 166px;
+  }
+  .lad-orbit .wave-home {
+    --wave-card-height: min(680px, calc(100dvh - 312px));
+  }
+  .lad-orbit .player-dock {
+    height: 156px;
+  }
+  .lad-orbit .player-dock > .player {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: 56px 50px;
+    height: 136px;
+    padding: 10px 16px;
+    gap: 8px 16px;
+  }
+  .lad-orbit .player-track {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .lad-orbit .player-right {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .lad-orbit .player-center {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 18px;
+  }
+  .lad-orbit .player-controls {
+    gap: 6px;
+  }
+  .lad-orbit .queue-panel {
+    bottom: 170px;
+  }
+  .lad-orbit .queue-dismiss {
+    bottom: 156px;
+  }
+}

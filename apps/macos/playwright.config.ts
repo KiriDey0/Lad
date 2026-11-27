@@ -6,6 +6,7 @@ export default defineConfig({
     "orbit-preview.spec.ts",
     "mobile-dock.spec.ts",
     "wave-controls.spec.ts",
+    "desktop-player.spec.ts",
     "queue-interaction.spec.ts",
     "release-history.spec.ts",
     "ui.spec.ts",

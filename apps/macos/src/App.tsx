@@ -1873,9 +1873,6 @@ function Player({
                 commitVolume(volume === 0 ? audibleVolume.current : 0)
               }
             />
-            <output className="volume-value" aria-hidden="true">
-              {Math.round(volume * 100)}%
-            </output>
             <input
               aria-label="Громкость"
               aria-valuetext={`${Math.round(volume * 100)}%`}
@@ -1896,6 +1893,9 @@ function Player({
               }}
               onKeyUp={(e) => commitVolume(Number(e.currentTarget.value))}
             />
+            <output className="volume-value" aria-hidden="true">
+              {Math.round(volume * 100)}%
+            </output>
           </div>
           <span className="player-divider" />
           <IconButton icon={FileText} label="Текст песни" onClick={onLyrics} />
