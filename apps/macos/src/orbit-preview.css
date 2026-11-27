@@ -2652,7 +2652,7 @@ body {
   padding: 0;
   text-align: left;
 }
-.lad-orbit .horizontal-gallery .art {
+.lad-orbit .horizontal-gallery > .music-card .art {
   width: 100%;
   height: auto;
   max-width: none;
@@ -2885,5 +2885,76 @@ body {
   }
   .lad-orbit .dislikes-entry > .collection-group {
     width: 100%;
+  }
+}
+
+/* Section navigation uses the same readable scale as the content headings. */
+.lad-orbit .main-header > div {
+  flex: 1;
+  min-width: 0;
+  gap: 8px;
+}
+.lad-orbit .main-header .header-location {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 28px;
+  line-height: 1.2;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+.lad-orbit .main-header > div > .icon-button {
+  width: 40px;
+  height: 40px;
+  min-height: 40px;
+  flex: none;
+}
+.lad-orbit .main-header > div > .icon-button svg {
+  width: 24px;
+  height: 24px;
+}
+.lad-orbit .track-play:not([data-ranked="true"]) .track-play-icon {
+  display: block;
+}
+.lad-orbit
+  :is(
+    .artist-section-link,
+    .collection-section-heading,
+    .liked-preview-heading,
+    .collection-group
+  )
+  > svg:last-child {
+  transition: transform 180ms ease-out;
+}
+.lad-orbit
+  :is(
+    .artist-section-link,
+    .collection-section-heading,
+    .liked-preview-heading,
+    .collection-group
+  ):is(:hover, :focus-visible)
+  > svg:last-child {
+  transform: translateX(5px);
+}
+@media (max-width: 760px) {
+  .lad-orbit .main-header .header-location {
+    font-size: 22px;
+  }
+  .lad-orbit .release-carousel.horizontal-gallery {
+    grid-auto-columns: 248px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lad-orbit
+    :is(
+      .artist-section-link,
+      .collection-section-heading,
+      .liked-preview-heading,
+      .collection-group
+    )
+    > svg:last-child {
+    transition: none;
+    transform: none !important;
   }
 }

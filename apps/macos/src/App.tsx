@@ -1246,6 +1246,10 @@ export default function App() {
                             />
                           )}
                           <TrackList
+                            ranked={
+                              page === "home" &&
+                              content.tracksTitle === "Сейчас в чарте"
+                            }
                             tracks={content.tracks}
                             title={
                               page === "home"
@@ -1657,7 +1661,9 @@ function TrackList({
   add,
   like,
   compact = false,
+  ranked = false,
 }: {
+  ranked?: boolean;
   compact?: boolean;
   tracks: Track[];
   title: string;
@@ -1680,9 +1686,7 @@ function TrackList({
     <section className={clsx("music-section", compact && "compact-tracks")}>
       {!compact && (
         <div className="section-title">
-          <h2>
-            {title} <span>{tracks.length || ""}</span>
-          </h2>
+          <h2>{title}</h2>
           <div className="flex items-center gap-2">
             {tracks.length > 8 && (
               <label className="inline-search">
@@ -1729,6 +1733,7 @@ function TrackList({
             >
               <button
                 className="track-play"
+                data-ranked={ranked ? "true" : undefined}
                 onClick={() => play(tracks, index, source)}
                 aria-label={`Включить ${t.title}`}
                 disabled={
@@ -1739,7 +1744,7 @@ function TrackList({
                   <AudioLines size={16} />
                 ) : (
                   <>
-                    {!compact && (
+                    {ranked && !compact && (
                       <span className="track-number">{index + 1}</span>
                     )}
                     <Play size={16} className="track-play-icon" />

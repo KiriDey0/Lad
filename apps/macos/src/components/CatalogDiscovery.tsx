@@ -179,7 +179,11 @@ export function ArtistPage({
     const carousel = root.current?.querySelector<HTMLElement>(
       ".artist-album-carousel",
     );
-    if (carousel) carousel.scrollLeft = carouselScroll.current;
+    if (carousel) {
+      // Reapplying snap can magnetize a restored offset to a different card.
+      if (carouselScroll.current > 0) carousel.style.scrollSnapType = "none";
+      carousel.scrollLeft = carouselScroll.current;
+    }
   }, [view, !!data]);
   const navigate = (next: ArtistView) => {
     if (view === "overview") {

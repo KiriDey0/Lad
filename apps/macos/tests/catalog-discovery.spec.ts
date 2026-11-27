@@ -41,6 +41,28 @@ for (const width of [1440, 390])
         .click();
       await expect(page.locator(".new-releases .release-card")).toHaveCount(1);
       await page.locator(".new-releases").scrollIntoViewIfNeeded();
+      const releaseArt = await page
+        .locator(".release-album .art")
+        .first()
+        .evaluate((el) => ({
+          width: parseFloat(getComputedStyle(el).width),
+          height: parseFloat(getComputedStyle(el).height),
+        }));
+      expect(releaseArt.width).toBeCloseTo(48, 0);
+      expect(releaseArt.height).toBeCloseTo(48, 0);
+      expect(
+        await page
+          .locator(".release-artist .art")
+          .first()
+          .evaluate((el) => parseFloat(getComputedStyle(el).width)),
+      ).toBeCloseTo(width < 761 ? 156 : 180, 0);
+      await expect(page.locator(".release-album strong").first()).toBeVisible();
+      await expect(page.locator(".track-number")).toHaveCount(0);
+      await expect(page.locator(".main-header .header-location")).toHaveCSS(
+        "font-size",
+        width < 761 ? "22px" : "28px",
+      );
+
       const capture = async (name: string) => {
         await page.evaluate(() => document.fonts.ready);
         await page.waitForTimeout(250);
@@ -122,6 +144,31 @@ for (const width of [1440, 390])
       ).toHaveCount(5);
       await capture("discovery-artist");
       if (width < 761) {
+        const heading = page.getByRole("button", {
+          name: "Популярные альбомы",
+          exact: true,
+        });
+        await heading.hover();
+        await expect
+          .poll(() =>
+            heading
+              .locator("svg")
+              .evaluate(
+                (el) => new DOMMatrix(getComputedStyle(el).transform).m41,
+              ),
+          )
+          .toBeGreaterThan(4);
+        await page.emulateMedia({ reducedMotion: "reduce" });
+        await expect
+          .poll(() =>
+            heading
+              .locator("svg")
+              .evaluate(
+                (el) => new DOMMatrix(getComputedStyle(el).transform).m41,
+              ),
+          )
+          .toBe(0);
+        await page.emulateMedia({ reducedMotion: "no-preference" });
         const gallery = page.locator(".artist-album-carousel");
         await gallery.evaluate((el) => el.scrollIntoView({ block: "center" }));
         const box = (await gallery.boundingBox())!;
