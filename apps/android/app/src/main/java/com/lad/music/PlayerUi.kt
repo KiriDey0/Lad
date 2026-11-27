@@ -37,14 +37,14 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 @Composable
-fun Progress(s: MusicState, engine: MusicEngine) {
+private fun Progress(s: MusicState, engine: MusicEngine, compactTimestamps: Boolean) {
     val duration = s.durationMs.takeIf { it > 0 } ?: s.track?.durationMs ?: 0L
     val position by engine.position.collectAsStateWithLifecycle()
     var draft by remember(s.track?.id, s.output) { mutableStateOf<Float?>(null) }
     val interaction = remember { MutableInteractionSource() }
     val dragging by interaction.collectIsDraggedAsState()
     LaunchedEffect(dragging) { if (!dragging) draft = null }
-    Column {
+    Column(verticalArrangement = Arrangement.spacedBy(if (compactTimestamps) (-8).dp else 0.dp)) {
         C4Slider(
             value = draft ?: position.toFloat().coerceIn(0f, duration.coerceAtLeast(1).toFloat()),
             onValueChange = { draft = it },
@@ -181,6 +181,7 @@ fun NowView(
     retry: () -> Unit,
 ) {
     val p = LocalPalette.current
+    val orbitPlayer = LocalOrbitDesign.current && !fullLyrics
     val t = s.track
     val listState = rememberLazyListState()
     var follow by remember(t?.id) { mutableStateOf(true) }
@@ -289,32 +290,46 @@ fun NowView(
                             Text("К текущей строке")
                         }
                 } else {
-                    Column(
-                        Modifier.weight(1f)
-                            .verticalScroll(rememberScrollState())
-                            .padding(vertical = 16.dp),
-                        verticalArrangement =
-                            Arrangement.spacedBy(20.dp, Alignment.CenterVertically),
-                    ) {
-                        CoverCarousel(s, engine)
-                        Box(Modifier.padding(horizontal = 20.dp)) {
-                            PlayerMetadata(t, s, engine, open, menu)
+                    BoxWithConstraints(Modifier.weight(1f)) {
+                        val demoSpace = if (s.demo) 44.dp else 0.dp
+                        val coverLimit = if (orbitPlayer) {
+                            (maxHeight - playerMetadataHeight() - 52.dp - demoSpace)
+                                .coerceAtLeast(96.dp)
+                        } else Dp.Infinity
+                        Column(
+                            Modifier.fillMaxSize()
+                                .verticalScroll(rememberScrollState())
+                                .padding(vertical = 16.dp),
+                            verticalArrangement =
+                                Arrangement.spacedBy(
+                                    20.dp,
+                                    if (orbitPlayer) BiasAlignment.Vertical(0.45f)
+                                    else Alignment.CenterVertically,
+                                ),
+                        ) {
+                            CoverCarousel(s, engine, maxCoverSize = coverLimit)
+                            Box(Modifier.padding(horizontal = 20.dp)) {
+                                PlayerMetadata(t, s, engine, open, menu)
+                            }
+                            if (s.demo)
+                                Label(
+                                    "Демонстрация · без звука",
+                                    12,
+                                    p.muted,
+                                    modifier = Modifier.padding(horizontal = 20.dp),
+                                )
                         }
-                        if (s.demo)
-                            Label(
-                                "Демонстрация · без звука",
-                                12,
-                                p.muted,
-                                modifier = Modifier.padding(horizontal = 20.dp),
-                            )
                     }
                 }
                 if (t != null) {
-                    Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 12.dp)) {
-                        Progress(s, engine)
-                        Spacer(Modifier.height(8.dp))
+                    Column(
+                        Modifier.padding(horizontal = 20.dp)
+                            .padding(bottom = if (orbitPlayer) 36.dp else 12.dp),
+                    ) {
+                        Progress(s, engine, compactTimestamps = orbitPlayer)
+                        Spacer(Modifier.height(if (orbitPlayer) 4.dp else 8.dp))
                         Transport(s, engine)
-                        Spacer(Modifier.height(8.dp))
+                        Spacer(Modifier.height(if (orbitPlayer) 28.dp else 8.dp))
                         Row(
                             Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
@@ -360,7 +375,10 @@ fun NowView(
                             )
                             Tool(Icons.Outlined.QueueMusic, "Очередь", onClick = queue)
                         }
-                        if (!fullLyrics) Volume(s, engine)
+                        if (!fullLyrics) {
+                            if (orbitPlayer) Spacer(Modifier.height(16.dp))
+                            Volume(s, engine)
+                        }
                     }
                 }
             }

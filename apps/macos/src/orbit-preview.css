@@ -131,6 +131,11 @@ body {
   border-radius: 50%;
 }
 .lad-orbit .main {
+  --main-header-height: 66px;
+  --main-header-gap: 16px;
+  --page-top-fade: 42px;
+  position: relative;
+  isolation: isolate;
   min-width: 0;
   border: 1px solid var(--orbit-line);
   border-radius: 28px 28px 0 0;
@@ -138,7 +143,9 @@ body {
   overflow: visible;
 }
 .lad-orbit .main-header {
-  height: 66px;
+  height: var(--main-header-height);
+  margin-bottom: var(--main-header-gap);
+  z-index: 3;
   padding: 0 24px;
   gap: 12px;
 }
@@ -163,6 +170,7 @@ body {
   white-space: nowrap;
 }
 .lad-orbit .page-content {
+  z-index: 1;
   padding: 28px 32px calc(var(--player-clearance) + 28px);
 }
 .lad-orbit .page-content.page-wave {
@@ -818,6 +826,8 @@ body {
     display: none;
   }
   .lad-orbit .main {
+    --main-header-height: 56px;
+    --page-top-fade: 32px;
     border: 0;
     border-radius: 0;
   }
@@ -829,7 +839,6 @@ body {
     margin-left: -6px;
   }
   .lad-orbit .main-header {
-    height: 56px;
     padding: 0 16px;
   }
   .lad-orbit .main-header > div {
@@ -1170,33 +1179,33 @@ body {
   display: none;
 }
 
-/* The scroll viewport clips artwork; only the canvas is portaled behind it. */
-.lad-orbit .main {
-  position: relative;
-  isolation: isolate;
-  /* Header plus its 16px gap and border rounding cover the scroll clip. */
-  --wave-fade-header: 84px;
-  --wave-fade-depth: 96px;
-}
-/* One fixed veil fades both the scrolling artwork and the decorative canvas. */
-.lad-orbit .main:has(.page-wave .wave-home)::after {
+/* Let every page fade into the header, including the wave canvas behind the page. */
+.lad-orbit .main::after {
   content: "";
   position: absolute;
   inset: -80px 0 auto;
-  height: calc(80px + var(--wave-fade-header) + var(--wave-fade-depth));
+  height: calc(
+    80px + var(--main-header-height) + var(--main-header-gap) + var(--page-top-fade)
+  );
   background: linear-gradient(
     to bottom,
-    var(--orbit-canvas) calc(100% - var(--wave-fade-depth)),
-    transparent 100%
+    var(--orbit-canvas) calc(100% - var(--page-top-fade)),
+    color-mix(in srgb, var(--orbit-canvas) 62%, transparent)
+      calc(100% - var(--page-top-fade) * 0.72),
+    color-mix(in srgb, var(--orbit-canvas) 12%, transparent)
+      calc(100% - var(--page-top-fade) * 0.35),
+    transparent
   );
-  z-index: 1;
+  z-index: 2;
   pointer-events: none;
 }
-@media (max-width: 760px) {
-  .lad-orbit .main {
-    --wave-fade-header: 74px;
-    --wave-fade-depth: 72px;
-  }
+.lad-orbit .lyrics-scroll {
+  mask-image: linear-gradient(
+    transparent,
+    #000 min(7%, var(--page-top-fade)),
+    #000 92%,
+    transparent
+  );
 }
 .wave-scene-anchor {
   position: absolute;
@@ -1486,9 +1495,6 @@ body {
   width: 32px;
   height: 32px;
   min-height: 32px;
-}
-.lad-orbit .main-header {
-  margin-bottom: 16px;
 }
 .lad-orbit .header-location {
   font-size: 13px;

@@ -62,6 +62,10 @@ fun MarqueeLabel(
 }
 
 @Composable
+internal fun playerMetadataHeight(): Dp =
+    (56f * (LocalDensity.current.fontScale * LocalPalette.current.scale).coerceAtLeast(1f)).dp
+
+@Composable
 fun PlayerMetadata(
     t: Track,
     s: MusicState,
@@ -71,9 +75,7 @@ fun PlayerMetadata(
     compact: Boolean = false,
 ) {
     val p = LocalPalette.current
-    val fontScale = LocalDensity.current.fontScale * p.scale
-    val height = (56f * fontScale.coerceAtLeast(1f)).dp
-    Row(Modifier.fillMaxWidth().height(height), verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.fillMaxWidth().height(playerMetadataHeight()), verticalAlignment = Alignment.CenterVertically) {
         TrackTransition(t, s.index, Modifier.weight(1f).fillMaxHeight()) { display ->
             Column(
                 Modifier.fillMaxWidth().fillMaxHeight(),
@@ -132,6 +134,7 @@ fun CoverCarousel(
     engine: MusicEngine,
     modifier: Modifier = Modifier,
     compact: Boolean = false,
+    maxCoverSize: Dp = Dp.Infinity,
     pageContent: @Composable (Track, Boolean) -> Unit = { track, _ ->
         Artwork(track.cover, track.title, modifier = Modifier.fillMaxSize())
     },
@@ -155,7 +158,7 @@ fun CoverCarousel(
     }
     if (window.entries.isEmpty()) return
     BoxWithConstraints(modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-        val viewport = if (compact) maxWidth else maxWidth.coerceAtMost(390.dp)
+        val viewport = if (compact) maxWidth else minOf(maxWidth, 390.dp, maxCoverSize / .7846f)
         val edge = if (compact) (viewport - 24.dp).coerceAtLeast(64.dp)
             else (viewport * .7846f).coerceAtMost(306.dp)
         val inset = (viewport - edge) / 2

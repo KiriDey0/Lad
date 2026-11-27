@@ -54,12 +54,12 @@
 
 | Платформа | Требования | Скачать |
 | --- | --- | --- |
-| macOS | macOS 13+, Apple Silicon | [Приложение в ZIP](https://github.com/KiriDey0/Lad/releases/download/v0.7.1/Lad-macOS-arm64-0.7.1.zip) |
-| Windows | Windows 10/11, x64 | [Установщик](https://github.com/KiriDey0/Lad/releases/download/v0.7.1/Lad-Windows-Setup-0.7.1-x64.exe) · [Portable ZIP](https://github.com/KiriDey0/Lad/releases/download/v0.7.1/Lad-Windows-Portable-0.7.1-x64.zip) |
-| Android | Android 8.0+ | [APK](https://github.com/KiriDey0/Lad/releases/download/v0.7.1/Lad-Android-0.7.1.apk) |
-| Android TV / YaOS | Android 9+, ARMv7 | [TV APK](https://github.com/KiriDey0/Lad/releases/download/v0.7.1/Lad-TV-0.7.1-armv7.apk) |
+| macOS | macOS 13+, Apple Silicon | [Приложение в ZIP](https://github.com/KiriDey0/Lad/releases/download/v0.7.2/Lad-macOS-arm64-0.7.2.zip) |
+| Windows | Windows 10/11, x64 | [Установщик](https://github.com/KiriDey0/Lad/releases/download/v0.7.2/Lad-Windows-Setup-0.7.2-x64.exe) · [Portable ZIP](https://github.com/KiriDey0/Lad/releases/download/v0.7.2/Lad-Windows-Portable-0.7.2-x64.zip) |
+| Android | Android 8.0+ | [APK](https://github.com/KiriDey0/Lad/releases/download/v0.7.2/Lad-Android-0.7.2.apk) |
+| Android TV / YaOS | Android 9+, ARMv7 | [TV APK](https://github.com/KiriDey0/Lad/releases/download/v0.7.2/Lad-TV-0.7.2-armv7.apk) |
 
-[Исходный код](https://github.com/KiriDey0/Lad/releases/download/v0.7.1/Lad-Source-v0.7.1.zip) · [SHA256SUMS](https://github.com/KiriDey0/Lad/releases/latest/download/SHA256SUMS)
+[Исходный код](https://github.com/KiriDey0/Lad/releases/download/v0.7.2/Lad-Source-v0.7.2.zip) · [SHA256SUMS](https://github.com/KiriDey0/Lad/releases/latest/download/SHA256SUMS)
 
 Инструкции по установке, входу и подключению колонки — в [руководстве](docs/installation.md). Для доступа к каталогу и воспроизведению нужна учётная запись Яндекса с соответствующим доступом к Яндекс Музыке; приложение не заменяет подписку Яндекс Плюс.
 
