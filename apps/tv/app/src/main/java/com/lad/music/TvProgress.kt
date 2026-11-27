@@ -1,32 +1,77 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 package com.lad.music
 
+import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.Path
+import android.os.SystemClock
 import android.view.View
+import kotlin.math.PI
+import kotlin.math.sin
 
-/** C4 track geometry in the 1920 px TV design coordinate space. */
+/** Orbit scrubber in the TV design coordinate space. */
 class TvProgress(context: Context, private val accent: Int, private val scale: Float) :
     View(context) {
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val wave = Path()
     var progress: Int = 0
         set(value) {
-            field = value.coerceIn(0, 10000)
-            invalidate()
+            val next = value.coerceIn(0, 10000)
+            if (field != next) {
+                field = next
+                invalidate()
+            }
+        }
+    var playing: Boolean = false
+        set(value) {
+            if (field != value) {
+                field = value
+                invalidate()
+            }
         }
 
     override fun onDraw(canvas: Canvas) {
-        val r = 12f * scale
-        val left = r
-        val right = width - r
+        val inset = 4f * scale
+        val right = width - inset
         val y = height / 2f
-        val x = left + (right - left) * progress / 10000f
+        val head = inset + (right - inset) * progress / 10000f
+        val gap = 6f * scale
+        val played = head - gap
+        val unplayed = head + gap
+        paint.strokeWidth = 4f * scale
+        paint.strokeCap = Paint.Cap.ROUND
         paint.color = Color.rgb(40, 43, 49)
-        canvas.drawRoundRect(left, y - 4 * scale, right, y + 4 * scale, 4 * scale, 4 * scale, paint)
+        if (unplayed < right) canvas.drawLine(unplayed, y, right, y, paint)
         paint.color = accent
-        canvas.drawRoundRect(left, y - 4 * scale, x, y + 4 * scale, 4 * scale, 4 * scale, paint)
-        canvas.drawCircle(x, y, r, paint)
+        if (played > inset) {
+            if (playing && ValueAnimator.areAnimatorsEnabled()) {
+                val period = 40f * scale
+                val stride = 2f * scale
+                val phase = (SystemClock.uptimeMillis() % 1600L) / 1600.0
+                fun waveY(x: Float) = y + 3f * scale * sin((x / period - phase) * 2 * PI).toFloat()
+                wave.rewind()
+                wave.moveTo(inset, waveY(inset))
+                var x = inset + stride
+                while (x < played) {
+                    wave.lineTo(x, waveY(x))
+                    x += stride
+                }
+                wave.lineTo(played, waveY(played))
+                paint.style = Paint.Style.STROKE
+                canvas.drawPath(wave, paint)
+                paint.style = Paint.Style.FILL
+                if (isShown && windowVisibility == VISIBLE) postInvalidateOnAnimation()
+            } else {
+                canvas.drawLine(inset, y, played, y, paint)
+            }
+        }
+        paint.color = Color.rgb(241, 243, 245)
+        canvas.drawRoundRect(
+            head - 2 * scale, y - 9 * scale, head + 2 * scale, y + 9 * scale,
+            2 * scale, 2 * scale, paint,
+        )
     }
 }

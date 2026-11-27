@@ -182,7 +182,7 @@ export function TrackProgress({
         label="Позиция трека"
         time={preview ?? position}
         duration={length}
-        playing={playing}
+        playing={playing && preview === null}
         disabled={!length}
         onSeek={(value) => {
           if (dragging.current) {

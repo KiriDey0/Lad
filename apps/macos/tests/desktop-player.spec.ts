@@ -98,7 +98,7 @@ for (const width of [1440, 1100, 800])
       await page.mouse.move(0, 0);
       await expect(dislike).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
       expect(geometry.iconSize).toBeGreaterThanOrEqual(25);
-      expect(geometry.volumeWidth).toBe(105);
+      expect(geometry.volumeWidth).toBe(156);
       expect(geometry.volumeHeight).toBeGreaterThanOrEqual(44);
       expect(geometry.last).toBeLessThanOrEqual(geometry.parent);
       for (let i = 0; i < geometry.zones.length; i++)
@@ -119,11 +119,41 @@ for (const width of [1440, 1100, 800])
         "13px",
       );
       await expect(badge).toBeVisible();
-      await expect(badge).toHaveCSS("position", "static");
       await expect(badge).toHaveCSS("opacity", "1");
-      await volume.fill("0.63");
+      const fillHeight = await player
+        .locator(".volume-capsule-fill")
+        .evaluate((fill) => fill.getBoundingClientRect().height);
+      expect(Math.round(fillHeight)).toBe(32);
+      const muteHeight = await player
+        .locator(".volume-capsule > .icon-button")
+        .evaluate((button) => button.getBoundingClientRect().height);
+      expect(Math.round(muteHeight)).toBe(32);
+      const percentageInsideFill = () =>
+        badge.evaluate((label) => {
+          const fill = label.parentElement!.querySelector(
+            ".volume-capsule-fill",
+          )!;
+          return (
+            label.getBoundingClientRect().right <
+            fill.getBoundingClientRect().right
+          );
+        });
+      const setVolume = (value: number) =>
+        page.evaluate(
+          (level) =>
+            window.lad!.rpc("control", { action: "volume", value: level }),
+          value,
+        );
+      await setVolume(0.08);
+      await expect(badge).toHaveText("8%");
+      expect(await percentageInsideFill()).toBe(false);
+      await expect(player.locator(".volume-capsule-max")).toHaveText("100%");
+
+      await setVolume(0.63);
+      await expect(badge).toHaveText("63%");
       await volume.press("ArrowRight");
       await expect(badge).toHaveText("64%");
+      expect(await percentageInsideFill()).toBe(true);
       await expect
         .poll(
           async () =>
@@ -139,6 +169,9 @@ for (const width of [1440, 1100, 800])
         .getByRole("button", { name: "Включить звук", exact: true })
         .click();
       await expect(badge).toHaveText("64%");
+      await volume.press("End");
+      await expect(badge).toHaveText("100%");
+      await expect(player.locator(".volume-capsule-max")).toHaveCount(0);
       const slider = (await volume.boundingBox())!;
       // Click above the thin painted track, inside the expanded hit area.
       await page.mouse.click(slider.x + slider.width * 0.8, slider.y + 5);

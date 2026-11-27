@@ -396,15 +396,86 @@ body {
   justify-content: flex-end;
   gap: 6px;
 }
-.lad-orbit .volume-control {
-  max-width: 130px;
-  min-width: 70px;
+.lad-orbit .volume-capsule {
+  --volume-fill: max(54px, calc(var(--volume-level) + var(--volume-inset)));
+  position: relative;
+  isolation: isolate;
+  width: 192px;
+  height: 44px;
+  border-radius: 999px;
+  color: var(--orbit-text);
 }
-.lad-orbit .volume-control input {
-  width: 70px;
+.lad-orbit .volume-capsule::before,
+.lad-orbit .volume-capsule-fill {
+  position: absolute;
+  inset: 6px 0;
+  border-radius: inherit;
+  pointer-events: none;
 }
-.lad-orbit .volume-value {
-  display: none;
+.lad-orbit .volume-capsule::before {
+  content: "";
+  background: var(--orbit-raised);
+}
+.lad-orbit .volume-capsule-fill {
+  right: auto;
+  width: var(--volume-fill);
+  background: var(--orbit-accent);
+}
+.lad-orbit .volume-capsule-fill > span {
+  position: absolute;
+  right: 10px;
+  top: 8px;
+  width: 4px;
+  height: 16px;
+  border-radius: 999px;
+  background: var(--orbit-on-accent);
+}
+.lad-orbit .volume-capsule > .icon-button {
+  position: absolute;
+  inset: 6px auto 6px 0;
+  width: 36px;
+  height: 32px;
+  min-height: 32px;
+  border-radius: 999px;
+  color: var(--orbit-on-accent);
+}
+.lad-orbit .volume-capsule > .icon-button:hover {
+  background: color-mix(in srgb, var(--orbit-on-accent) 10%, transparent);
+}
+.lad-orbit .volume-capsule input[type="range"] {
+  position: absolute;
+  inset: 0 0 0 36px;
+  width: calc(100% - 36px);
+  height: 44px;
+  opacity: 0;
+}
+.lad-orbit .volume-capsule:has(input:focus-visible)::before {
+  outline: 2px solid var(--orbit-focus);
+  outline-offset: 3px;
+}
+.lad-orbit .volume-capsule .volume-value,
+.lad-orbit .volume-capsule-max {
+  position: absolute;
+  top: 50%;
+  right: auto;
+  left: calc(var(--volume-fill) + 7px);
+  transform: translateY(-50%);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  opacity: 1;
+  pointer-events: none;
+  color: var(--orbit-text);
+}
+.lad-orbit .volume-capsule[data-value-inside="true"] .volume-value {
+  left: var(--volume-fill);
+  transform: translate(calc(-100% - 22px), -50%);
+  color: var(--orbit-on-accent);
+}
+.lad-orbit .volume-capsule-max {
+  left: auto;
+  right: 12px;
+  color: var(--orbit-muted);
 }
 .lad-orbit .player-wash {
   display: block;
@@ -718,9 +789,6 @@ body {
     gap: 14px;
     margin-inline: 16px;
     padding-inline: 16px;
-  }
-  .lad-orbit .volume-control {
-    display: none;
   }
   .lad-orbit .welcome-visual {
     display: none;
@@ -2283,48 +2351,6 @@ body {
   }
   .lad-orbit .progress-row {
     max-width: none;
-  }
-  .lad-orbit .volume-control {
-    display: flex;
-    max-width: none;
-    min-width: 0;
-    gap: 7px;
-  }
-  .lad-orbit .volume-control input[type="range"] {
-    flex: none;
-    width: 105px;
-    height: 44px;
-  }
-  .lad-orbit .volume-control input::-webkit-slider-runnable-track {
-    height: 6px;
-  }
-  .lad-orbit .volume-control input::-webkit-slider-thumb {
-    width: 18px;
-    height: 18px;
-    margin-top: -6px;
-  }
-  .lad-orbit .volume-value {
-    display: inline-flex;
-    position: static;
-    align-items: center;
-    justify-content: center;
-    flex: none;
-    min-width: 46px;
-    height: 28px;
-    padding: 3px 7px;
-    border: 1px solid var(--orbit-line);
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--orbit-raised) 70%, transparent);
-    color: var(--orbit-text);
-    font-size: 11px;
-    line-height: 18px;
-    font-variant-numeric: tabular-nums;
-    opacity: 1;
-  }
-  .lad-orbit .volume-control:focus-within .volume-value {
-    background: var(--orbit-tonal);
-    color: var(--orbit-on-tonal);
-    border-color: var(--orbit-rim);
   }
 }
 @media (min-width: 761px) and (max-width: 1050px) {

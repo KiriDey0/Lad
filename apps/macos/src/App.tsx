@@ -2120,7 +2120,19 @@ function Player({
           </div>
         </div>
         <div className="player-right">
-          <div className="volume-control">
+          <div
+            className="volume-control volume-capsule"
+            data-value-inside={volume >= 0.32}
+            style={
+              {
+                "--volume-level": `${volume * 100}%`,
+                "--volume-inset": `${48 * (1 - volume)}px`,
+              } as CSSProperties
+            }
+          >
+            <span className="volume-capsule-fill" aria-hidden="true">
+              <span />
+            </span>
             <IconButton
               icon={volume === 0 ? VolumeX : Volume2}
               label={volume === 0 ? "Включить звук" : "Выключить звук"}
@@ -2131,7 +2143,6 @@ function Player({
             <input
               aria-label="Громкость"
               aria-valuetext={`${Math.round(volume * 100)}%`}
-              style={{ "--volume-level": `${volume * 100}%` } as CSSProperties}
               type="range"
               min="0"
               max="1"
@@ -2151,6 +2162,11 @@ function Player({
             <output className="volume-value" aria-hidden="true">
               {Math.round(volume * 100)}%
             </output>
+            {volume <= 0.68 && (
+              <span className="volume-capsule-max" aria-hidden="true">
+                100%
+              </span>
+            )}
           </div>
           <span className="player-divider" />
           <IconButton icon={FileText} label="Текст песни" onClick={onLyrics} />

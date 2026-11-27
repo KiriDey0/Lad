@@ -191,7 +191,7 @@ internal fun LockScreenScene(
                     LockButton(if(s.track?.liked==true)Icons.Outlined.Favorite else Icons.Outlined.FavoriteBorder,
                         if(s.track?.liked==true)"Убрать из любимого" else "Добавить в любимое",enabled=s.track!=null,preview=preview) { command("like") }
                 }
-                LockSeek(s, preview, command)
+                LockSeek(s, preview, active, command)
                 Row(Modifier.fillMaxWidth().height(80.dp),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically) {
                     LockButton(Icons.Outlined.Shuffle,"Перемешать",active=s.shuffle,preview=preview){command("shuffle")}
                     LockButton(Icons.Outlined.SkipPrevious,"Предыдущий трек",preview=preview,enabled=s.track!=null&&!s.loading){command("previous")}
@@ -325,13 +325,14 @@ private fun LockButton(icon:ImageVector,label:String,enabled:Boolean=true,active
 }
 
 @Composable
-private fun LockSeek(s:MusicState,preview:Boolean,command:(String)->Unit){
+private fun LockSeek(s: MusicState, preview: Boolean, active: Boolean, command: (String) -> Unit) {
     val duration=s.durationMs.coerceAtLeast(0)
     var drag by remember(s.track?.id){mutableStateOf<Float?>(null)}
     val position=(drag?.toLong()?:s.positionMs).coerceIn(0,duration)
     Column {
         C4Slider(drag?:position.toFloat(),{drag=it},valueRange=0f..duration.coerceAtLeast(1).toFloat(),
             onValueChangeFinished={drag?.let{command("seek:${it.toLong()}")};drag=null},enabled=!preview&&duration>0,
+            playingWave = if (LocalOrbitDesign.current) active && s.playing && !s.loading && drag == null else null,
             modifier=Modifier.fillMaxWidth().height(36.dp).semantics{contentDescription="Позиция трека"})
         Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){
             LockText(timeLabel(position),11,LocalPalette.current.text.copy(alpha=.7f));LockText("−${timeLabel((duration-position).coerceAtLeast(0))}",11,LocalPalette.current.text.copy(alpha=.7f))

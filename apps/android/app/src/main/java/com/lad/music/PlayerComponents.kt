@@ -235,6 +235,7 @@ fun C4Slider(
     steps: Int = 0,
     onValueChangeFinished: (() -> Unit)? = null,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
+    playingWave: Boolean? = null,
 ) {
     val p = LocalPalette.current
     Slider(
@@ -247,10 +248,19 @@ fun C4Slider(
         onValueChangeFinished = onValueChangeFinished,
         interactionSource = interactionSource,
         thumb = {
-            Box(Modifier.size(16.dp).background(if (enabled) p.accent else p.muted, CircleShape))
+            if (playingWave != null) {
+                Box(Modifier.size(4.dp, 16.dp).background(if (enabled) p.text else p.muted, CircleShape))
+            } else {
+                Box(Modifier.size(16.dp).background(if (enabled) p.accent else p.muted, CircleShape))
+            }
         },
         track = { state ->
-            Canvas(Modifier.fillMaxWidth().height(4.dp)) {
+            if (playingWave != null) {
+                val fraction =
+                    ((state.value - valueRange.start) /
+                        (valueRange.endInclusive - valueRange.start)).coerceIn(0f, 1f)
+                OrbitSeekTrack(fraction, playingWave && enabled, enabled)
+            } else Canvas(Modifier.fillMaxWidth().height(4.dp)) {
                 val f =
                     ((state.value - valueRange.start) /
                             (valueRange.endInclusive - valueRange.start))

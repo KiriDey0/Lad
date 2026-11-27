@@ -86,6 +86,7 @@ class MainActivity : Activity() {
     private var miniSubtitle: TextView? = null
     private var miniTitle: TextView? = null
     private var progress: TvProgress? = null
+    private var volumePreview: TvVolume? = null
     private val s: MusicState
         get() = engine.state.value
 
@@ -602,6 +603,7 @@ class MainActivity : Activity() {
         scrolls.clear()
         playerTime = null
         progress = null
+        volumePreview = null
         miniTitle = null
         miniSubtitle = null
         libraryBody = null
@@ -1720,7 +1722,11 @@ class MainActivity : Activity() {
         val pos = seekDraft ?: s.positionMs
         playerTime?.text =
             if (ambient) "${timeLabel(pos)} / ${timeLabel(s.durationMs)}" else timeLabel(pos)
-        progress?.progress = if (s.durationMs > 0) (pos * 10000 / s.durationMs).toInt() else 0
+        progress?.let {
+            it.progress = if (s.durationMs > 0) (pos * 10000 / s.durationMs).toInt() else 0
+            it.playing = s.playing && !s.loading && seekDraft == null
+        }
+        volumePreview?.value = s.volume
         miniSubtitle?.text =
             s.track?.let { "${it.artist} · ${timeLabel(pos)} / ${timeLabel(s.durationMs)}" }
                 ?: "Выбери, с чего начать"
@@ -2309,9 +2315,13 @@ class MainActivity : Activity() {
             }
             "volume" -> {
                 text("Громкость", s.outputName)
+                val meter = TvVolume(this, colour(), scale, font).apply { value = s.volume }
+                volumePreview = meter
+                place(p, meter, 40, y, 784, 64)
+                y += 100
                 choice("vol-down", "Тише −5%") { engine.task { engine.volume(s.volume - .05f) } }
                 choice("vol-up", "Громче +5%") { engine.task { engine.volume(s.volume + .05f) } }
-                choice("vol-mute", if (s.volume > 0) "Выключить звук" else "Включить звук") {
+                choice("vol-mute", "Выключить или включить звук") {
                     engine.task { engine.volume(if (s.volume > 0) 0f else .4f) }
                 }
             }

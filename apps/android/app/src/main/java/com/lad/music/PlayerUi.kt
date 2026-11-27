@@ -55,6 +55,7 @@ fun Progress(s: MusicState, engine: MusicEngine) {
             valueRange = 0f..duration.coerceAtLeast(1).toFloat(),
             enabled = s.track != null && duration > 0,
             interactionSource = interaction,
+            playingWave = if (LocalOrbitDesign.current) s.playing && !s.loading && draft == null else null,
             modifier =
                 Modifier.fillMaxWidth().heightIn(min = 48.dp).semantics {
                     contentDescription = "Позиция трека"
@@ -73,11 +74,20 @@ fun Volume(s: MusicState, engine: MusicEngine) {
     val interaction = remember { MutableInteractionSource() }
     val dragging by interaction.collectIsDraggedAsState()
     LaunchedEffect(dragging) { if (!dragging) draft = null }
+    val finish = {
+        draft?.let { engine.task { engine.volume(it) } }
+        draft = null
+    }
+    val mute = { engine.task { engine.volume(if (s.volume > 0) 0f else .4f) }; Unit }
+    if (LocalOrbitDesign.current) {
+        OrbitVolumeSlider(draft ?: s.volume, { draft = it }, finish, interaction, mute)
+        return
+    }
     Row(verticalAlignment = Alignment.CenterVertically) {
         Tool(
             if (s.volume == 0f) Icons.Outlined.VolumeOff else Icons.Outlined.VolumeUp,
             "Выключить или включить звук",
-            onClick = { engine.task { engine.volume(if (s.volume > 0) 0f else .4f) } },
+            onClick = mute,
         )
         C4Slider(
             draft ?: s.volume,
@@ -85,10 +95,7 @@ fun Volume(s: MusicState, engine: MusicEngine) {
             Modifier.weight(1f).heightIn(min = 48.dp).semantics {
                 contentDescription = "Громкость"
             },
-            onValueChangeFinished = {
-                draft?.let { engine.task { engine.volume(it) } }
-                draft = null
-            },
+            onValueChangeFinished = finish,
             interactionSource = interaction,
         )
         Label(

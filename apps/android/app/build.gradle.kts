@@ -17,7 +17,7 @@ android {
     useLibrary("android.test.mock")
     namespace = "com.lad.music"
     compileSdk = 35
-    defaultConfig { applicationId = "com.lad.music"; minSdk = 26; targetSdk = 35; versionCode = 70000; versionName = "0.7.0"; testInstrumentationRunner = "android.test.InstrumentationTestRunner" }
+    defaultConfig { applicationId = "com.lad.music"; minSdk = 26; targetSdk = 35; versionCode = 70100; versionName = "0.7.1"; testInstrumentationRunner = "android.test.InstrumentationTestRunner" }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
     kotlinOptions { jvmTarget = "17" }
     buildFeatures { compose = true; buildConfig = true }
