@@ -206,8 +206,13 @@ for (const width of [1440, 320])
       ).toBeVisible();
       for (const choice of await dialog
         .locator(".wave-preference-values button")
-        .all())
+        .all()) {
+        await expect(choice).toHaveCSS("min-height", "36px");
         await expect(choice).toHaveCSS("border-radius", "999px");
+        await expect(choice).toHaveCSS("font-size", "13px");
+        await expect(choice).toHaveCSS("padding-inline-start", "14px");
+        await expect(choice.locator(".orbit-button__icon")).toBeHidden();
+      }
       await dialog
         .getByRole("button", { name: "Незнакомое", exact: true })
         .click();

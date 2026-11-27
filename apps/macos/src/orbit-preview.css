@@ -521,13 +521,35 @@ body {
 }
 .lad-orbit .orbit-filter-chips {
   margin-bottom: 28px;
-  flex-wrap: wrap;
+}
+:is(.lad-orbit, .orbit-dialog) :is(.orbit-filter-chips, .filter-tabs, .collection-section-tabs) {
   gap: 8px;
 }
-.lad-orbit .orbit-filter-chips .orbit-button {
-  font-size: 12px;
+:is(.lad-orbit, .orbit-dialog) :is(.orbit-filter-chips, .filter-tabs, .collection-section-tabs) > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: auto;
+  min-height: 36px;
+  padding: 6px 14px;
+  border: 1px solid var(--orbit-rim);
+  border-radius: 999px;
+  background: var(--orbit-raised);
+  color: var(--orbit-text);
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 20px;
+  text-align: center;
 }
-.lad-orbit .lad-search + .orbit-filter-chips > .orbit-button > .orbit-button__icon {
+:is(.lad-orbit, .orbit-dialog) :is(.orbit-filter-chips, .filter-tabs, .collection-section-tabs) > button:hover {
+  background: var(--orbit-elevated);
+}
+:is(.lad-orbit, .orbit-dialog) :is(.orbit-filter-chips, .filter-tabs, .collection-section-tabs) > button:is(.active, [aria-pressed="true"]) {
+  border-color: transparent;
+  background: var(--orbit-tonal);
+  color: var(--orbit-on-tonal);
+}
+.orbit-filter-chips > .orbit-button > .orbit-button__icon {
   display: none;
 }
 .lad-orbit .orbit-search input {
@@ -1382,15 +1404,6 @@ body {
 .lad-orbit .lad-button {
   gap: 8px;
 }
-.lad-orbit .orbit-filter-chips {
-  gap: 8px;
-}
-.lad-orbit .orbit-filter-chips .orbit-button {
-  min-height: 36px;
-  padding-inline: 14px;
-  font-size: 13px;
-  gap: 8px;
-}
 .lad-orbit .main-header > div {
   gap: 4px;
 }
@@ -1966,9 +1979,6 @@ body {
   left: 24px;
   top: 9px;
 }
-.lad-orbit .collection-browser .filter-tabs > button {
-  border-radius: 999px;
-}
 .lad-orbit .lyric-line {
   color: color-mix(in srgb, var(--orbit-text) 52%, var(--orbit-canvas));
   opacity: 1;
@@ -2204,18 +2214,6 @@ body {
 }
 
 /* Choice controls across dialogs and secondary menus use the same capsule shape. */
-.orbit-dialog .wave-preference-values .orbit-filter-chips {
-  flex-wrap: wrap;
-  gap: 8px;
-}
-.orbit-dialog .wave-preference-values button {
-  min-height: 40px;
-  padding: 8px 14px;
-  border-radius: 999px;
-  font-size: 13px;
-}
-.lad-orbit .filter-tabs > button,
-.lad-orbit .collection-section-tabs > button,
 .lad-orbit .icon-text-button,
 .track-context-menu > button {
   border-radius: 999px;
