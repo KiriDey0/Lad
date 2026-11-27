@@ -123,6 +123,8 @@ fun PlayerMetadata(
     }
 }
 
+internal val OrbitMiniPlayerHeight = 58.dp
+
 /** Three real queue occurrences, frozen during a drag and its playback commit. */
 @Composable
 fun CoverCarousel(
@@ -202,7 +204,7 @@ fun CoverCarousel(
             }
             HorizontalPager(
                 state = pager,
-                modifier = Modifier.width(viewport).height(if (compact) 58.dp else edge),
+                modifier = Modifier.width(viewport).height(if (compact) OrbitMiniPlayerHeight else edge),
                 contentPadding = PaddingValues(horizontal = inset),
                 pageSpacing = if (compact) 6.dp else 12.dp,
                 pageSize = PageSize.Fixed(edge),

@@ -304,6 +304,9 @@ fun CardRow(cards: List<Card>, open: (Card) -> Unit, menu: (Card) -> Unit) {
 
 private val OrbitNavPadding = 5.dp
 private val OrbitNavTabHeight = 54.dp
+private val OrbitNavHeight = OrbitNavTabHeight + OrbitNavPadding * 2
+private val OrbitDockGap = 6.dp
+private val DockBottomPadding = 12.dp
 
 @Composable
 fun NavBar(selected: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier) {
@@ -428,6 +431,29 @@ private fun OrbitNavBar(selected: Int, onSelect: (Int) -> Unit, modifier: Modifi
             }
         }
     }
+}
+
+@Composable
+private fun OrbitDockBackdrop(hasTrack: Boolean, modifier: Modifier = Modifier) {
+    val tone = LocalPalette.current.bg
+    val safeArea = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val halfPlayer = if (hasTrack) OrbitMiniPlayerHeight / 2 else 0.dp
+    val solidHeight = safeArea + DockBottomPadding + OrbitNavHeight +
+        (if (hasTrack) OrbitDockGap + halfPlayer else 0.dp)
+    val fadeHeight = 28.dp + halfPlayer
+    Box(
+        modifier.fillMaxWidth()
+            .height(solidHeight + fadeHeight)
+            .drawWithCache {
+                val solidAt = (fadeHeight.toPx() / size.height).coerceIn(0f, 1f)
+                val gradient = Brush.verticalGradient(
+                    0f to tone.copy(alpha = 0f),
+                    solidAt to tone,
+                    1f to tone,
+                )
+                onDrawBehind { drawRect(gradient) }
+            },
+    )
 }
 
 @Composable
@@ -1220,7 +1246,7 @@ fun LadApp(engine: MusicEngine, restartInterface: () -> Unit) {
                         if (ime) 16.dp
                         else if (landscape) if (s.track != null) 98.dp else 16.dp
                         else
-                            (if (orbit) OrbitNavTabHeight + OrbitNavPadding * 2 else 60.dp) +
+                            (if (orbit) OrbitNavHeight else 60.dp) +
                                 (if (s.track != null) 84.dp else 0.dp) +
                                 28.dp +
                                 WindowInsets.navigationBars
@@ -1690,6 +1716,9 @@ fun LadApp(engine: MusicEngine, restartInterface: () -> Unit) {
                                 }
                             }
                         }
+                        // The glass samples the darkened page beneath the controls.
+                        if (orbit && !ime && !landscape)
+                            OrbitDockBackdrop(s.track != null, Modifier.align(Alignment.BottomCenter))
                     }
                     if (!ime) {
                         if (landscape)
@@ -1725,9 +1754,9 @@ fun LadApp(engine: MusicEngine, restartInterface: () -> Unit) {
                                 .padding(
                                     start = if (landscape) 92.dp else 16.dp,
                                     end = 16.dp,
-                                    bottom = 12.dp,
+                                    bottom = DockBottomPadding,
                                 ),
-                            verticalArrangement = Arrangement.spacedBy(if (s.settings.classicDesign) 16.dp else 6.dp),
+                            verticalArrangement = Arrangement.spacedBy(if (orbit) OrbitDockGap else 16.dp),
                         ) {
                             if (s.settings.classicDesign)
                                 MiniPlayer(s, engine, { showOverlay("now") }, { trackMenu = it })
