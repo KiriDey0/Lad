@@ -1032,14 +1032,22 @@ for (const size of [
       await page
         .getByRole("searchbox", { name: "Поиск музыки", exact: true })
         .fill("Тихий");
-      const chip = page
-        .getByRole("group", { name: "Тип поиска", exact: true })
-        .locator('button[aria-pressed="true"]');
-      expect(
-        await chip
-          .locator(".orbit-button__icon")
-          .evaluate((el) => getComputedStyle(el).padding),
-      ).toBe("0px");
+      const filters = page.getByRole("group", {
+        name: "Тип поиска",
+        exact: true,
+      });
+      const all = filters.getByRole("button", { name: "Всё", exact: true });
+      const albums = filters.getByRole("button", {
+        name: "Альбомы",
+        exact: true,
+      });
+      await expect(all).toHaveAttribute("aria-pressed", "true");
+      await expect(all.locator(".orbit-button__icon")).toBeHidden();
+      await albums.click();
+      await expect(albums).toHaveAttribute("aria-pressed", "true");
+      await expect(albums).toHaveAttribute("data-variant", "tonal");
+      await expect(albums.locator(".orbit-button__icon")).toBeHidden();
+      await expect(all).toHaveAttribute("aria-pressed", "false");
       await nav("Для тебя");
       if (size.width < 760) await page.locator(".mobile-queue-button").click();
       else if (!(await page.locator(".queue-panel").count()))
