@@ -1,8 +1,8 @@
 {
-  "name": "lad-orbit-preview",
-  "version": "0.6.4",
+  "name": "lad-music",
+  "version": "0.7.0",
   "private": true,
-  "description": "Лад Orbit — тестовая сборка с Orbit UI 0.2.0",
+  "description": "Клиент Яндекс Музыки для Яндекс Станции",
   "main": "electron/main.cjs",
   "author": "Lad",
   "scripts": {
@@ -38,8 +38,8 @@
     "vite": "^6.4.1"
   },
   "build": {
-    "appId": "com.lad.music.orbit-preview",
-    "productName": "Лад Orbit",
+    "appId": "com.lad.music",
+    "productName": "Лад",
     "directories": {
       "output": "release"
     },
